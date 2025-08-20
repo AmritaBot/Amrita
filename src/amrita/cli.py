@@ -1,7 +1,7 @@
 import os
 import subprocess
 import sys
-from importlib import import_module, metadata
+from importlib import metadata
 from pathlib import Path
 
 import click
@@ -47,7 +47,7 @@ class PyprojectFile(BaseModel):
 def check_optional_dependency():
     """检测amrita[full]可选依赖是否已安装"""
     try:
-        subprocess.check_output(["uv","pip", "show", "jieba"])
+        subprocess.check_output(["uv", "pip", "show", "jieba"])
         return True
     except subprocess.CalledProcessError:
         return False
@@ -116,7 +116,7 @@ def check_dependencies():
         click.echo(success("Dependencies checked successfully!"))
     else:
         click.echo(error("Dependencies has problems"))
-        fix:bool = click.confirm(question("Do you want to fix it?"))
+        fix: bool = click.confirm(question("Do you want to fix it?"))
         if fix:
             install_optional_dependency()
 
@@ -159,8 +159,10 @@ def create(project_name_arg, this_dir):
 
 
 @cli.command()
-@click.option("--run","-r",is_flag=True,help="Run the project without installing dependencies.")
-def run(run:bool):
+@click.option(
+    "--run", "-r", is_flag=True, help="Run the project without installing dependencies."
+)
+def run(run: bool):
     """Run the project."""
     if run:
         try:
@@ -184,7 +186,7 @@ def run(run:bool):
             click.echo(error("Failed to install optional dependency 'full'"))
             return
     click.echo(info("Starting project"))
-    subprocess.run(["uv","run","amrita","run","--run"])
+    subprocess.run(["uv", "run", "amrita", "run", "--run"])
 
 
 @cli.command()

@@ -131,11 +131,13 @@ def run():
         nonebot.load_plugin(f"amrita.plugins.{name.name}")
     nonebot.logger.info("Loading plugins......")
     from amrita.cli import PyprojectFile
+
     config = PyprojectFile.model_validate(toml.load("pyproject.toml"))
     for plugin in config.tool.amrita.plugins:
         nonebot.logger.info(f"Loading plugin {plugin}...")
         nonebot.load_plugin(plugin)
     nonebot.run()
+
 
 if __name__ == "__main__":
     __name__ = "Amrita"

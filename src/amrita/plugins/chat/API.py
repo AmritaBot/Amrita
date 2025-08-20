@@ -1,9 +1,4 @@
-import warnings
-
 from nonebot import logger
-from openai.types.chat.chat_completion_tool_choice_option_param import (
-    ChatCompletionToolChoiceOptionParam,
-)
 
 from .chatmanager import chat_manager
 from .config import Config, ConfigManager, config_manager
@@ -26,11 +21,8 @@ from .utils.llm_tools.models import (
 )
 from .utils.memory import get_memory_data
 from .utils.models import InsightsModel
+from .utils.protocol import ToolChoice
 from .utils.tokenizer import Tokenizer, hybrid_token_count
-
-
-class UnsupportedOperationWarning(Warning):
-    pass
 
 
 class Menu:
@@ -126,19 +118,7 @@ class Admin:
         return self._save_config_to_toml()
 
     def set_admin_group(self, group_id: int) -> "Admin":
-        """
-        设置管理员组ID。
-
-        参数:
-        - group_id (int): 管理员组ID。
-
-        返回:
-        - Admin: 返回Admin实例，支持链式调用。
-        """
-        warnings.warn(
-            "set_admin_group() is unsupported in Amrita",
-            UnsupportedOperationWarning,
-        )
+        """在Amrita不适用。"""
         return self
 
     def _save_config_to_toml(self):
@@ -184,7 +164,7 @@ class Chat:
         self,
         messages: list,
         tools: list,
-        tool_choice: ChatCompletionToolChoiceOptionParam | None = None,
+        tool_choice: ToolChoice | None = None,
     ):
         """
         调用工具

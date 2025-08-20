@@ -23,4 +23,6 @@ async def send_forward_msg_to_admin(
         return {"type": "node", "data": {"name": name, "uin": uin, "content": msg}}
 
     messages = [to_json(msg) for msg in msgs]
-    await bot.send_group_forward_msg(group_id=get_plugin_config(Config).amrita_admin_group, messages=messages)
+    await bot.send_group_forward_msg(
+        group_id=get_plugin_config(Config).amrita_admin_group, messages=messages
+    )

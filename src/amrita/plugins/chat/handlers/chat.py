@@ -24,8 +24,6 @@ from nonebot.exception import NoneBotException
 from nonebot.matcher import Matcher
 from typing_extensions import override
 
-from amrita.plugins.chat.utils.protocol import UniResponse, UniResponseUsage
-
 from ..chatmanager import SessionTemp, chat_manager
 from ..config import config_manager
 from ..event import BeforeChatEvent, ChatEvent
@@ -50,6 +48,7 @@ from ..utils.memory import (
     get_memory_data,
 )
 from ..utils.models import InsightsModel
+from ..utils.protocol import UniResponse, UniResponseUsage
 from ..utils.tokenizer import hybrid_token_count
 
 command_prefix = get_driver().config.command_start or "/"
@@ -74,24 +73,21 @@ async def get_tokens(
         and response.usage.completion_tokens is not None
         and response.usage.prompt_tokens is not None
     ):
-        tokens = response.usage
-    else:
-        full_string = ""
-        for st in memory_l:
-            if isinstance(st["content"], str):
-                full_string += st["content"]
-            else:
-                temp_string = ""
-                for s in st["content"]:
-                    if s["type"] == "text":
-                        temp_string += s["text"]
-                full_string += temp_string
-        it = hybrid_token_count(full_string)
-        ot = hybrid_token_count(response.content)
-        tokens = UniResponseUsage(
-            prompt_tokens=it, total_tokens=it + ot, completion_tokens=ot
-        )
-    return tokens
+        return response.usage
+    full_string = ""
+    for st in memory_l:
+        if isinstance(st["content"], str):
+            full_string += st["content"]
+        else:
+            temp_string = "".join(
+                s["text"] for s in st["content"] if s["type"] == "text"
+            )
+            full_string += temp_string
+    it = hybrid_token_count(full_string)
+    ot = hybrid_token_count(response.content)
+    return UniResponseUsage(
+        prompt_tokens=it, total_tokens=it + ot, completion_tokens=ot
+    )
 
 
 async def enforce_token_limit(
@@ -122,16 +118,17 @@ async def enforce_token_limit(
             logger.opt(exception=e, colors=True).exception(str(e))
 
             break
-        full_string = "".join(
-            st["content"]
-            if isinstance(st["content"], str)
-            else "".join(
-                s.get("text")
-                for s in st["content"]
-                if s["type"] == "text" and s.get("text") is not None
-            )
-            for st in memory_l
-        )
+        string_parts = []
+        for st in memory_l:
+            if isinstance(st["content"], str):
+                string_parts.append(st["content"])
+            else:
+                string_parts.extend(
+                    s.get("text")
+                    for s in st["content"]
+                    if s["type"] == "text" and s.get("text") is not None
+                )
+        full_string = "".join(string_parts)
         tk_tmp = hybrid_token_count(
             full_string, config_manager.config.llm_config.tokens_count_mode
         )

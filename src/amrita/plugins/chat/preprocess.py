@@ -22,7 +22,7 @@ async def hook():
 
 @driver.on_startup
 async def onEnable():
-    kernel_version = "3.4.4.3"
+    kernel_version = "3.4.5"
     config.__kernel_version__ = kernel_version
     logger.info(__LOGO.format(version=kernel_version))
     logger.debug("加载配置文件...")
