@@ -124,7 +124,7 @@ class AsyncErrorHandler:
 nonebot.logger.add(AsyncErrorHandler(), level="ERROR")
 
 
-def run():
+def run(*args, **kwargs):
     nonebot.logger.info("Loading built-in plugins...")
     for name in (Path(__file__).parent / "plugins").iterdir():
         nonebot.logger.info(f"Loading plugin {name.name}...")
@@ -136,7 +136,7 @@ def run():
     for plugin in config.tool.amrita.plugins:
         nonebot.logger.info(f"Loading plugin {plugin}...")
         nonebot.load_plugin(plugin)
-    nonebot.run()
+    nonebot.run(*args, **kwargs)
 
 
 if __name__ == "__main__":
