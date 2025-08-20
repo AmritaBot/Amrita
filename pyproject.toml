@@ -1,0 +1,90 @@
+[project]
+name = "amrita"
+version = "0.1.0"
+description = "A bot powered by NoneBot2"
+readme = "README.md"
+license = { text = "GPL-3.0-or-later" }
+requires-python = ">=3.10, <4.0"
+dependencies = [
+    "click>=8.2.1",
+    "colorama>=0.4.6",
+    "toml>=0.10.2",
+    "pip>=25.2",
+    "nb-cli>=1.0.0",
+    "nonebot-plugin-localstore>=0.7.4",
+    "typing-extensions>=4.6.0",
+    "uv>=0.8.12",
+    "importlib>=1.0.4",
+]
+
+[project.optional-dependencies]
+full = [
+    "pytz>=2025.1",
+    "tomli>=2.0.0",
+    "tomli-w>=1.0.0",
+    "stubs>=1.0.0",
+    "dotenv>=0.9.9",
+    "aiofiles>=24.1.0",
+    "importlib>=1.0.4",
+    "watchfiles>=0.16",
+    "openai>=1.66.3, <=1.99.0",
+    "pydantic>=2.4.2",
+    "jieba>=0.42.1",
+    "nonebot-plugin-orm>=0.8.2",
+    "nonebot-adapter-onebot>=2.4.6",
+    "nonebot2[fastapi]>=2.4.3",
+]
+
+[project.scripts]
+amrita = "amrita.cli:main"
+
+[project.urls]
+"Homepage" = "https://github.com/LiteSuggarDEV/Amrita"
+"Source" = "https://github.com/LiteSuggarDEV/Amrita"
+"Issue Tracker" = "https://github.com/LiteSuggarDEV/Amrita/issues"
+
+[tool.uv]
+dev-dependencies = [
+    "ruff>=0.12.8",
+    "nonebot-plugin-orm[default]>=0.8.2",
+    "pytest>=8.4.1",
+    "amrita[full]"
+]
+package = true
+
+[tool.uv.sources]
+amrita = { workspace = true }
+
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+
+[tool.ruff.lint]
+select = [
+    "F",     # Pyflakes
+    "W",     # pycodestyle warnings
+    "E",     # pycodestyle errors
+    "UP",    # pyupgrade
+    "ASYNC", # flake8-async
+    "C4",    # flake8-comprehensions
+    "T10",   # flake8-debugger
+    "PYI",   # flake8-pyi
+    "PT",    # flake8-pytest-style
+    "Q",     # flake8-quotes
+    "RUF",   # Ruff-specific rules
+    "I",     # isort
+    "PERF",  # pylint-performance
+]
+ignore = [
+    "E402",   # module-import-not-at-top-of-file
+    "E501",   # line-too-long
+    "UP037",  # quoted-annotation
+    "RUF001", # ambiguous-unicode-character-string
+    "RUF002", # ambiguous-unicode-character-docstring
+    "RUF003", # ambiguous-unicode-character-comment
+]
+
+[tool.pyright]
+typeCheckingMode = "standard"
+
+[tool.nonebot]
