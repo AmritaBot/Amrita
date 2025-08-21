@@ -17,5 +17,5 @@ __all__ = [
     "nonebot",
     "plugin",
     "run",
-    "send_forward_msg_to_admin"
+    "send_forward_msg_to_admin",
 ]
