@@ -3,7 +3,8 @@ DRIVER=~fastapi
 PORT=8080
 HOST=127.0.0.1
 LOCALSTORE_USE_CWD=true
-DATABASE_URL=aiosqlite:///db.sqlite3"""
+DATABASE_URL=aiosqlite:///db.sqlite3
+LOG_DIR=logs"""
 DOTENV_DEV = """LOG_LEVEL=DEBUG"""
 DOTENV_PROD = """"""
 GITIGNORE = """# Created by https://www.toptal.com/developers/gitignore/api/python

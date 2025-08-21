@@ -16,7 +16,7 @@ from nonebot import get_driver, logger
 from pydantic import BaseModel
 from watchfiles import awatch
 
-from amrita.utils.config import get_amrita_config
+from amrita.config import get_amrita_config
 
 __kernel_version__ = "unknow"
 
@@ -220,7 +220,7 @@ class AdminConfig(BaseModel):
 
     @property
     def admin_group(self) -> int:
-        return get_amrita_config().amrita_admin_group
+        return get_amrita_config().admin_group
 
 
 class UsageLimitConfig(BaseModel):

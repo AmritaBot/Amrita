@@ -75,7 +75,7 @@ def check_dependencies():
 
     # 检查uv是否可用
     try:
-        stdout_run_proc(["uv","--version"])
+        stdout_run_proc(["uv", "--version"])
     except (subprocess.CalledProcessError, FileNotFoundError):
         click.echo(error("uv is not available. Please install uv first."))
         return False
@@ -141,8 +141,8 @@ def create(project_name, description, python_version, this_dir):
     if not (project_dir / ".env.prod").exists():
         with open(project_dir / ".env.prod", "w"):
             f.write(DOTENV_PROD)
-    if not (project_dir/".env.dev").exists():
-        with open(project_dir/".env.dev", "w"):
+    if not (project_dir / ".env.dev").exists():
+        with open(project_dir / ".env.dev", "w"):
             f.write(DOTENV_DEV)
     with open(project_dir / ".gitignore", "w") as f:
         f.write(GITIGNORE)
@@ -162,6 +162,17 @@ def create(project_name, description, python_version, this_dir):
 
 
 @cli.command()
+def entry():
+    """Generate a bot.py on current directory."""
+    click.echo(info("Generating bot.py..."))
+    if os.path.exists("bot.py"):
+        click.echo(error("bot.py already exists."))
+        return
+    with open("bot.py", "w") as f:
+        f.write(open(str(Path(__file__).parent.parent / "bot.py")).read())
+
+
+@cli.command()
 @click.option(
     "--run", "-r", is_flag=True, help="Run the project without installing dependencies."
 )
@@ -171,7 +182,7 @@ def run(run: bool):
         try:
             from amrita import bot
 
-            bot.run()
+            bot.main()
         except ImportError as e:
             click.echo(error(f"Missing dependency: {e}"))
             return
