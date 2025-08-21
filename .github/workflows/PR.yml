@@ -1,0 +1,46 @@
+name: Pull Requests CI/CD Pipeline
+
+on:
+  pull_request:
+     branches:
+      - "**"
+     paths:
+      - "**"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Set up Python
+        run: uv python install
+
+      - name: Set up environment
+        run: |
+          uv venv
+          uv sync
+
+      - name: Get Python path
+        run: |
+          PYTHON_BIN="$(uv run python -c 'import sys; print(sys.executable)')"
+          echo "PYTHON_BIN=$PYTHON_BIN" >> $GITHUB_ENV
+
+      - name: Run Pyright
+        uses: jakebailey/pyright-action@v2
+        with:
+          python-path: ${{ env.PYTHON_BIN }}
+          pylance-version: latest-release
+
+      - name: Check code format
+        uses: astral-sh/ruff-action@v3
+        with:
+          args: check . --exit-non-zero-on-fix
+
+      - name: Build package
+        run: uv build # 生成构建产物到dist目录
