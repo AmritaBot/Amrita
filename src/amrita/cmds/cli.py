@@ -139,16 +139,17 @@ def create(project_name, description, python_version, this_dir):
         with open(project_dir / ".env", "w") as f:
             f.write(DOTENV)
     if not (project_dir / ".env.prod").exists():
-        with open(project_dir / ".env.prod", "w"):
+        with open(project_dir / ".env.prod", "w") as f:
             f.write(DOTENV_PROD)
     if not (project_dir / ".env.dev").exists():
-        with open(project_dir / ".env.dev", "w"):
+        with open(project_dir / ".env.dev", "w") as f:
             f.write(DOTENV_DEV)
     with open(project_dir / ".gitignore", "w") as f:
         f.write(GITIGNORE)
     with open(project_dir / "README.md", "w") as f:
         f.write(README.format(project_name=project_name))
-
+    with open(cwd / ".python-version", "w") as f:
+        f.write("3.10\n")
     # 安装依赖
     click.echo(info("Installing dependencies..."))
     if not install_optional_dependency():
@@ -240,13 +241,23 @@ def init(description):
             description=description or "",
         )
     ).model_dump()
-
+    if not (cwd / ".env").exists():
+        with open(cwd / ".env", "w") as f:
+            f.write(DOTENV)
+    if not (cwd / ".env.prod").exists():
+        with open(cwd / ".env.prod", "w") as f:
+            f.write(DOTENV_PROD)
+    if not (cwd / ".env.dev").exists():
+        with open(cwd / ".env.dev", "w") as f:
+            f.write(DOTENV_DEV)
     with open(cwd / "pyproject.toml", "w") as f:
         f.write(toml.dumps(data))
     with open(cwd / ".gitignore", "w") as f:
         f.write(GITIGNORE)
     with open(cwd / "README.md", "w") as f:
         f.write(README.format(project_name=project_name))
+    with open(cwd / ".python-version", "w") as f:
+        f.write("3.10\n")
 
     # 安装依赖
     click.echo(info("Installing dependencies..."))
