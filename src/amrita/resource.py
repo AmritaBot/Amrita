@@ -1,7 +1,11 @@
 DOTENV = """ENVIRONMENT=dev
 DRIVER=~fastapi
+PORT=8080
+HOST=127.0.0.1
+LOCALSTORE_USE_CWD=true
 DATABASE_URL=aiosqlite:///db.sqlite3"""
-
+DOTENV_DEV = """LOG_LEVEL=DEBUG"""
+DOTENV_PROD = """"""
 GITIGNORE = """# Created by https://www.toptal.com/developers/gitignore/api/python
 # Edit at https://www.toptal.com/developers/gitignore?templates=python
 

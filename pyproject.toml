@@ -88,3 +88,4 @@ ignore = [
 typeCheckingMode = "standard"
 
 [tool.nonebot]
+plugins = ["nonebot_plugin_localstore"]

@@ -1,4 +1,6 @@
-from .cli import main
-from .cmds import plugin
+import nonebot
 
-__all__ = ["main", "plugin"]
+from .cli import main
+from .cmds import cli, plugin
+
+__all__ = ["cli", "main", "nonebot", "plugin"]

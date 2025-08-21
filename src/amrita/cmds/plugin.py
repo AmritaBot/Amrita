@@ -1,21 +1,19 @@
 import os
-import subprocess
-import sys
 from pathlib import Path
 
 import click
 
 from amrita.cli import (
-    _cleanup_subprocesses,
-    _subprocesses,
     error,
     info,
-    nb,
     plugin,
     question,
+    stdout_run_proc,
     success,
     warn,
 )
+
+from .cli import nb
 
 
 @plugin.command()
@@ -105,30 +103,10 @@ def list_plugins():
     cwd = Path(os.getcwd())
     plugins_dir = cwd / "plugins"
     plugins = []
-    proc = subprocess.Popen(
-        ["uv", "run", "pip", "freeze"],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    )
-    stdout, _ = proc.communicate()
-    _subprocesses.append(proc)
-    try:
-        return_code = proc.wait()
-        if return_code != 0:
-            raise subprocess.CalledProcessError(
-                return_code, ["uv", "run", "pip", "freeze"]
-            )
-    except KeyboardInterrupt:
-        _cleanup_subprocesses()
-        sys.exit(0)
-    finally:
-        if proc in _subprocesses:
-            _subprocesses.remove(proc)
+    stdout = stdout_run_proc(["uv", "run", "pip", "freeze"])
     freeze_str = [
         "(Package) " + (i.split("=="))[0]
-        for i in (
-            stdout.decode("utf-8" if "linux" in sys.platform.lower() else "gbk")
-        ).split("\n")
+        for i in (stdout).split("\n")
         if i.startswith("nonebot-plugin") or i.startswith("amrita-plugin")
     ]
     plugins.extend(freeze_str)

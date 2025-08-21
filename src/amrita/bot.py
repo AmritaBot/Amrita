@@ -7,21 +7,11 @@ from typing import TYPE_CHECKING
 
 import nonebot
 import toml
-from dotenv import dotenv_values, load_dotenv
+from dotenv import load_dotenv
 from nonebot import get_driver
 from nonebot.adapters.onebot.v11 import Adapter as ONEBOT_V11Adapter
 from nonebot.adapters.onebot.v11 import Bot, MessageSegment
 from nonebot.log import default_format, logger_id
-
-if not Path(".env").exists():
-    with open(".env", "w") as f:
-        f.write("".join(f"{k}={v}\n" for k, v in dotenv_values(".env.example").items()))
-if not Path(".env.prod").exists():
-    with open(".env.prod", "a") as f:
-        f.write("LOG_LEVEL=INFO")
-if not Path(".env.dev").exists():
-    with open(".env.dev", "a") as f:
-        f.write("LOG_LEVEL=DEBUG")
 
 Path("plugins").mkdir(exist_ok=True)
 
@@ -130,7 +120,7 @@ def run(*args, **kwargs):
         nonebot.logger.info(f"Loading plugin {name.name}...")
         nonebot.load_plugin(f"amrita.plugins.{name.name}")
     nonebot.logger.info("Loading plugins......")
-    from amrita.cli import PyprojectFile
+    from .cmds.cli import PyprojectFile
 
     config = PyprojectFile.model_validate(toml.load("pyproject.toml"))
     for plugin in config.tool.amrita.plugins:

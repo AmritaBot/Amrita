@@ -64,10 +64,10 @@ Amrita 内置了 SuggarChat 插件，基于 SuggarChat 的 LLM 模型，提供�
 Amrita 使用`uv`进行依赖管理，提供两种安装模式：
 
 ```bash
-# 基础安装
+# 基础安装(包含CLI)
 pip install amrita
 
-# 完整安装（推荐）
+# 完整安装（包含完整的运行依赖）
 pip install amrita[full]
 ```
 
@@ -94,9 +94,10 @@ Amrita 采用插件化架构，支持：
 
 ## 📚 文档和资源
 
-- [官方文档](https://docs.suggar.top/project/suggarchat/)
+- [官方文档](https://amrita.suggar.top)
 - [GitHub 仓库](https://github.com/LiteSuggarDEV/Amrita)
 - [问题反馈](https://github.com/LiteSuggarDEV/Amrita/issues)
+- [Chat功能文档](https://docs.suggar.top/project/suggarchat/)
 
 ## 🤝 贡献
 
