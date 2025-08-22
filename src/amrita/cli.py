@@ -1,6 +1,7 @@
 import signal
 import subprocess
 import sys
+from typing import Literal, overload
 
 import click
 import colorama
@@ -16,7 +17,7 @@ def run_proc(cmd: list[str], stdin=None, stdout=sys.stdout, **kwargs):
     proc = subprocess.Popen(
         cmd,
         stdout=stdout,
-        stderr=subprocess.PIPE,
+        stderr=sys.stderr,
         stdin=stdin,
         **kwargs,
     )
@@ -80,26 +81,42 @@ def _signal_handler(signum, frame):
 signal.signal(signal.SIGTERM, _signal_handler)
 signal.signal(signal.SIGINT, _signal_handler)
 
+@overload
+def check_optional_dependency(
+    is_self: Literal[True], with_details: Literal[True]
+) -> tuple[bool, list[str]]: ...
 
-def check_optional_dependency(is_self: bool = False) -> bool:
+
+@overload
+def check_optional_dependency(is_self: bool = False) -> bool: ...
+
+
+def check_optional_dependency(
+    is_self: bool = False, with_details: bool = False
+) -> bool | tuple[bool, list[str]]:
     """检测amrita[full]可选依赖是否已安装"""
     if not is_self:
         try:
-            run_proc(["uv", "run", "amrita", "check_dependencies", "--self"])
+            run_proc(
+                ["uv", "run", "amrita", "check-dependencies", "--self"],
+                stdout=subprocess.PIPE,
+            )
             return True
         except subprocess.CalledProcessError:
             return False
     else:
-        status, missd = self_check_optional_dependency()
+        status, missed = self_check_optional_dependency()
         if not status:
             click.echo(
                 error(
                     "Some optional dependencies are missing. Please install them first."
                 )
             )
-            for pkg in missd:
+            for pkg in missed:
                 click.echo(f"- {pkg} was required, but it was not found.")
             click.echo(info("You can install them by running:\n  uv add amrita[full]"))
+        if with_details:
+            return status, missed
         return status
 
 
