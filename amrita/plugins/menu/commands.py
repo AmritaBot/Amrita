@@ -7,6 +7,7 @@ from nonebot.adapters.onebot.v11 import (
 )
 from nonebot.matcher import Matcher
 
+from amrita.config import get_amrita_config
 from amrita.utils.send import send_forward_msg
 
 from .manager import menu_mamager
@@ -29,6 +30,7 @@ command_start = get_driver().config.command_start
         description="展示菜单",
         usage="menu",
     ).model_dump(),
+    rule=lambda: not get_amrita_config().disable_builtin_menu,
 ).handle()
 async def show_menu(matcher: Matcher, bot: Bot, event: MessageEvent):
     """显示菜单"""

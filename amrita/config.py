@@ -14,6 +14,7 @@ class AmritaConfig(BaseModel):
     public_group: int = 0  # Bot对外展示公开群
     bot_name: str = "Amrita"
     rate_limit: int = 5  # Bot请求速率限制(间隔秒)
+    disable_builtin_menu: bool = False
 
 
 def get_amrita_config() -> AmritaConfig:

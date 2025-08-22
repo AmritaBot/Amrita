@@ -1,6 +1,7 @@
 from nonebot.plugin import PluginMetadata, require
 
 require("nonebot_plugin_localstore")
+require("amrita.plugins.menu")
 from . import command_manager, config, on_init
 
 # ,hooks

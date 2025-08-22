@@ -93,4 +93,4 @@ ignore = [
 typeCheckingMode = "standard"
 
 [tool.nonebot]
-plugins=["nonebot_plugin_orm", "nonebot_plugin_suggarchat"]
+plugins=["nonebot_plugin_orm"]
