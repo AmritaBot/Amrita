@@ -1,9 +1,9 @@
 [project]
 name = "amrita"
-version = "0.1.3"
+version = "0.1.4"
 description = "A bot powered by NoneBot2"
 readme = "README.md"
-license = { text = "GPL-3.0-or-later" }
+license = "GPL-3.0-or-later"
 requires-python = ">=3.10, <4.0"
 dependencies = [
     "click>=8.2.1",
@@ -44,6 +44,9 @@ amrita = "amrita.cli:main"
 "Homepage" = "https://github.com/LiteSuggarDEV/Amrita"
 "Source" = "https://github.com/LiteSuggarDEV/Amrita"
 "Issue Tracker" = "https://github.com/LiteSuggarDEV/Amrita/issues"
+
+[tool.setuptools.packages.find]
+include = ["amrita", "amrita.*"]
 
 [tool.uv]
 dev-dependencies = [

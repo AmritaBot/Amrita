@@ -3,6 +3,7 @@ import os
 import subprocess
 import sys
 from pathlib import Path
+from typing import Any
 
 import click
 import toml
@@ -42,7 +43,13 @@ class NonebotTool(BaseModel):
         "nonebot_plugin_orm",
         "amrita.plugins.chat",
         "amrita.plugins.manager",
+        "amrita.plugins.menu",
+        "amrita.plugins.perm",
     ]
+    adapters: list[dict[str, Any]] = [
+        {"name": "OneBot V11", "module_name": "nonebot.adapters.onebot.v11"},
+    ]
+    plugin_dirs:list[str] = []
 
 
 class Tool(BaseModel):
@@ -192,6 +199,9 @@ def run(run: bool):
     """Run the project."""
     if run:
         try:
+            # 添加当前目录到sys.path以确保插件能被正确导入
+            if "." not in sys.path:
+                sys.path.insert(0, ".")
             from amrita import bot
 
             bot.main()

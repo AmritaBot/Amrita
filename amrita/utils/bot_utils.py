@@ -81,9 +81,6 @@ def init():
 
     driver = nonebot.get_driver()
     driver.register_adapter(ONEBOT_V11Adapter)
-
-    nonebot.load_from_toml("pyproject.toml")
-
     load_dotenv()
     config = get_amrita_config()
     log_dir = config.log_dir
