@@ -6,7 +6,7 @@ from nonebot.adapters.onebot.v11 import (
     RequestEvent,
 )
 
-from amrita import send_to_admin
+from amrita.utils.admin import send_to_admin
 
 from .blacklist.black import BL_Manager
 

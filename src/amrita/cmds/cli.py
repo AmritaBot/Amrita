@@ -1,6 +1,7 @@
 import importlib.metadata as metadata
 import os
 import subprocess
+import sys
 from pathlib import Path
 
 import click
@@ -72,7 +73,8 @@ def version():
 
 
 @cli.command()
-def check_dependencies():
+@click.option("--self", "-s", help="Check directly in this environment", is_flag=True)
+def check_dependencies(self):
     """Check dependencies."""
     click.echo(info("Checking dependencies..."))
 
@@ -81,18 +83,17 @@ def check_dependencies():
         stdout_run_proc(["uv", "--version"])
     except (subprocess.CalledProcessError, FileNotFoundError):
         click.echo(error("uv is not available. Please install uv first."))
-        return False
 
     # 检查amrita[full]依赖
-    if check_optional_dependency():
+    if check_optional_dependency(self):
         click.echo(success("Dependencies checked successfully!"))
-        return True
     else:
         click.echo(error("Dependencies has problems"))
+        if self:
+            sys.exit(1)
         fix: bool = click.confirm(question("Do you want to fix it?"))
         if fix:
             return install_optional_dependency()
-        return False
 
 
 @cli.command()

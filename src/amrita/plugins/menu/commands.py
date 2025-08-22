@@ -7,7 +7,7 @@ from nonebot.adapters.onebot.v11 import (
 )
 from nonebot.matcher import Matcher
 
-from amrita import send_forward_msg
+from amrita.utils.send import send_forward_msg
 
 from .manager import menu_mamager
 from .models import MatcherData

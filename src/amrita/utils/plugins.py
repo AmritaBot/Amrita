@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 import nonebot
@@ -24,3 +25,8 @@ def load_plugins():
             nonebot.require(plugin)
         except Exception as e:
             nonebot.logger.error(f"Failed to load plugin {plugin}: {e}")
+    nonebot.logger.info("Loading local pluings...")
+    try:
+        nonebot.load_plugins(str(Path(os.getcwd()) / "plugins"))
+    except Exception as e:
+        nonebot.logger.warning(f"Failed to load local plugins: {e}")

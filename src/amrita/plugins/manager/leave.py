@@ -3,9 +3,9 @@ from nonebot.adapters.onebot.v11 import Bot, GroupMessageEvent, Message, Message
 from nonebot.matcher import Matcher
 from nonebot.params import CommandArg
 
-from amrita import send_to_admin
 from amrita.plugins.menu.models import MatcherData
 from amrita.plugins.perm.API.admin import is_lp_admin
+from amrita.utils.admin import send_to_admin
 
 
 @on_command(

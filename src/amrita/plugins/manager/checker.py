@@ -23,8 +23,9 @@ from nonebot.rule import (
     ToMeRule,
 )
 
-from amrita import get_amrita_config, send_to_admin
+from amrita import get_amrita_config
 from amrita.plugins.perm.API.admin import is_lp_admin
+from amrita.utils.admin import send_to_admin
 
 from .status_manager import StatusManager
 from .utils import TokenBucket

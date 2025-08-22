@@ -1,9 +1,9 @@
 from nonebot import on_command
 from nonebot.adapters.onebot.v11 import Bot, MessageEvent, MessageSegment
 
-from amrita import send_forward_msg
 from amrita.plugins.menu.models import MatcherData
 from amrita.plugins.perm.API.admin import is_lp_admin
+from amrita.utils.send import send_forward_msg
 
 from .blacklist.black import bl_manager
 

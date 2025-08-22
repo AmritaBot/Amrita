@@ -6,11 +6,13 @@ import click
 import colorama
 from colorama import Fore, Style
 
+from amrita.utils.dependencies import self_check_optional_dependency
+
 # 全局变量用于跟踪子进程
 _subprocesses: list[subprocess.Popen] = []
 
 
-def run_proc(cmd: list[str], stdin=None, stdout=sys.stdin, **kwargs):
+def run_proc(cmd: list[str], stdin=None, stdout=sys.stdout, **kwargs):
     proc = subprocess.Popen(
         cmd,
         stdout=stdout,
@@ -79,26 +81,26 @@ signal.signal(signal.SIGTERM, _signal_handler)
 signal.signal(signal.SIGINT, _signal_handler)
 
 
-def check_optional_dependency():
+def check_optional_dependency(is_self: bool = False) -> bool:
     """检测amrita[full]可选依赖是否已安装"""
-    try:
-        proc = subprocess.Popen(
-            ["uv", "pip", "show", "jieba"],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-        )
-        _subprocesses.append(proc)
+    if not is_self:
         try:
-            proc.communicate(timeout=10)
-            return proc.returncode == 0
-        except subprocess.TimeoutExpired:
-            proc.kill()
+            run_proc(["uv", "run", "amrita", "check_dependencies", "--self"])
+            return True
+        except subprocess.CalledProcessError:
             return False
-        finally:
-            if proc in _subprocesses:
-                _subprocesses.remove(proc)
-    except (subprocess.CalledProcessError, FileNotFoundError):
-        return False
+    else:
+        status, missd = self_check_optional_dependency()
+        if not status:
+            click.echo(
+                error(
+                    "Some optional dependencies are missing. Please install them first."
+                )
+            )
+            for pkg in missd:
+                click.echo(f"- {pkg} was required, but it was not found.")
+            click.echo(info("You can install them by running:\n  uv add amrita[full]"))
+        return status
 
 
 def install_optional_dependency_no_venv() -> bool:

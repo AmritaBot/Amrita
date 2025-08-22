@@ -2,7 +2,7 @@ from nonebot.adapters.onebot.v11 import Bot
 from nonebot.matcher import Matcher
 from nonebot.message import run_preprocessor
 
-from amrita import send_to_admin
+from amrita.utils.admin import send_to_admin
 
 from .blacklist.black import bl_manager
 from .event import GroupEvent, UserIDEvent
