@@ -22,13 +22,16 @@ from ..cli import (
     warn,
 )
 from ..resource import DOTENV, DOTENV_DEV, DOTENV_PROD, GITIGNORE, README
+from ..utils.utils import get_amrita_version
 
 
 class Pyproject(BaseModel):
     name: str
     description: str = ""
     version: str = "0.1.0"
-    dependencies: list[str] = Field(default_factory=lambda: ["amrita[full]>=0.1.0"])
+    dependencies: list[str] = Field(
+        default_factory=lambda: [f"amrita[full]>={get_amrita_version()}"]
+    )
     readme: str = "README.md"
     requires_python: str = ">=3.10, <4.0"
 
@@ -54,7 +57,7 @@ class PyprojectFile(BaseModel):
 def version():
     """Print the version number."""
     try:
-        version = metadata.version("amrita")
+        version = get_amrita_version()
         click.echo(f"Amrita version: {version}")
 
         # 尝试获取NoneBot版本
