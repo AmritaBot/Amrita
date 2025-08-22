@@ -44,7 +44,7 @@ jobs:
       - name: Test
         run: |
           echo ADMIN_GROUP=0 >> .env
-          uv run amrita nb orm upgrade
+          uv run nb orm upgrade
           uv run amrita test
 
       - name: Build package
