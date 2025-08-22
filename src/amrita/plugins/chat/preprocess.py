@@ -5,13 +5,7 @@ from .config import config_manager
 from .hook_manager import run_hooks
 
 driver = get_driver()
-__LOGO = """\033[31m
- ___           ___    ___     _     ___
-|   |  |   |  |   |  |   |   / \\   |   |
-|___   |   |  |  __  |  __  |___|  |___|
-    |  |   |  |   |  |   |  |   |  | \\
-|___|  |___|  |___|  |___|  |   |  |  \\  \033[34mLoading SuggarChat \033[33mv‘{version}-Amrita’......
-\033[0m"""
+__LOGO = "\033[34mLoading SuggarChat \033[33m {version}-Amrita......\033[0m"
 
 
 @driver.on_bot_connect
@@ -22,7 +16,7 @@ async def hook():
 
 @driver.on_startup
 async def onEnable():
-    kernel_version = "3.4.5"
+    kernel_version = "3.4.5.2-LTS"
     config.__kernel_version__ = kernel_version
     logger.info(__LOGO.format(version=kernel_version))
     logger.debug("加载配置文件...")

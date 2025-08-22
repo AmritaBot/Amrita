@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import time
 from datetime import datetime
 from typing import overload
@@ -70,7 +69,7 @@ async def get_memory_data(
     """获取事件对应的记忆数据，如果不存在则创建初始数据"""
 
     is_group = False
-    if ins_id := (getattr(event, "group_id", None) or group_id):
+    if (ins_id := (getattr(event, "group_id", None) or group_id)) is not None:
         ins_id = int(ins_id)
         if chat_manager.debug:
             logger.debug(f"获取Group{ins_id} 的记忆数据")
@@ -96,19 +95,19 @@ async def get_memory_data(
 
         session.add(memory)
         await session.refresh(memory)
-        memory_json_text = memory.memory_json
-        sessions_json = memory.sessions_json
+        memory_data = memory.memory_json
+        sessions_data = memory.sessions_json
         messages = [
             (
                 Message.model_validate(i)
                 if i["role"] != "tool"
                 else ToolResult.model_validate(i)
             )
-            for i in (json.loads(memory_json_text))["messages"]
+            for i in (memory_data)["messages"]
         ]
         c_memory = Memory(messages=messages, time=memory.time.timestamp())
 
-        sessions = [Memory.model_validate(i) for i in json.loads(sessions_json)]
+        sessions = [Memory.model_validate(i) for i in sessions_data]
         conf = MemoryModel(
             memory=c_memory,
             sessions=sessions,
@@ -151,7 +150,9 @@ async def write_memory_data(
                 logger.debug(f"事件：{type(event)}")
             is_group = hasattr(event, "group_id")
             ins_id = int(
-                getattr(event, "group_id") if is_group else event.get_user_id()
+                getattr(event, "group_id")
+                if is_group and getattr(event, "group_id", None)
+                else event.get_user_id()
             )
 
             group_conf = None
@@ -172,8 +173,8 @@ async def write_memory_data(
                     for_update=True,
                 )
             session.add(memory)
-            memory.memory_json = data.memory.model_dump_json()
-            memory.sessions_json = json.dumps([s.model_dump() for s in data.sessions])
+            memory.memory_json = data.memory.model_dump()
+            memory.sessions_json = [s.model_dump() for s in data.sessions]
             memory.time = datetime.fromtimestamp(data.timestamp)
             memory.usage_count = data.usage
             memory.input_token_usage = data.input_token_usage
