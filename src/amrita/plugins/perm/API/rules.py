@@ -58,6 +58,7 @@ class PermissionChecker:
             return await self._check_permission(event, current_perm)
 
         return _checker
+
     @abstractmethod
     async def _check_permission(self, event: Event, perm: str) -> bool:
         raise NotImplementedError("Awaitable '_check_permission' not implemented")

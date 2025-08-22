@@ -11,6 +11,7 @@ import amrita
 
 logger = nonebot.logger
 
+
 class LoadError(Exception):
     def __init__(self, data: Any):
         self.data = data
@@ -63,8 +64,6 @@ def _load_plugin(self, name: str) -> Plugin | None:
         raise LoadError(e) from e
 
 
-
-
 def main():
     global __name__
     __name__ = "Amrita Loader"
@@ -92,7 +91,7 @@ def main():
     logger.info("Testing pre-startup...")
     amrita.run()
 
-async def exit_test():
-        logger.info("Finished!")
-        os._exit(0)
 
+async def exit_test():
+    logger.info("Finished!")
+    os._exit(0)

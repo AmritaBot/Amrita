@@ -101,7 +101,16 @@ def check_optional_dependency():
         return False
 
 
-def install_optional_dependency():
+def install_optional_dependency_no_venv() -> bool:
+    try:
+        run_proc(["pip", "install", "amrita[full]"])
+        return True
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        click.echo(error("pip run failed."))
+        return False
+
+
+def install_optional_dependency() -> bool:
     """安装amrita[full]可选依赖"""
     try:
         proc = subprocess.Popen(

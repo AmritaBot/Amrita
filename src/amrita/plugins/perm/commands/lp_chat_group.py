@@ -16,24 +16,24 @@ from .main import PermissionHandler
 class PermissionOperation(PermissionHandler):
     @override
     async def execute(
-        self, group_id: str, operation: str, node: str, value: str
+        self, id: str, operation: str, target: str, value: str
     ) -> tuple[str, dict[str, Any]]:
-        group_data = data_manager.get_group_data(group_id)
+        group_data = data_manager.get_group_data(id)
         group_perm = Permissions(group_data.permissions)
         msg_str = ""
         match operation:
             case "del":
-                group_perm.del_permission(node)
-                msg_str = f"✅ 已删除权限节点 {node}"
+                group_perm.del_permission(target)
+                msg_str = f"✅ 已删除权限节点 {target}"
             case "set":
                 if value.lower() not in ("true", "false"):
                     return "❌ 值必须是 true/false", group_data.model_dump()
-                group_perm.set_permission(node, value == "true", False)
-                msg_str = f"✅ 已设置 {node} : {value}"
+                group_perm.set_permission(target, value == "true", False)
+                msg_str = f"✅ 已设置 {target} : {value}"
             case "check":
                 msg_str = (
                     "✅ 持有该权限"
-                    if group_perm.check_permission(node)
+                    if group_perm.check_permission(target)
                     else "❌ 未持有该权限"
                 )
             case "list":
@@ -46,23 +46,25 @@ class PermissionOperation(PermissionHandler):
 class ParentGroupHandler(PermissionHandler):
     @override
     async def execute(
-        self, group_id: str, operation: str, perm_group: str, _: str
+        self, id: str, operation: str, target: str, value: str
     ) -> tuple[str, dict[str, Any]]:
-        group_data = data_manager.get_group_data(group_id)
-        perm_perm_group_data = data_manager.get_permission_group_data(perm_group, False)
-        if perm_perm_group_data is None:
+        group_data = data_manager.get_group_data(id)
+        perm_target_data = data_manager.get_permission_group_data(target, False)
+        if perm_target_data is None:
             return "❌ 权限组不存在", group_data.model_dump()
         string_msg = ""
-        if not perm_perm_group_data:
-            string_msg = f"❌ 权限组 {perm_group} 不存在"
+        if not perm_target_data:
+            string_msg = f"❌ 权限组 {target} 不存在"
 
         match operation:
             case "add" | "del":
-                self._modify_inheritance(group_data, perm_perm_group_data, operation)
-                string_msg = f"✅ 已{'添加' if operation == 'add' else '移除'}继承组 {perm_group}"
+                self._modify_inheritance(group_data, perm_target_data, operation)
+                string_msg = (
+                    f"✅ 已{'添加' if operation == 'add' else '移除'}继承组 {target}"
+                )
             case "set":
-                group_data.permissions = perm_perm_group_data.permissions.copy()
-                string_msg = f"✅ 已覆盖为组 {perm_group} 的权限"
+                group_data.permissions = perm_target_data.permissions.copy()
+                string_msg = f"✅ 已覆盖为组 {target} 的权限"
             case _:
                 string_msg = "❌ 不支持的操作类型"
         return string_msg, group_data.model_dump()
@@ -86,9 +88,9 @@ class ParentGroupHandler(PermissionHandler):
 class PermissionGroupHandler(PermissionHandler):
     @override
     async def execute(
-        self, group_id: str, operation: str, target: str, value: str
+        self, id: str, operation: str, target: str, value: str
     ) -> tuple[str, dict[str, Any]]:
-        group_data = data_manager.get_group_data(group_id)
+        group_data = data_manager.get_group_data(id)
         msg_str = ""
         if operation == "add":
             if target not in group_data.permission_groups:
@@ -124,15 +126,15 @@ async def lp_group(
     matcher: Matcher,
     params: tuple[str, str, str, str, str] = Depends(parse_command),
 ):
-    group_id, action_type, operation, target, value = params
+    id, action_type, operation, target, value = params
     handler = get_handler(action_type)
     if handler is None:
         await matcher.finish("❌ 未知操作类型")
     try:
-        result, data = await handler.execute(group_id, operation, target, value)
+        result, data = await handler.execute(id, operation, target, value)
     except ValueError as e:
         result = f"❌ 操作失败：{e!s}"
-    finally:
-        data_manager.save_group_data(group_id, data)
+    else:
+        data_manager.save_group_data(id, data)
 
     await matcher.finish(result)

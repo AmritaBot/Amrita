@@ -10,7 +10,7 @@ from ..command_manager import command
 
 class PermissionHandler(Protocol):
     async def execute(
-        self, user_id: str, operation: str, target: str, value: str
+        self, id: str, operation: str, target: str, value: str
     ) -> tuple[str, dict[str, Any]]:
         raise NotImplementedError("Not Implemented")
 

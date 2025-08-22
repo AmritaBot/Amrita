@@ -1,6 +1,21 @@
+import typing
+
+import nonebot
 from nonebot.adapters.onebot.v11 import Bot, MessageSegment
 
 from amrita.config import get_amrita_config
+
+
+async def send_to_admin(msg: str, bot: Bot | None = None):
+    """发送消息到管理
+
+    Args:
+        bot (Bot): Bot
+        msg (str): 消息内容
+    """
+    if bot is None:
+        bot = typing.cast(Bot, nonebot.get_bot())
+    await bot.send_group_msg(group_id=get_amrita_config().admin_group, message=msg)
 
 
 async def send_forward_msg_to_admin(

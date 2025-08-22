@@ -13,14 +13,14 @@ def load_plugins():
         if name in config.disabled_builtin_plugins:
             continue
         nonebot.logger.info(f"Loading plugin {name.name}...")
-        nonebot.load_plugin(f"amrita.plugins.{name.name}")
+        nonebot.require(f"amrita.plugins.{name.name}")
     nonebot.logger.info("Loading plugins......")
     from amrita.cmds.cli import PyprojectFile
 
     meta = PyprojectFile.model_validate(toml.load("pyproject.toml"))
-    for plugin in meta.tool.amrita.plugins:
+    for plugin in meta.tool.nonebot.plugins:
         nonebot.logger.info(f"Loading plugin {plugin}...")
         try:
-            nonebot.load_plugin(plugin)
+            nonebot.require(plugin)
         except Exception as e:
             nonebot.logger.error(f"Failed to load plugin {plugin}: {e}")

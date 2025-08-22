@@ -18,6 +18,8 @@ dependencies = [
 
 [project.optional-dependencies]
 full = [
+    "pillow>=11.3.0",
+    "psutil>=7.0.0",
     "pytz>=2025.1",
     "tomli>=2.0.0",
     "tomli-w>=1.0.0",
@@ -88,3 +90,4 @@ ignore = [
 typeCheckingMode = "standard"
 
 [tool.nonebot]
+plugins=["nonebot_plugin_orm"]

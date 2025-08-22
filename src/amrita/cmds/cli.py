@@ -14,6 +14,7 @@ from ..cli import (
     error,
     info,
     install_optional_dependency,
+    install_optional_dependency_no_venv,
     question,
     run_proc,
     stdout_run_proc,
@@ -33,16 +34,15 @@ class Pyproject(BaseModel):
 
 
 class NonebotTool(BaseModel):
-    pass
-
-
-class AmritaTool(BaseModel):
-    plugins: list[str] = Field(default_factory=list)
+    plugins: list[str] = [
+        "nonebot_plugin_orm",
+        "amrita.plugins.chat",
+        "amrita.plugins.manager",
+    ]
 
 
 class Tool(BaseModel):
     nonebot: NonebotTool = NonebotTool()
-    amrita: AmritaTool = AmritaTool()
 
 
 class PyprojectFile(BaseModel):
@@ -148,14 +148,21 @@ def create(project_name, description, python_version, this_dir):
         f.write(GITIGNORE)
     with open(project_dir / "README.md", "w") as f:
         f.write(README.format(project_name=project_name))
-    with open(cwd / ".python-version", "w") as f:
+    with open(project_dir / ".python-version", "w") as f:
         f.write("3.10\n")
     # 安装依赖
-    click.echo(info("Installing dependencies..."))
-    if not install_optional_dependency():
-        click.echo(error("Failed to install dependencies."))
-        return
-
+    if click.confirm(
+        question("Do you want to install dependencies now?"), default=True
+    ):
+        click.echo(info("Installing dependencies..."))
+        if click.confirm(question("Do you want to use venv?"), default=True):
+            os.chdir(str(project_dir))
+            if not install_optional_dependency():
+                click.echo(error("Failed to install dependencies."))
+                return
+        elif not install_optional_dependency_no_venv():
+            click.echo(error("Failed to install dependencies."))
+            return
     click.echo(success(f"Project {project_name} created successfully!"))
     click.echo(info("Next steps:"))
     click.echo(info(f"  cd {project_name if not this_dir else '.'}"))
@@ -208,7 +215,6 @@ def run(run: bool):
     # 构建运行命令
     cmd = ["uv", "run", "amrita", "run", "--run"]
 
-    # 使用Popen替代run以便更好地控制子进程
     run_proc(cmd)
 
 
@@ -338,6 +344,7 @@ def nb(nb_args):
             click.echo(error("nb-cli command failed,is your command correct?"))
         else:
             click.echo(error(f"nb-cli command failed with exit code {e.returncode}"))
+
 
 @cli.command()
 def test():

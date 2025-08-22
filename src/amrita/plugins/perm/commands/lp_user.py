@@ -16,24 +16,24 @@ from .main import PermissionHandler
 class PermissionOperation(PermissionHandler):
     @override
     async def execute(
-        self, user_id: str, operation: str, node: str, value: str
+        self, id: str, operation: str, target: str, value: str
     ) -> tuple[str, dict[str, Any]]:
-        user_data = data_manager.get_user_data(user_id)
+        user_data = data_manager.get_user_data(id)
         user_perm = Permissions(user_data.permissions)
         msg_str = ""
         match operation:
             case "del":
-                user_perm.del_permission(node)
-                msg_str = f"✅ 已删除权限节点 {node}"
+                user_perm.del_permission(target)
+                msg_str = f"✅ 已删除权限节点 {target}"
             case "set":
                 if value.lower() not in ("true", "false"):
                     return "❌ 值必须是 true/false", user_data.model_dump()
-                user_perm.set_permission(node, value == "true", False)
-                msg_str = f"✅ 已设置 {node} : {value}"
+                user_perm.set_permission(target, value == "true", False)
+                msg_str = f"✅ 已设置 {target} : {value}"
             case "check":
                 msg_str = (
                     "✅ 持有该权限"
-                    if user_perm.check_permission(node)
+                    if user_perm.check_permission(target)
                     else "❌ 未持有该权限"
                 )
             case "list":
@@ -46,25 +46,25 @@ class PermissionOperation(PermissionHandler):
 class ParentGroupHandler(PermissionHandler):
     @override
     async def execute(
-        self, user_id: str, operation: str, group: str, _: str
+        self, id: str, operation: str, target: str, value: str
     ) -> tuple[str, dict[str, Any]]:
-        user_data = data_manager.get_user_data(user_id)
-        perm_group_data = data_manager.get_permission_group_data(group, False)
+        user_data = data_manager.get_user_data(id)
+        perm_group_data = data_manager.get_permission_group_data(target, False)
         if perm_group_data is None:
             return "❌ 权限组不存在", user_data.model_dump()
         string_msg = ""
         if not perm_group_data:
-            string_msg = f"❌ 权限组 {group} 不存在"
+            string_msg = f"❌ 权限组 {target} 不存在"
 
         match operation:
             case "add" | "del":
                 self._modify_inheritance(user_data, perm_group_data, operation)
                 string_msg = (
-                    f"✅ 已{'添加' if operation == 'add' else '移除'}继承组 {group}"
+                    f"✅ 已{'添加' if operation == 'add' else '移除'}继承组 {target}"
                 )
             case "set":
                 user_data.permissions = perm_group_data.permissions.copy()
-                string_msg = f"✅ 已覆盖为组 {group} 的权限"
+                string_msg = f"✅ 已覆盖为组 {target} 的权限"
             case _:
                 string_msg = "❌ 不支持的操作类型"
         return string_msg, user_data.model_dump()
@@ -85,9 +85,9 @@ class ParentGroupHandler(PermissionHandler):
 class PermissionGroupHandler(PermissionHandler):
     @override
     async def execute(
-        self, user_id: str, operation: str, target: str, value: str
+        self, id: str, operation: str, target: str, value: str
     ) -> tuple[str, dict[str, Any]]:
-        user_data = data_manager.get_user_data(user_id)
+        user_data = data_manager.get_user_data(id)
         msg_str = ""
         if operation == "add":
             if target not in user_data.permission_groups:
@@ -131,7 +131,7 @@ async def lp_user(
         result, data = await handler.execute(user_id, operation, target, value)
     except ValueError as e:
         result = f"❌ 操作失败：{e!s}"
-    finally:
+    else:
         data_manager.save_user_data(user_id, data)
 
     await matcher.finish(result)

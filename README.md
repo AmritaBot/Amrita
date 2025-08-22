@@ -86,16 +86,22 @@ pip install amrita[full]
 
 ## 🧩 插件系统
 
-Amrita 插件系统基于 NoneBot2 的插件系统，允许用户扩展 Amrita 的功能，内置了一些常用插件，如 LitePerm权限管理插件，以及 AMenu 菜单插件（~~这个还没写~~）。
+**Amrita** 插件系统基于 NoneBot2 的插件系统，允许用户扩展 Amrita 的功能，内置了一些常用插件，如 LitePerm权限管理插件，以及 AMenu 菜单插件（~~这个还没写~~）。
 
 ## ⚙️ 配置文件
 
-通常来说，配置文件位于项目根目录下的 `config` 文件夹中。
+通常来说，配置文件位于项目根目录下的 `config` 文件夹中，此外您仍需要配置DOTENV文件，用于配置环境变量(位于机器人目录的`.env`)。
 
-## ⚠️ 注意事项
+以下是`Amrita`的独有配置项
 
-Amrita项目不能直接使用`nb run`运行，请使用`amrita run`命令或者`amrita nb run`，如果需要，请向`pyproject.toml`中`[tool.nonebot]`添加`nonebot_plugin_orm`插件。
-
+```dotenv
+LOG_DIR=logs # 日志目录
+ADMIN_GROUP=1233456789 # 管理员群组ID，必配，推送Bot错误日志及其他信息
+DISABLED_BUILTIN_PLUGINS=[] # 禁用的内置插件 注意：如果其他插件有依赖此插件，那么它仍然会被加载。
+AMRITA_LOG_LEVEL=WARNING # 记录到文件的日志等级
+BOT_NAME=Amrita # 为你的机器人名称
+RATE_LIMIT=5 # 聊天频率限制(秒)
+```
 
 ## 📚 文档和资源
 

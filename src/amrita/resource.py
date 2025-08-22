@@ -4,7 +4,9 @@ PORT=8080
 HOST=127.0.0.1
 LOCALSTORE_USE_CWD=true
 DATABASE_URL=aiosqlite:///db.sqlite3
-LOG_DIR=logs"""
+LOG_DIR=logs
+BOT_NAME=Amrita
+RATE_LIMIT=5"""
 DOTENV_DEV = """LOG_LEVEL=DEBUG"""
 DOTENV_PROD = """"""
 GITIGNORE = """# Created by https://www.toptal.com/developers/gitignore/api/python
