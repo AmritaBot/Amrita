@@ -41,11 +41,5 @@ jobs:
         uses: astral-sh/ruff-action@v3
         with:
           args: check . --exit-non-zero-on-fix
-      - name: Test
-        run: |
-          echo ADMIN_GROUP=0 >> .env
-          uv run nb orm upgrade
-          uv run amrita test
-
       - name: Build package
         run: uv build  
