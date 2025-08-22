@@ -314,6 +314,7 @@ def proj_info():
                 click.echo(f"    - {dep}")
 
         from .plugin import echo_plugins
+
         echo_plugins()
 
     except Exception as e:

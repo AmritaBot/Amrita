@@ -134,6 +134,7 @@ def echo_plugins():
     for pl in plugins:
         click.echo(f"  - {pl}")
 
+
 @plugin.command()
 def list_plugins():
     """List all plugins."""
