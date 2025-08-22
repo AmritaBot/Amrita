@@ -5,6 +5,8 @@ from nonebot.matcher import Matcher
 from nonebot.params import Depends
 from typing_extensions import override
 
+from amrita.plugins.menu.models import MatcherData
+
 from ..API.admin import is_lp_admin
 from ..command_manager import command
 from ..config import PermissionGroupData, UserData, data_manager
@@ -117,7 +119,15 @@ def get_handler(
 
 
 # 运行进入点
-@command.command("user", permission=is_lp_admin).handle()
+@command.command(
+    "user",
+    permission=is_lp_admin,
+    state=MatcherData(
+        name="lp用户权限配置",
+        description="配置特定用户权限",
+        usage="/lp.user",
+    ).model_dump(),
+).handle()
 async def lp_user(
     event: MessageEvent,
     matcher: Matcher,

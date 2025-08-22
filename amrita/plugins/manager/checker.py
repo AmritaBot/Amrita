@@ -24,6 +24,7 @@ from nonebot.rule import (
 )
 
 from amrita import get_amrita_config
+from amrita.plugins.menu.models import MatcherData
 from amrita.plugins.perm.API.admin import is_lp_admin
 from amrita.utils.admin import send_to_admin
 
@@ -47,7 +48,15 @@ async def _(event: GroupBanNoticeEvent):
     )
 
 
-@on_command("set_enable", priority=2).handle()
+@on_command(
+    "set_enable",
+    priority=2,
+    state=MatcherData(
+        name="Bot可用状态设置",
+        usage="/set_enable <true/false>",
+        description="设置Bot状态",
+    ).model_dump(),
+).handle()
 async def _(event: MessageEvent, matcher: Matcher, args: Message = CommandArg()):
     if not await is_lp_admin(event):
         return

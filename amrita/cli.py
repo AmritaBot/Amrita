@@ -59,7 +59,6 @@ def stdout_run_proc(cmd: list[str]):
 
 def _cleanup_subprocesses():
     """清理所有子进程"""
-    click.echo(warn("Exiting......"))
     for proc in _subprocesses:
         try:
             proc.terminate()
@@ -80,6 +79,7 @@ def _signal_handler(signum, frame):
 # 注册信号处理函数
 signal.signal(signal.SIGTERM, _signal_handler)
 signal.signal(signal.SIGINT, _signal_handler)
+
 
 @overload
 def check_optional_dependency(

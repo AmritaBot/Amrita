@@ -1,4 +1,3 @@
-from importlib import metadata
 from typing import Literal
 
 from nonebot import get_plugin_config
@@ -19,12 +18,3 @@ class AmritaConfig(BaseModel):
 
 def get_amrita_config() -> AmritaConfig:
     return get_plugin_config(AmritaConfig)
-
-
-def get_amrita_version() -> str:
-    version = "unknown"
-    try:
-        version = metadata.version("amrita")
-    except metadata.PackageNotFoundError:
-        pass
-    return version

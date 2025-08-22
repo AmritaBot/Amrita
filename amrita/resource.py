@@ -202,3 +202,22 @@ README = """
 
 See Nonebot [Docs](https://nonebot.dev/)
 """
+EXAMPLE_PLUGIN = """from nonebot import on_command
+from nonebot.adapters.onebot.v11 import MessageEvent
+
+# Register your commands here
+{name} = on_command("{name}")
+
+@{name}.handle()
+async def handle_function(event: MessageEvent):
+    await {name}.finish("Hello from {name}!")
+"""
+EXAMPLE_PLUGIN_CONFIG = """# Configuration for {name} plugin
+from pydantic import BaseModel
+from nonebot import get_plugin_config
+class Config(BaseModel):
+    ...
+    # Add your configuration here
+
+# Get your config by using `get_plugin_config(Config)`
+"""

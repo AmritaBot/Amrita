@@ -49,7 +49,7 @@ class NonebotTool(BaseModel):
     adapters: list[dict[str, Any]] = [
         {"name": "OneBot V11", "module_name": "nonebot.adapters.onebot.v11"},
     ]
-    plugin_dirs:list[str] = []
+    plugin_dirs: list[str] = []
 
 
 class Tool(BaseModel):
@@ -313,14 +313,8 @@ def proj_info():
             for dep in dependencies:
                 click.echo(f"    - {dep}")
 
-        # 显示插件信息
-        plugins_dir = Path("plugins")
-        if plugins_dir.exists() and plugins_dir.is_dir():
-            plugins = [item.name for item in plugins_dir.iterdir() if item.is_dir()]
-            if plugins:
-                click.echo("  Plugins:")
-                for plugin in plugins:
-                    click.echo(f"    - {plugin}")
+        from .plugin import echo_plugins
+        echo_plugins()
 
     except Exception as e:
         click.echo(error(f"Error reading project info: {e}"))

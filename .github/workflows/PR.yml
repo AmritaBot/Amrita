@@ -41,6 +41,8 @@ jobs:
         uses: astral-sh/ruff-action@v3
         with:
           args: check . --exit-non-zero-on-fix
-
+      - name: Test
+        run: uv run amrita test
+        
       - name: Build package
         run: uv build # 生成构建产物到dist目录

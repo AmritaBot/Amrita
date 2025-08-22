@@ -15,5 +15,5 @@ async def is_lp_admin(event: Event) -> bool:
     user_data: UserData = data_manager.get_user_data(user_id)
     return (
         user_id in ENV_ADMINS
-        or Permissions(user_data.permissions).check_permission("lp.admin")
+        or Permissions(user_data.permissions).check_permission("/lp.admin")
     ) and data_manager.config.enable

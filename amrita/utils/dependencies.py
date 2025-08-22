@@ -25,7 +25,8 @@ def check_dependency_package(package_name: str) -> bool:
     except importlib.metadata.PackageNotFoundError:
         return False
 
-def self_get_optional_dependency()->list[str]:
+
+def self_get_optional_dependency() -> list[str]:
     # 获取项目元数据
     metadata = importlib.metadata.metadata("amrita")
     requires_dist = metadata.json["requires_dist"]
@@ -38,12 +39,17 @@ def self_get_optional_dependency()->list[str]:
             package_name = req.split(";")[0].strip()
             optional_deps.append(package_name)
 
-
     return optional_deps
 
+
 def self_check_optional_dependency():
-    def match_package_name(package_name)->str:
-        return typing.cast(re.Match[str],re.match(r"^\s*([\w\-\.]+)", package_name)).groups()[0]
+    def match_package_name(package_name) -> str:
+        return typing.cast(
+            re.Match[str], re.match(r"^\s*([\w\-\.]+)", package_name)
+        ).groups()[0]
+
     deps = self_get_optional_dependency()
-    missed_deps = [dep for dep in deps if not check_dependency_package(match_package_name(dep))]
-    return not missed_deps,missed_deps
+    missed_deps = [
+        dep for dep in deps if not check_dependency_package(match_package_name(dep))
+    ]
+    return not missed_deps, missed_deps

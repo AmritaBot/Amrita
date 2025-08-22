@@ -8,12 +8,14 @@ from amrita.cli import (
     info,
     plugin,
     question,
+    run_proc,
     stdout_run_proc,
     success,
     warn,
 )
+from amrita.resource import EXAMPLE_PLUGIN, EXAMPLE_PLUGIN_CONFIG
 
-from .cli import nb
+from .main import nb
 
 
 @plugin.command()
@@ -24,10 +26,12 @@ def install(name: str):
 
 
 @plugin.command()
-@click.argument("name")
+@click.argument("name", default="")
 def new(name: str):
     """Create a new plugin."""
     cwd = Path(os.getcwd())
+    if not name:
+        name = click.prompt(question("Plugin name"))
     plugins_dir = cwd / "plugins"
 
     if not plugins_dir.exists():
@@ -52,35 +56,29 @@ def new(name: str):
         )
 
     with open(plugin_dir / f"{name.replace('-', '_')}.py", "w") as f:
-        f.write(f"""from nonebot import on_command
-from nonebot.adapters.onebot.v11 import MessageEvent
-
-# Register your commands here
-{name.replace("-", "_")} = on_command("{name}")
-
-@{name.replace("-", "_")}.handle()
-async def handle_function(event: MessageEvent):
-    await {name.replace("-", "_")}.finish("Hello from {name}!")
-""")
+        f.write(EXAMPLE_PLUGIN.format(name=name.replace("-", "_")))
 
     # 创建配置文件
     with open(plugin_dir / "config.py", "w") as f:
-        f.write(f"""# Configuration for {name} plugin
-
-# Add your configuration here
-""")
+        f.write(EXAMPLE_PLUGIN_CONFIG.format(name=name.replace("-", "_")))
 
     click.echo(success(f"Plugin {name} created successfully!"))
 
 
 @plugin.command()
-@click.argument("name")
+@click.argument("name", default="")
 def remove(name: str):
     """Remove a plugin."""
+    if not name:
+        name = click.prompt(question("Enter plugin name"))
     cwd = Path(os.getcwd())
     plugin_dir = cwd / "plugins" / name
 
     if not plugin_dir.exists():
+        try:
+            run_proc(["nb", "plugin", "remove", name])
+        except Exception:
+            pass
         click.echo(error(f"Plugin {name} does not exist."))
         return
 
@@ -97,9 +95,7 @@ def remove(name: str):
     click.echo(success(f"Plugin {name} removed successfully!"))
 
 
-@plugin.command()
-def list_plugins():
-    """List all plugins."""
+def echo_plugins():
     cwd = Path(os.getcwd())
     plugins_dir = cwd / "plugins"
     plugins = []
@@ -137,3 +133,8 @@ def list_plugins():
     click.echo(success("Available plugins:"))
     for pl in plugins:
         click.echo(f"  - {pl}")
+
+@plugin.command()
+def list_plugins():
+    """List all plugins."""
+    echo_plugins()

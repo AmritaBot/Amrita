@@ -2,35 +2,31 @@ from .models import PluginData
 
 
 def generate_menu(plugins: list[PluginData]) -> list[str]:
-    head = "# 菜单\n\n" + "> 这是菜单列表，包含所有可用的功能和用法。\n\n"
-    head += "## 模块列表\n\n"
+    head = "这是菜单列表，包含所有可用的功能和用法。\n"
+    head += "模块列表\n"
     for plugin in plugins:
         if not plugin.metadata or not plugin.matcher_grouping:
             continue
         plugin_name = plugin.metadata.name
         plugin_desc = plugin.metadata.description or "无描述"
-        head += f"\n\n- **{plugin_name}**: {plugin_desc}"
+        head += f"\n{plugin_name}: {plugin_desc}"
 
     menu_datas: list[str] = [head.strip()]
     for plugin in plugins:
         if not plugin.matcher_grouping or not plugin.metadata:
             continue
 
-        plugin_title = f"## {plugin.metadata.name}\n"
+        plugin_title = f"{plugin.metadata.name}\n"
         plugin_description = (
-            f"> {plugin.metadata.description}\n\n"
-            if plugin.metadata.description
-            else ""
+            f"{plugin.metadata.description}\n" if plugin.metadata.description else ""
         )
         plugin_markdown = plugin_title + plugin_description
         for matchers in plugin.matcher_grouping.values():
             for matcher_data in matchers:
-                plugin_markdown += (
-                    f"- **{matcher_data.name}**: {matcher_data.description}"
-                )
+                plugin_markdown += f" {matcher_data.name}: {matcher_data.description}"
                 if matcher_data.usage:
-                    plugin_markdown += f"\n    - 用法: `{matcher_data.usage}`"
-                plugin_markdown += "\n\n"
+                    plugin_markdown += f"\n  用法: {matcher_data.usage}"
+                plugin_markdown += "\n"
         menu_datas.append(plugin_markdown.strip())
 
     return menu_datas

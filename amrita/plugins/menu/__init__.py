@@ -2,10 +2,11 @@ from nonebot import require
 from nonebot.plugin import PluginMetadata
 
 require("nonebot_plugin_localstore")
-
 from . import commands, manager
+from .models import MatcherData
 
 __all__ = [
+    "MatcherData",
     "commands",
     "manager",
 ]
