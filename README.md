@@ -82,15 +82,20 @@ pip install amrita[full]
 | `amrita check-dependencies` | 检查依赖             |
 | `amrita proj-info`          | 显示项目信息         |
 | `amrita nb`                 | 直接运行 nb-cli 命令 |
+| `amrita entry`             | 生成入口文件 |
 
 ## 🧩 插件系统
 
-Amrita 采用插件化架构，支持：
+Amrita 插件系统基于 NoneBot2 的插件系统，允许用户扩展 Amrita 的功能，内置了一些常用插件，如 LitePerm权限管理插件，以及 AMenu 菜单插件（~~这个还没写~~）。
 
-- 内置聊天插件
-- 自定义功能插件
-- 工具插件扩展
-- 事件钩子系统
+## ⚙️ 配置文件
+
+通常来说，配置文件位于项目根目录下的 `config` 文件夹中。
+
+## ⚠️ 注意事项
+
+Amrita项目不能直接使用`nb run`运行，请使用`amrita run`命令或者`amrita nb run`，如果需要，请向`pyproject.toml`中`[tool.nonebot]`添加`nonebot_plugin_orm`插件。
+
 
 ## 📚 文档和资源
 

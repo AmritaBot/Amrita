@@ -306,8 +306,12 @@ def proj_info():
         click.echo(error(f"Error reading project info: {e}"))
 
 
-@cli.command()
-@click.argument("nb_args", nargs=-1)
+@cli.command(
+    context_settings={
+        "ignore_unknown_options": True,
+    }
+)
+@click.argument("nb_args", nargs=-1, type=click.UNPROCESSED)
 def nb(nb_args):
     """Run nb-cli commands directly."""
     if not check_nb_cli_available():
@@ -323,4 +327,35 @@ def nb(nb_args):
         click.echo(info("Running nb-cli..."))
         run_proc(["nb", *list(nb_args)])
     except subprocess.CalledProcessError as e:
-        click.echo(error(f"nb-cli command failed with exit code {e.returncode}"))
+        if e.returncode == 127:
+            click.echo(
+                error(
+                    "nb-cli is not available. Please install it with 'pip install nb-cli'"
+                )
+            )
+        elif e.returncode == 2:
+            click.echo(error(bytes(e.stdout).decode("utf-8")))
+            click.echo(error("nb-cli command failed,is your command correct?"))
+        else:
+            click.echo(error(f"nb-cli command failed with exit code {e.returncode}"))
+
+@cli.command()
+def test():
+    """Run a load test for Amrita project"""
+    if not check_optional_dependency():
+        click.echo(error("Missing optional dependency 'full'"))
+    else:
+        from amrita import load_test
+
+        try:
+            load_test.main()
+        except Exception as e:
+            click.echo(
+                error(
+                    "OOPS!There is something wrong while pre-loading(Running on_startup hooks)!"
+                )
+            )
+            click.echo(error(f"Error: {e}"))
+            exit(1)
+        else:
+            click.echo(info("Done!"))
