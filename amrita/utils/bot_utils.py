@@ -6,10 +6,10 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import nonebot
-from dotenv import load_dotenv
 from nonebot.log import default_format, logger_id
 
 from amrita.config import get_amrita_config
+from amrita.utils.utils import get_amrita_version
 
 if TYPE_CHECKING:
     # avoid sphinx autodoc resolve annotation failed
@@ -60,8 +60,10 @@ def init():
                         f"函数: {record['function']}\n"
                         f"堆栈信息:\n{traceback_str}"
                     )
-
-                    bot = nonebot.get_bot()
+                    try:
+                        bot = nonebot.get_bot()
+                    except Exception:
+                        return
                     if isinstance(bot, Bot):
                         await send_forward_msg_to_admin(
                             bot,
@@ -74,20 +76,15 @@ def init():
                 nonebot.logger.warning(f"发送群消息失败: {e}")
 
     Path("plugins").mkdir(exist_ok=True)
-
-    load_dotenv()
-
+    nonebot.logger.add(AsyncErrorHandler(), level="ERROR")
     nonebot.init()
-
+    nonebot.logger.success(f"Amrita v{get_amrita_version()} is initializing......")
     driver = nonebot.get_driver()
     driver.register_adapter(ONEBOT_V11Adapter)
     config = get_amrita_config()
     log_dir = config.log_dir
     os.makedirs(log_dir, exist_ok=True)
-
-    # 移除 NoneBot 默认的日志处理器
     nonebot.logger.remove(logger_id)
-    # 添加新的日志处理器
     nonebot.logger.add(
         sys.stdout,
         level=0,
@@ -104,5 +101,3 @@ def init():
         encoding="utf-8",
         enqueue=True,
     )
-    nonebot.logger.add(AsyncErrorHandler(), level="ERROR")
-    nonebot.logger.info("Amrita is initializing......")

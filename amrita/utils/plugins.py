@@ -19,9 +19,9 @@ def load_plugins():
     for name in (Path(__file__).parent.parent / "plugins").iterdir():
         if name in config.disabled_builtin_plugins:
             continue
-        nonebot.logger.info(f"Require plugin {name.name}...")
+        nonebot.logger.debug(f"Require plugin {name.name}...")
         nonebot.require(f"amrita.plugins.{name.name}")
-    nonebot.logger.warning("Appling Patches")
+    nonebot.logger.debug("Appling Patches")
     apply_alias()
     nonebot.logger.info("Loading built-in plugins...")
     nonebot.logger.info("Loading plugins......")
@@ -29,7 +29,7 @@ def load_plugins():
 
     meta = PyprojectFile.model_validate(toml.load("pyproject.toml"))
     for plugin in meta.tool.nonebot.plugins:
-        nonebot.logger.info(f"Require plugin {plugin}...")
+        nonebot.logger.debug(f"Require plugin {plugin}...")
         try:
             nonebot.require(plugin)
         except Exception as e:
