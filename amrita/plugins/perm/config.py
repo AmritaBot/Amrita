@@ -37,16 +37,16 @@ class Config(BasicDataModel):
 
     def save_to_toml(self, path: Path):
         """保存配置到 TOML 文件"""
-        with path.open("wb") as f:
-            tomli_w.dump(self.model_dump(), f)
+        with path.open("w", encoding="utf-8") as f:
+            f.write(tomli_w.dumps(self.model_dump()))
 
     @classmethod
     def load_from_toml(cls, path: Path) -> "Config":
         """从 TOML 文件加载配置"""
         if not path.exists():
             return cls()
-        with path.open("rb") as f:
-            data: dict[str, Any] = tomli.load(f)
+        with path.open("r", encoding="utf-8") as f:
+            data: dict[str, Any] = tomli.loads(f.read())
         # 自动更新配置文件
         current_config = cls().model_dump()
         updated_config = {**current_config, **data}
@@ -89,13 +89,13 @@ class Data_Manager:
     def save_user_data(self, user_id: str, data: dict[str, str | dict | bool]):
         UserData.model_validate(data)
         data_path = self.user_data_path / f"{user_id}.json"
-        with open(data_path, "w") as f:
+        with open(data_path, "w", encoding="utf-8") as f:
             json.dump(data, f)
 
     def save_group_data(self, group_name: str, data: dict[str, str | dict | bool]):
         GroupData.model_validate(data)
         data_path = self.group_data_path / f"{group_name}.json"
-        with open(data_path, "w") as f:
+        with open(data_path, "w", encoding="utf-8") as f:
             json.dump(data, f)
 
     def save_permission_group_data(
@@ -103,17 +103,17 @@ class Data_Manager:
     ):
         PermissionGroupData.model_validate(data)
         data_path = self.permission_groups_path / f"{group_name}.json"
-        with open(data_path, "w") as f:
+        with open(data_path, "w", encoding="utf-8") as f:
             json.dump(data, f)
 
     def get_group_data(self, group_id: str):
         data_path = self.group_data_path / f"{group_id}.json"
         if not data_path.exists():
             data = GroupData()
-            with open(data_path, "w") as f:
+            with open(data_path, "w", encoding="utf-8") as f:
                 json.dump(data.model_dump(), f)
             return data
-        with open(data_path) as f:
+        with open(data_path, encoding="utf-8") as f:
             return GroupData(**json.load(f))
 
     def get_permission_group_data(
@@ -125,10 +125,10 @@ class Data_Manager:
                 return None
             else:
                 data = PermissionGroupData()
-                with open(data_path, "w") as f:
+                with open(data_path, "w", encoding="utf-8") as f:
                     json.dump(data.model_dump(), f)
                 return data
-        with open(data_path) as f:
+        with open(data_path, encoding="utf-8") as f:
             return PermissionGroupData(**json.load(f))
 
     def remove_permission_group(self, group: str):
@@ -140,10 +140,10 @@ class Data_Manager:
         data_path = self.user_data_path / f"{user_id}.json"
         if not data_path.exists():
             data = UserData()
-            with open(data_path, "w") as f:
+            with open(data_path, "w", encoding="utf-8") as f:
                 json.dump(data.model_dump(), f)
             return data
-        with open(data_path) as f:
+        with open(data_path, encoding="utf-8") as f:
             return UserData(**json.load(f))
 
 

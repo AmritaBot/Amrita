@@ -97,12 +97,12 @@ class Permissions:
         return current_node["has_permission"] if current_node else False
 
     def dump_to_file(self, filename: str):
-        with open(filename, "w") as f:
+        with open(filename, "w", encoding="utf-8") as f:
             json.dump(self.permissions_data, f, indent=4)
         self.__dump_to_str(overwrite=True)
 
     def load_from_json(self, filename: str):
-        with open(filename) as f:
+        with open(filename, encoding="utf-8") as f:
             self.permissions_data = json.load(f)
         self.__dump_to_str(overwrite=True)
 

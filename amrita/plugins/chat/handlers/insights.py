@@ -39,7 +39,7 @@ async def insights(event: MessageEvent, matcher: Matcher, args: Message = Comman
                 + f"\n\n{msg}"
             )
     elif arg == "global":
-        if not is_bot_admin(event):
+        if not await is_bot_admin(event):
             await matcher.finish("你没有权限查看全局数据")
         data = await InsightsModel.get()
         msg = (

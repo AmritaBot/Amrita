@@ -10,15 +10,15 @@ async def parse_command(
     args_list = args.extract_plain_text().strip().split(maxsplit=5)
 
     # 参数校验
-    if len(args_list) < 2:
+    if len(args_list) < 1:
         await matcher.finish("❌ 缺少ID")
-    if len(args_list) < 4:
-        await matcher.finish("❌ 参数不足，需要至少4个参数")
+    if len(args_list) < 3:
+        await matcher.finish("❌ 参数不足，需要至少3个参数")
 
-    user_id = args_list[1]
-    action_type = args_list[2]
-    operation = args_list[3]
-    target = args_list[4] if len(args_list) >= 5 else ""
-    value = args_list[5] if len(args_list) == 6 else ""
+    id = args_list[0]
+    action_type = args_list[1]
+    operation = args_list[2]
+    target = args_list[3] if len(args_list) >= 4 else ""
+    value = args_list[4] if len(args_list) == 5 else ""
 
-    return user_id, action_type, operation, target, value
+    return id, action_type, operation, target, value

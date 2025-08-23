@@ -28,7 +28,7 @@ command_start = get_driver().config.command_start
     state=MatcherData(
         name="Menu",
         description="展示菜单",
-        usage="menu",
+        usage="/menu",
     ).model_dump(),
     rule=lambda: not get_amrita_config().disable_builtin_menu,
 ).handle()

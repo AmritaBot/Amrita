@@ -18,7 +18,7 @@ class PermissionHandler(Protocol):
 
 
 @command.command(
-    "",
+    (),
     rule=to_me(),
     state=MatcherData(
         name="lp主命令",

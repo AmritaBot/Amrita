@@ -8,8 +8,7 @@ def generate_menu(plugins: list[PluginData]) -> list[str]:
         if not plugin.metadata or not plugin.matcher_grouping:
             continue
         plugin_name = plugin.metadata.name
-        plugin_desc = plugin.metadata.description or "无描述"
-        head += f"\n{plugin_name}: {plugin_desc}"
+        head += f"\n{plugin_name}"
 
     menu_datas: list[str] = [head.strip()]
     for plugin in plugins:
@@ -17,10 +16,7 @@ def generate_menu(plugins: list[PluginData]) -> list[str]:
             continue
 
         plugin_title = f"{plugin.metadata.name}\n"
-        plugin_description = (
-            f"{plugin.metadata.description}\n" if plugin.metadata.description else ""
-        )
-        plugin_markdown = plugin_title + plugin_description
+        plugin_markdown = plugin_title
         for matchers in plugin.matcher_grouping.values():
             for matcher_data in matchers:
                 plugin_markdown += f" {matcher_data.name}: {matcher_data.description}"
