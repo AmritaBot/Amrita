@@ -1,6 +1,6 @@
 [project]
 name = "amrita"
-version = "0.1.5"
+version = "0.1.6"
 description = "A bot powered by NoneBot2"
 readme = "README.md"
 license = "GPL-3.0-or-later"
@@ -14,11 +14,11 @@ dependencies = [
     "nonebot-plugin-localstore>=0.7.4",
     "typing-extensions>=4.6.0",
     "uv>=0.8.12",
+    "requests>=2.32.5",
 ]
 
 [project.optional-dependencies]
 full = [
-    "pillow>=11.3.0",
     "psutil>=7.0.0",
     "pytz>=2025.1",
     "tomli>=2.0.0",
@@ -27,7 +27,7 @@ full = [
     "dotenv>=0.9.9",
     "aiofiles>=24.1.0",
     "importlib>=1.0.4",
-    "watchfiles>=0.16",
+    "watchfiles<1.0.0",
     "openai>=1.66.3, <=1.99.0",
     "pydantic>=2.4.2",
     "jieba>=0.42.1",
@@ -35,7 +35,6 @@ full = [
     "nonebot-adapter-onebot>=2.4.6",
     "nonebot2[fastapi]>=2.4.3",
 ]
-# package = ["nuitka>=2.7.12", "patchelf>=0.17.2.4"]
 
 [project.scripts]
 amrita = "amrita.cli:main"

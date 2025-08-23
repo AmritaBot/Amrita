@@ -1,7 +1,12 @@
 import os
+import subprocess
 from pathlib import Path
+from subprocess import CalledProcessError
+from typing import Any
 
 import click
+import requests
+import toml
 
 from amrita.cli import (
     error,
@@ -15,14 +20,68 @@ from amrita.cli import (
 )
 from amrita.resource import EXAMPLE_PLUGIN, EXAMPLE_PLUGIN_CONFIG
 
-from .main import nb
+
+def get_package_metadata(package_name: str) -> dict[str, Any] | None:
+    try:
+        response = requests.get(f"https://pypi.org/pypi/{package_name}/json")
+        response.raise_for_status()
+        return response.json()
+    except Exception:
+        return
+
+
+def pypi_install(name: str):
+    name = name.replace("_", "-")
+    click.echo(info("Try to install plugin from pypi directly..."))
+    metadata = get_package_metadata(name)
+    if not metadata:
+        click.echo(error("Package not found"))
+        return
+    click.echo(info(f"Downloading {name}..."))
+    try:
+        run_proc(["uv", "add", name])
+    except CalledProcessError:
+        click.echo(error(f"Failed to install {name}"))
+        return
+    click.echo(info("Installing..."))
+    with open(
+        "pyproject.toml",
+    ) as f:
+        data = toml.load(f)
+        if "nonebot" not in data["tool"]:
+            data["tool"]["nonebot"] = {}
+            data["tool"]["nonebot"]["plugins"] = []
+        if name.replace("-", "_") not in data["tool"]["nonebot"]["plugins"]:
+            data["tool"]["nonebot"]["plugins"].append(name.replace("-", "_"))
+    with open("pyproject.toml", "w") as f:
+        toml.dump(data, f)
+    click.echo(
+        success(f"Plugin {name} added to pyproject.toml and installed successfully.")
+    )
 
 
 @plugin.command()
 @click.argument("name")
-def install(name: str):
+@click.option(
+    "--pypi", "-p", help="Install from PyPI directly", is_flag=True, default=False
+)
+def install(name: str, pypi: bool):
     """Install a plugin."""
-    nb(["plugin", "install", name])
+    cwd = Path(os.getcwd())
+    if (cwd / "plugins" / name).exists():
+        click.echo(warn(f"Plugin {name} already exists."))
+        return
+    if pypi or name.replace("_", "-").startswith("amrita-plugin-"):
+        pypi_install(name)
+    else:
+        try:
+            run_proc(
+                ["nb", "plugin", "install", name],
+            )
+        except Exception:
+            click.echo(error(f"Failed to install plugin {name}.Package not found."))
+            if click.confirm(question("Do you want to try installing it from pypi?")):
+                return pypi_install(name)
 
 
 @plugin.command()
@@ -76,7 +135,11 @@ def remove(name: str):
 
     if not plugin_dir.exists():
         try:
-            run_proc(["nb", "plugin", "remove", name])
+            run_proc(
+                ["nb", "plugin", "remove", name],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
         except Exception:
             pass
         click.echo(error(f"Plugin {name} does not exist."))
@@ -136,6 +199,6 @@ def echo_plugins():
 
 
 @plugin.command()
-def list_plugins():
+def list():
     """List all plugins."""
     echo_plugins()

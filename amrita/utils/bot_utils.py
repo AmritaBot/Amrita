@@ -11,8 +11,6 @@ from nonebot.log import default_format, logger_id
 
 from amrita.config import get_amrita_config
 
-from .admin import send_forward_msg_to_admin
-
 if TYPE_CHECKING:
     # avoid sphinx autodoc resolve annotation failed
     # because loguru module do not have `Logger` class actually
@@ -31,6 +29,8 @@ def default_filter(record: "Record"):
 def init():
     from nonebot.adapters.onebot.v11 import Adapter as ONEBOT_V11Adapter
     from nonebot.adapters.onebot.v11 import Bot, MessageSegment
+
+    from .admin import send_forward_msg_to_admin
 
     class AsyncErrorHandler:
         def write(self, message):
@@ -81,7 +81,6 @@ def init():
 
     driver = nonebot.get_driver()
     driver.register_adapter(ONEBOT_V11Adapter)
-    load_dotenv()
     config = get_amrita_config()
     log_dir = config.log_dir
     os.makedirs(log_dir, exist_ok=True)
@@ -106,3 +105,4 @@ def init():
         enqueue=True,
     )
     nonebot.logger.add(AsyncErrorHandler(), level="ERROR")
+    nonebot.logger.info("Amrita is initializing......")

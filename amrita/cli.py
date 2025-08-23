@@ -13,11 +13,13 @@ from amrita.utils.dependencies import self_check_optional_dependency
 _subprocesses: list[subprocess.Popen] = []
 
 
-def run_proc(cmd: list[str], stdin=None, stdout=sys.stdout, **kwargs):
+def run_proc(
+    cmd: list[str], stdin=None, stdout=sys.stdout, stderr=sys.stderr, **kwargs
+):
     proc = subprocess.Popen(
         cmd,
         stdout=stdout,
-        stderr=sys.stderr,
+        stderr=stderr,
         stdin=stdin,
         **kwargs,
     )
