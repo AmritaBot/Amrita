@@ -71,8 +71,7 @@ def main():
 
     os.environ["LOG_LEVEL"] = "DEBUG"
     os.environ["ALEMBIC_STARTUP_CHECK"] = "false"
-
-    logger.info("Start testing Amrita...")
+    print("---AMRITA LOADER IS LOADING---")
     amrita.init()
     logger.info("Loading driver...")
     driver = nonebot.get_driver()

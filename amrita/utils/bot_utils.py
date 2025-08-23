@@ -16,6 +16,13 @@ if TYPE_CHECKING:
     # because loguru module do not have `Logger` class actually
     from loguru import Record
 
+CUSTOM_FORMAT = (
+    "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | "
+    "<level>{level: <5}</level> | "
+    "<magenta>{name}:{function}:{line}</magenta> | "
+    "<level>{message}</level>"
+)
+
 
 def default_filter(record: "Record"):
     """默认的日志过滤器，根据 `config.log_level` 配置改变日志等级。"""
@@ -31,6 +38,8 @@ def init():
     from nonebot.adapters.onebot.v11 import Bot, MessageSegment
 
     from .admin import send_forward_msg_to_admin
+
+    logger = nonebot.logger
 
     class AsyncErrorHandler:
         def write(self, message):
@@ -73,26 +82,27 @@ def init():
                         )
 
             except Exception as e:
-                nonebot.logger.warning(f"发送群消息失败: {e}")
+                logger.warning(f"发送群消息失败: {e}")
 
     Path("plugins").mkdir(exist_ok=True)
-    nonebot.logger.add(AsyncErrorHandler(), level="ERROR")
+    logger.remove(logger_id)
+    logger.add(
+        sys.stdout,
+        level=0,
+        diagnose=True,
+        format=CUSTOM_FORMAT,
+        filter=default_filter,
+    )
+    logger.add(AsyncErrorHandler(), level="ERROR")
     nonebot.init()
-    nonebot.logger.success(f"Amrita v{get_amrita_version()} is initializing......")
+    logger.success(f"Amrita v{get_amrita_version()} is initializing......")
     driver = nonebot.get_driver()
     driver.register_adapter(ONEBOT_V11Adapter)
     config = get_amrita_config()
     log_dir = config.log_dir
     os.makedirs(log_dir, exist_ok=True)
-    nonebot.logger.remove(logger_id)
-    nonebot.logger.add(
-        sys.stdout,
-        level=0,
-        diagnose=True,
-        format=default_format,
-        filter=default_filter,
-    )
-    nonebot.logger.add(
+
+    logger.add(
         f"{log_dir}/" + "{time}.log",  # 传入函数，每天自动更新日志路径
         level=config.amrita_log_level,
         format=default_format,
