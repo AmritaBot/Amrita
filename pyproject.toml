@@ -15,10 +15,13 @@ dependencies = [
     "typing-extensions>=4.6.0",
     "uv>=0.8.12",
     "requests>=2.32.5",
+    "python-multipart>=0.0.20",
 ]
 
 [project.optional-dependencies]
 full = [
+    "jinja2>=3.1.6",
+    "uvicorn>=0.35.0",
     "psutil>=7.0.0",
     "pytz>=2025.1",
     "tomli>=2.0.0",
@@ -92,4 +95,4 @@ ignore = [
 typeCheckingMode = "standard"
 
 [tool.nonebot]
-plugins=["nonebot_plugin_orm"]
+plugins=["nonebot_plugin_orm","amrita.plugins.chat","amrita.plugins.manager","amrita.plugins.webui"]

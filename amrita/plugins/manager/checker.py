@@ -1,7 +1,9 @@
 import contextlib
 from collections import defaultdict
+from typing import Any
 
-from nonebot import on_command, on_notice
+from nonebot import logger, on_command, on_message, on_notice
+from nonebot.adapters import Bot
 from nonebot.adapters.onebot.v11 import (
     GroupBanNoticeEvent,
     GroupMessageEvent,
@@ -22,12 +24,14 @@ from nonebot.rule import (
     StartswithRule,
     ToMeRule,
 )
+from pydantic import BaseModel
 
 from amrita import get_amrita_config
 from amrita.plugins.menu.models import MatcherData
 from amrita.plugins.perm.API.admin import is_lp_admin
 from amrita.utils.admin import send_to_admin
 
+from .models import add_usage
 from .status_manager import StatusManager
 from .utils import TokenBucket
 
@@ -71,6 +75,15 @@ async def _(event: MessageEvent, matcher: Matcher, args: Message = CommandArg())
         await matcher.finish("请输入正确的参数，true/yes/1/on/false/no/0/off")
 
 
+@on_message(priority=1, block=False).handle()
+async def _(bot: Bot):
+    try:
+        logger.debug("Received message.")
+        await add_usage(bot.self_id, 1, 0)
+    except Exception as e:
+        logger.warning(e)
+
+
 @run_preprocessor
 async def run(matcher: Matcher, event: MessageEvent):
     has_text_rule = any(
@@ -87,18 +100,30 @@ async def run(matcher: Matcher, event: MessageEvent):
         )
         for checker in matcher.rule.checkers
     )  # 检查该匹配器是否有文字类匹配类规则
-
+    if not has_text_rule:
+        return
     ins_id = str(
         event.group_id if isinstance(event, GroupMessageEvent) else event.user_id
     )
     data = watch_group if isinstance(event, GroupMessageEvent) else watch_user
-
     bucket = data[ins_id]
-    if has_text_rule:
-        if not bucket.consume() and (not await is_lp_admin(event)):
-            raise IgnoredException("Rate limit exceeded, operation ignored.")
+    if not bucket.consume() and (not await is_lp_admin(event)):
+        raise IgnoredException("Rate limit exceeded, operation ignored.")
     if (not StatusManager().ready) and (not await is_lp_admin(event)):
-        if has_text_rule:
-            with contextlib.suppress(Exception):
-                await matcher.send("正在维护/数据迁移中，暂时不支持该操作！")
+        with contextlib.suppress(Exception):
+            await matcher.send("正在维护/数据迁移中，暂时不支持该操作！")
         raise IgnoredException("Maintenance in progress, operation not supported.")
+
+
+@Bot.on_calling_api
+async def handle_api_call(bot: Bot, api: str, data: dict[str, Any]):
+    if "send" in api and "msg" in api:
+        try:
+            await add_usage(bot.self_id, 0, 1)
+        except Exception as e:
+            logger.warning(e)
+
+
+class Status(BaseModel):
+    lables: list[str]
+    data: list[int]
