@@ -226,7 +226,31 @@ async def _(request: Request):
     }
 
 
-@app.get("/bots/status")
+@app.get("/bot/plugins")
+async def _(request: Request):
+    return templates.TemplateResponse(
+        "plugins.html",
+        context={
+            "request": request,
+        },
+    )
+
+
+@app.get("/api/plugins/list")
+async def _(request: Request):
+    return [
+        {
+            "name": "weather",
+            "homepage": "https://github.com/amrita-bot/weather-plugin",
+            "version": "1.2.0",
+            "is_local": False,
+            "type": "utility",
+            "description": "提供天气查询功能",
+        },
+    ]
+
+
+@app.get("/bot/status")
 async def _(request: Request):
     bot = try_get_bot()
     sys_info = calculate_system_usage()

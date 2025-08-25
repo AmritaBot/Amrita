@@ -23,9 +23,9 @@ class SideBar(BaseModel):
             url="#",
             active=False,
             children=[
-                SideBarItem(name="状态监控", url="/bots/status", active=False),
-                SideBarItem(name="插件管理", url="/bots/plugins", active=False),
-                SideBarItem(name="配置管理", url="/bots/config", active=False),
+                SideBarItem(name="状态监控", url="/bot/status", active=False),
+                SideBarItem(name="插件管理", url="/bot/plugins", active=False),
+                SideBarItem(name="配置管理", url="/bot/config", active=False),
             ],
         ),
         SideBarItem(

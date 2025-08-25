@@ -1,1 +1,664 @@
-{%extends "base.html"%}
+{% extends "base.html" %}
+
+{% block title %}插件管理 - Amrita Dashboard{% endblock %}
+
+{% block extra_css %}
+<style>
+  .plugins-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #eee;
+  }
+
+  .page-title {
+    font-size: 24px;
+    font-weight: 600;
+    color: var(--primary-color);
+  }
+
+  .actions-container {
+    display: flex;
+    gap: 10px;
+  }
+
+  .action-btn {
+    background: var(--primary-color);
+    color: white;
+    border: none;
+    padding: 8px 15px;
+    border-radius: 5px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    transition: background 0.3s;
+  }
+
+  .action-btn:hover {
+    background: var(--accent-color);
+  }
+
+  .action-btn i {
+    margin-right: 5px;
+  }
+
+  .action-btn.secondary {
+    background: #6c757d;
+  }
+
+  .action-btn.secondary:hover {
+    background: #5a6268;
+  }
+
+  .filter-container {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+  }
+
+  .filter-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .filter-label {
+    font-weight: 500;
+    color: #555;
+  }
+
+  .filter-select {
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    background: white;
+    min-width: 150px;
+  }
+
+  .search-box {
+    position: relative;
+    flex-grow: 1;
+    max-width: 300px;
+  }
+
+  .search-input {
+    width: 100%;
+    padding: 8px 12px 8px 35px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+  }
+
+  .search-icon {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #777;
+  }
+
+  .plugins-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 20px;
+  }
+
+  .plugin-card {
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    padding: 20px;
+    transition: transform 0.3s, box-shadow 0.3s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .plugin-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+  }
+
+  .plugin-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 15px;
+  }
+
+  .plugin-name {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-color);
+    margin-bottom: 5px;
+  }
+
+  .plugin-badge {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+    margin-left: 8px;
+  }
+
+  .badge-local {
+    background: rgba(46, 204, 113, 0.1);
+    color: #2ecc71;
+  }
+
+  .badge-remote {
+    background: rgba(52, 152, 219, 0.1);
+    color: #3498db;
+  }
+
+  .plugin-version {
+    color: #777;
+    font-size: 14px;
+  }
+
+  .plugin-type {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+    background: rgba(138, 43, 226, 0.1);
+    color: var(--primary-color);
+  }
+
+  .plugin-description {
+    color: #555;
+    margin: 15px 0;
+    line-height: 1.5;
+    font-size: 14px;
+  }
+
+  .plugin-homepage {
+    margin-bottom: 15px;
+  }
+
+  .homepage-link {
+    color: var(--primary-color);
+    text-decoration: none;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+  }
+
+  .homepage-link:hover {
+    text-decoration: underline;
+  }
+
+  .homepage-link i {
+    margin-right: 5px;
+  }
+
+  .plugin-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 15px;
+    border-top: 1px solid #f0f0f0;
+    padding-top: 15px;
+  }
+
+  .plugin-btn {
+    flex: 1;
+    padding: 8px 12px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background 0.3s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .plugin-btn i {
+    margin-right: 5px;
+  }
+
+  .btn-enable {
+    background: #2ecc71;
+    color: white;
+  }
+
+  .btn-enable:hover {
+    background: #27ae60;
+  }
+
+  .btn-disable {
+    background: #e74c3c;
+    color: white;
+  }
+
+  .btn-disable:hover {
+    background: #c0392b;
+  }
+
+  .btn-configure {
+    background: #f39c12;
+    color: white;
+  }
+
+  .btn-configure:hover {
+    background: #d35400;
+  }
+
+  .btn-reload {
+    background: #3498db;
+    color: white;
+  }
+
+  .btn-reload:hover {
+    background: #2980b9;
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  }
+
+  .empty-icon {
+    font-size: 48px;
+    color: #ddd;
+    margin-bottom: 15px;
+  }
+
+  .empty-text {
+    color: #777;
+    margin-bottom: 20px;
+  }
+
+  /* 响应式设计 */
+  @media (max-width: 768px) {
+    .plugins-header {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 15px;
+    }
+    
+    .actions-container {
+      width: 100%;
+      justify-content: space-between;
+    }
+    
+    .plugins-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .filter-container {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+    
+    .search-box {
+      max-width: 100%;
+    }
+    
+    .plugin-actions {
+      flex-direction: column;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="plugins-header">
+  <h1 class="page-title">插件管理</h1>
+  <div class="actions-container">
+    <button class="action-btn" onclick="refreshPlugins()">
+      <i class="fas fa-sync-alt"></i> 刷新列表
+    </button>
+    <button class="action-btn secondary" onclick="installPlugin()">
+      <i class="fas fa-download"></i> 安装插件
+    </button>
+  </div>
+</div>
+
+<div class="filter-container">
+  <div class="filter-group">
+    <span class="filter-label">类型:</span>
+    <select class="filter-select" id="type-filter" onchange="filterPlugins()">
+      <option value="all">全部类型</option>
+      {% for type in plugin_types %}
+      <option value="{{ type }}">{{ type }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  
+  <div class="filter-group">
+    <span class="filter-label">来源:</span>
+    <select class="filter-select" id="source-filter" onchange="filterPlugins()">
+      <option value="all">全部来源</option>
+      <option value="local">本地插件</option>
+      <option value="remote">远程插件</option>
+    </select>
+  </div>
+  
+  <div class="search-box">
+    <i class="fas fa-search search-icon"></i>
+    <input type="text" class="search-input" id="plugin-search" placeholder="搜索插件..." onkeyup="filterPlugins()">
+  </div>
+</div>
+
+<div class="plugins-grid" id="plugins-container">
+  {% for plugin in plugins %}
+  <div class="plugin-card" data-type="{{ plugin.type }}" data-source="{{ 'local' if plugin.is_local else 'remote' }}" data-name="{{ plugin.name|lower }}">
+    <div class="plugin-header">
+      <div>
+        <h3 class="plugin-name">
+          {{ plugin.name }}
+          <span class="plugin-badge {{ 'badge-local' if plugin.is_local else 'badge-remote' }}">
+            {{ '本地' if plugin.is_local else '远程' }}
+          </span>
+        </h3>
+        <div class="plugin-version">版本: {{ plugin.version }}</div>
+      </div>
+      <span class="plugin-type">{{ plugin.type }}</span>
+    </div>
+    
+    <p class="plugin-description">{{ plugin.description }}</p>
+    
+    {% if plugin.homepage %}
+    <div class="plugin-homepage">
+      <a href="{{ plugin.homepage }}" class="homepage-link" target="_blank">
+        <i class="fas fa-external-link-alt"></i> 插件主页
+      </a>
+    </div>
+    {% endif %}
+    
+    <div class="plugin-actions">
+      <button class="plugin-btn btn-enable" onclick="enablePlugin('{{ plugin.name }}')">
+        <i class="fas fa-play"></i> 启用
+      </button>
+      <button class="plugin-btn btn-disable" onclick="disablePlugin('{{ plugin.name }}')">
+        <i class="fas fa-stop"></i> 禁用
+      </button>
+      <button class="plugin-btn btn-configure" onclick="configurePlugin('{{ plugin.name }}')">
+        <i class="fas fa-cog"></i> 配置
+      </button>
+    </div>
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <div class="empty-icon">
+      <i class="fas fa-plug"></i>
+    </div>
+    <p class="empty-text">未找到任何插件</p>
+    <button class="action-btn" onclick="installPlugin()">
+      <i class="fas fa-download"></i> 安装插件
+    </button>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // 插件过滤功能
+  function filterPlugins() {
+    const typeFilter = document.getElementById('type-filter').value;
+    const sourceFilter = document.getElementById('source-filter').value;
+    const searchQuery = document.getElementById('plugin-search').value.toLowerCase();
+    
+    const pluginCards = document.querySelectorAll('.plugin-card');
+    
+    pluginCards.forEach(card => {
+      const pluginType = card.getAttribute('data-type');
+      const pluginSource = card.getAttribute('data-source');
+      const pluginName = card.getAttribute('data-name');
+      
+      const typeMatch = typeFilter === 'all' || pluginType === typeFilter;
+      const sourceMatch = sourceFilter === 'all' || pluginSource === sourceFilter;
+      const searchMatch = pluginName.includes(searchQuery) || 
+                         card.querySelector('.plugin-description').textContent.toLowerCase().includes(searchQuery);
+      
+      if (typeMatch && sourceMatch && searchMatch) {
+        card.style.display = 'block';
+      } else {
+        card.style.display = 'none';
+      }
+    });
+    
+    // 如果没有可见的插件卡片，显示空状态
+    const visibleCards = Array.from(pluginCards).filter(card => card.style.display !== 'none');
+    const emptyState = document.querySelector('.empty-state');
+    
+    if (visibleCards.length === 0 && emptyState) {
+      emptyState.style.display = 'block';
+    } else if (emptyState) {
+      emptyState.style.display = 'none';
+    }
+  }
+  
+  // 刷新插件列表
+  async function refreshPlugins() {
+    try {
+      // 显示加载状态
+      Swal.fire({
+        title: '刷新中...',
+        text: '正在获取最新插件信息',
+        allowOutsideClick: false,
+        didOpen: () => {
+          Swal.showLoading();
+        }
+      });
+      
+      // 从API获取插件数据
+      const response = await fetch('/api/plugins/list');
+      const plugins = await response.json();
+      
+      // 重新加载页面以更新插件列表
+      location.reload();
+      
+    } catch (error) {
+      console.error('刷新插件列表失败:', error);
+      Swal.close();
+      Swal.fire({
+        title: '刷新失败',
+        text: '无法获取插件列表，请检查网络连接',
+        icon: 'error',
+        timer: 2000
+      });
+    }
+  }
+  
+  // 启用插件
+  async function enablePlugin(pluginName) {
+    try {
+      const response = await fetch(`/api/plugins/${pluginName}/enable`, {
+        method: 'POST'
+      });
+      
+      if (response.ok) {
+        Swal.fire({
+          title: '启用成功',
+          text: `插件 ${pluginName} 已启用`,
+          icon: 'success',
+          timer: 1500,
+          showConfirmButton: false
+        });
+      } else {
+        throw new Error('启用失败');
+      }
+    } catch (error) {
+      console.error('启用插件失败:', error);
+      Swal.fire({
+        title: '启用失败',
+        text: `无法启用插件 ${pluginName}`,
+        icon: 'error',
+        timer: 2000
+      });
+    }
+  }
+  
+  // 禁用插件
+  async function disablePlugin(pluginName) {
+    try {
+      const response = await fetch(`/api/plugins/${pluginName}/disable`, {
+        method: 'POST'
+      });
+      
+      if (response.ok) {
+        Swal.fire({
+          title: '禁用成功',
+          text: `插件 ${pluginName} 已禁用`,
+          icon: 'success',
+          timer: 1500,
+          showConfirmButton: false
+        });
+      } else {
+        throw new Error('禁用失败');
+      }
+    } catch (error) {
+      console.error('禁用插件失败:', error);
+      Swal.fire({
+        title: '禁用失败',
+        text: `无法禁用插件 ${pluginName}`,
+        icon: 'error',
+        timer: 2000
+      });
+    }
+  }
+  
+  // 配置插件
+  async function configurePlugin(pluginName) {
+    // 显示配置对话框
+    Swal.fire({
+      title: `配置插件: ${pluginName}`,
+      html: `
+        <div style="text-align: left;">
+          <p>插件配置选项：</p>
+          <div class="config-item">
+            <label for="config-option1">选项 1:</label>
+            <input type="text" id="config-option1" class="swal2-input" placeholder="请输入值">
+          </div>
+          <div class="config-item">
+            <label for="config-option2">选项 2:</label>
+            <input type="text" id="config-option2" class="swal2-input" placeholder="请输入值">
+          </div>
+        </div>
+      `,
+      showCancelButton: true,
+      confirmButtonText: '保存',
+      cancelButtonText: '取消',
+      preConfirm: () => {
+        // 这里可以添加配置验证逻辑
+        return {
+          option1: document.getElementById('config-option1').value,
+          option2: document.getElementById('config-option2').value
+        };
+      }
+    }).then(async (result) => {
+      if (result.isConfirmed) {
+        try {
+          const response = await fetch(`/api/plugins/${pluginName}/configure`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(result.value)
+          });
+          
+          if (response.ok) {
+            Swal.fire({
+              title: '配置已保存',
+              text: `插件 ${pluginName} 的配置已更新`,
+              icon: 'success',
+              timer: 1500,
+              showConfirmButton: false
+            });
+          } else {
+            throw new Error('保存配置失败');
+          }
+        } catch (error) {
+          console.error('保存配置失败:', error);
+          Swal.fire({
+            title: '保存失败',
+            text: `无法保存插件 ${pluginName} 的配置`,
+            icon: 'error',
+            timer: 2000
+          });
+        }
+      }
+    });
+  }
+  
+  // 安装插件
+  function installPlugin() {
+    Swal.fire({
+      title: '安装插件',
+      input: 'text',
+      inputLabel: '请输入插件名称或GitHub仓库地址',
+      inputPlaceholder: '例如: weather-plugin 或 github.com/user/repo',
+      showCancelButton: true,
+      confirmButtonText: '安装',
+      cancelButtonText: '取消',
+      preConfirm: (pluginId) => {
+        if (!pluginId) {
+          Swal.showValidationMessage('请输入插件名称或地址');
+        }
+        return pluginId;
+      }
+    }).then(async (result) => {
+      if (result.isConfirmed) {
+        try {
+          Swal.fire({
+            title: '安装中...',
+            text: `正在安装插件: ${result.value}`,
+            allowOutsideClick: false,
+            didOpen: () => {
+              Swal.showLoading();
+            }
+          });
+          
+          const response = await fetch('/api/plugins/install', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ plugin: result.value })
+          });
+          
+          if (response.ok) {
+            Swal.close();
+            Swal.fire({
+              title: '安装成功',
+              text: `插件 ${result.value} 已成功安装`,
+              icon: 'success',
+              confirmButtonText: '确定'
+            }).then(() => {
+              // 刷新插件列表
+              refreshPlugins();
+            });
+          } else {
+            throw new Error('安装失败');
+          }
+        } catch (error) {
+          console.error('安装插件失败:', error);
+          Swal.close();
+          Swal.fire({
+            title: '安装失败',
+            text: `无法安装插件: ${result.value}`,
+            icon: 'error',
+            timer: 2000
+          });
+        }
+      }
+    });
+  }
+  
+  // 页面加载完成后初始化
+  document.addEventListener('DOMContentLoaded', function() {
+    // 可以添加一些初始化逻辑
+  });
+</script>
+{% endblock %}
