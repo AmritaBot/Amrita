@@ -1,0 +1,802 @@
+{% extends "base.html" %} {% block title %}黑名单管理 - Amrita Dashboard{%
+endblock %} {% block extra_css %}
+<style>
+  .blacklist-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #eee;
+  }
+
+  .page-title {
+    font-size: 24px;
+    font-weight: 600;
+    color: var(--primary-color);
+  }
+
+  .actions-container {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+    margin-top: 5px;
+  }
+
+  .action-btn {
+    background: var(--primary-color);
+    color: white;
+    border: none;
+    padding: 8px 15px;
+    border-radius: 5px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    transition: background 0.3s;
+  }
+
+  .action-btn:hover {
+    background: var(--accent-color);
+  }
+
+  .action-btn i {
+    margin-right: 5px;
+  }
+
+  .action-btn.danger {
+    background: #e74c3c;
+  }
+
+  .action-btn.danger:hover {
+    background: #c0392b;
+  }
+
+  .tabs-container {
+    display: flex;
+    margin-bottom: 20px;
+    border-bottom: 1px solid #ddd;
+  }
+
+  .tab {
+    padding: 10px 20px;
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+    transition: all 0.3s;
+  }
+
+  .tab.active {
+    border-bottom-color: var(--primary-color);
+    color: var(--primary-color);
+    font-weight: 500;
+  }
+
+  .tab-content {
+    display: none;
+  }
+
+  .tab-content.active {
+    display: block;
+  }
+
+  .table-container {
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    overflow: hidden;
+  }
+
+  .table-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 20px;
+    border-bottom: 1px solid #eee;
+  }
+
+  .table-title {
+    font-size: 16px;
+    font-weight: 600;
+  }
+
+  .batch-actions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+
+  .select-all {
+    display: flex;
+    align-items: center;
+    margin-right: 15px;
+  }
+
+  .select-all input {
+    margin-right: 5px;
+  }
+
+  .table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .table th,
+  .table td {
+    padding: 12px 15px;
+    text-align: left;
+    border-bottom: 1px solid #eee;
+  }
+
+  .table th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+    color: #555;
+  }
+
+  .table tbody tr {
+    transition: background 0.3s;
+  }
+
+  .table tbody tr:hover {
+    background-color: #f8f9fa;
+  }
+
+  .table tbody tr.selected {
+    background-color: rgba(138, 43, 226, 0.1);
+  }
+
+  .id-cell {
+    font-family: monospace;
+    font-size: 14px;
+  }
+
+  .reason-cell {
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .time-cell {
+    color: #777;
+    font-size: 14px;
+  }
+
+  .action-cell {
+    text-align: center;
+  }
+
+  .action-icon {
+    color: #e74c3c;
+    cursor: pointer;
+    padding: 5px;
+    border-radius: 4px;
+    transition: background 0.3s;
+  }
+
+  .action-icon:hover {
+    background: rgba(231, 76, 60, 0.1);
+  }
+
+  .empty-state {
+    padding: 40px 20px;
+    text-align: center;
+    color: #777;
+  }
+
+  .empty-icon {
+    font-size: 48px;
+    color: #ddd;
+    margin-bottom: 15px;
+  }
+
+  .add-form {
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+
+  .form-title {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 15px;
+    color: var(--primary-color);
+  }
+
+  .form-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 15px;
+  }
+
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 15px;
+    margin-top: 5px;
+  }
+  
+  .form-group .form-input,
+  .form-group .form-select {
+    width: 100%;
+    box-sizing: border-box;
+    vertical-align: top;
+  }
+
+  .form-label {
+    margin-bottom: 5px;
+    font-weight: 500;
+    color: #555;
+  }
+
+  .form-input,
+  .form-select {
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    font-size: 14px;
+  }
+
+  .form-textarea {
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    font-size: 14px;
+    resize: vertical;
+    min-height: 80px;
+  }
+
+  .form-submit {
+    background: var(--primary-color);
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    align-self: flex-end;
+    transition: background 0.3s;
+  }
+
+  .form-submit:hover {
+    background: var(--accent-color);
+  }
+  
+  /* 对齐修复：确保表单元素在横屏时对齐 */
+  @media (min-width: 769px) {
+    .form-grid {
+      align-items: end;
+    }
+    
+    .form-group {
+      display: inline-flex;
+      flex-direction: column;
+    }
+    
+    .form-input,
+    .form-select {
+      align-self: stretch;
+    }
+  }
+
+  /* 响应式设计 */
+  @media (max-width: 768px) {
+    .blacklist-header {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 15px;
+    }
+
+    .form-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .table-header {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 10px;
+    }
+
+    .batch-actions {
+      width: 100%;
+      justify-content: space-between;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .tabs-container {
+      overflow-x: auto;
+      white-space: nowrap;
+    }
+
+    .tab {
+      padding: 10px 15px;
+    }
+
+    .table {
+      display: block;
+      overflow-x: auto;
+    }
+
+    .action-btn {
+      padding: 6px 10px;
+      font-size: 14px;
+      margin-bottom: 10px;
+      margin-top: 5px;
+    }
+  }
+</style>
+{% endblock %} {% block content %}
+<div class="blacklist-header">
+  <h1 class="page-title">黑名单管理</h1>
+  <div class="actions-container">
+    <button class="action-btn" onclick="refreshBlacklist()">
+      <i class="fas fa-sync-alt"></i> 刷新列表
+    </button>
+  </div>
+</div>
+
+<!-- 添加黑名单表单 -->
+<div class="add-form">
+  <h3 class="form-title">添加黑名单</h3>
+  <form id="add-blacklist-form">
+    <div class="form-grid">
+      <div class="form-group">
+        <label class="form-label">类型</label>
+        <select class="form-select" name="type" required>
+          <option value="user">用户</option>
+          <option value="group">群组</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">ID</label>
+        <input
+          type="text"
+          class="form-input"
+          name="id"
+          placeholder="请输入ID"
+          required
+        />
+      </div>
+      <div class="form-group">
+        <label class="form-label">原因</label>
+        <input
+          type="text"
+          class="form-input"
+          name="reason"
+          placeholder="请输入原因"
+          required
+        />
+      </div>
+    </div>
+    <button type="submit" class="form-submit">添加</button>
+  </form>
+</div>
+
+<!-- 选项卡 -->
+<div class="tabs-container">
+  <div class="tab active" data-tab="user-blacklist">
+    用户黑名单 ({{ user_blacklist|length }})
+  </div>
+  <div class="tab" data-tab="group-blacklist">
+    群组黑名单 ({{ group_blacklist|length }})
+  </div>
+</div>
+
+<!-- 用户黑名单内容 -->
+<div class="tab-content active" id="user-blacklist">
+  <div class="table-container">
+    <div class="table-header">
+      <div class="table-title">用户黑名单列表</div>
+      <div class="batch-actions">
+        <div class="select-all">
+          <input
+            type="checkbox"
+            id="select-all-users"
+            onchange="toggleSelectAll('user')"
+          />
+          <label for="select-all-users">全选</label>
+        </div>
+        <button class="action-btn danger" onclick="removeSelected('user')">
+          <i class="fas fa-trash"></i> 批量移除
+        </button>
+      </div>
+    </div>
+
+    {% if user_blacklist %}
+    <table class="table">
+      <thead>
+        <tr>
+          <th width="5%"></th>
+          <th width="20%">用户ID</th>
+          <th width="30%">原因</th>
+          <th width="20%">添加时间</th>
+          <th width="15%">操作者</th>
+          <th width="10%">操作</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for user in user_blacklist %}
+        <tr>
+          <td>
+            <input
+              type="checkbox"
+              class="user-checkbox"
+              value="{{ user.id }}"
+            />
+          </td>
+          <td class="id-cell">{{ user.id }}</td>
+          <td class="reason-cell" title="{{ user.reason }}">
+            {{ user.reason }}
+          </td>
+          <td class="time-cell">{{ user.added_time }}</td>
+          <td class="action-cell">
+            <i
+              class="fas fa-trash action-icon"
+              onclick="removeFromBlacklist('user', '{{ user.id }}')"
+              title="移除黑名单"
+            ></i>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+      <div class="empty-icon">
+        <i class="fas fa-ban"></i>
+      </div>
+      <p>暂无用户黑名单记录</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- 群组黑名单内容 -->
+<div class="tab-content" id="group-blacklist">
+  <div class="table-container">
+    <div class="table-header">
+      <div class="table-title">群组黑名单列表</div>
+      <div class="batch-actions">
+        <div class="select-all">
+          <input
+            type="checkbox"
+            id="select-all-groups"
+            onchange="toggleSelectAll('group')"
+          />
+          <label for="select-all-groups">全选</label>
+        </div>
+        <button class="action-btn danger" onclick="removeSelected('group')">
+          <i class="fas fa-trash"></i> 批量移除
+        </button>
+      </div>
+    </div>
+
+    {% if group_blacklist %}
+    <table class="table">
+      <thead>
+        <tr>
+          <th width="5%"></th>
+          <th width="20%">群组ID</th>
+          <th width="30%">原因</th>
+          <th width="20%">添加时间</th>
+          <th width="15%">操作者</th>
+          <th width="10%">操作</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for group in group_blacklist %}
+        <tr>
+          <td>
+            <input
+              type="checkbox"
+              class="group-checkbox"
+              value="{{ group.id }}"
+            />
+          </td>
+          <td class="id-cell">{{ group.id }}</td>
+          <td class="reason-cell" title="{{ group.reason }}">
+            {{ group.reason }}
+          </td>
+          <td class="time-cell">{{ group.added_time }}</td>
+          <td class="action-cell">
+            <i
+              class="fas fa-trash action-icon"
+              onclick="removeFromBlacklist('group', '{{ group.id }}')"
+              title="移除黑名单"
+            ></i>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+      <div class="empty-icon">
+        <i class="fas fa-ban"></i>
+      </div>
+      <p>暂无群组黑名单记录</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %} {% block scripts %}
+<script>
+  // 选项卡切换功能
+  document.querySelectorAll(".tab").forEach((tab) => {
+    tab.addEventListener("click", function () {
+      // 移除所有激活状态
+      document
+        .querySelectorAll(".tab")
+        .forEach((t) => t.classList.remove("active"));
+      document
+        .querySelectorAll(".tab-content")
+        .forEach((c) => c.classList.remove("active"));
+
+      // 添加当前激活状态
+      this.classList.add("active");
+      document
+        .getElementById(this.getAttribute("data-tab"))
+        .classList.add("active");
+    });
+  });
+
+  // 添加黑名单表单提交
+  document
+    .getElementById("add-blacklist-form")
+    .addEventListener("submit", async function (e) {
+      e.preventDefault();
+
+      const formData = new FormData(this);
+      const type = formData.get("type");
+      const id = formData.get("id");
+      const reason = formData.get("reason");
+
+      try {
+        // 显示加载状态
+        Swal.fire({
+          title: "添加中...",
+          text: "正在添加黑名单",
+          allowOutsideClick: false,
+          didOpen: () => {
+            Swal.showLoading();
+          },
+        });
+
+        // 调用API添加黑名单
+        const response = await fetch("/api/blacklist/add", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            type: type,
+            id: id,
+            reason: reason,
+          }),
+        });
+
+        if (response.ok) {
+          Swal.close();
+          Swal.fire({
+            title: "添加成功",
+            text: "已成功添加到黑名单",
+            icon: "success",
+            timer: 1500,
+            showConfirmButton: false,
+          }).then(() => {
+            // 刷新页面
+            location.reload();
+          });
+        } else {
+          const error = await response.text();
+          throw new Error(error || "添加失败");
+        }
+      } catch (error) {
+        console.error("添加黑名单失败:", error);
+        Swal.close();
+        Swal.fire({
+          title: "添加失败",
+          text: error.message || "无法添加到黑名单，请检查输入",
+          icon: "error",
+          timer: 2000,
+        });
+      }
+    });
+
+  // 全选/取消全选
+  function toggleSelectAll(type) {
+    const checkboxes = document.querySelectorAll(`.${type}-checkbox`);
+    const selectAll = document.getElementById(`select-all-${type}s`);
+
+    checkboxes.forEach((checkbox) => {
+      checkbox.checked = selectAll.checked;
+      toggleRowSelection(checkbox);
+    });
+  }
+
+  // 切换行选中状态
+  function toggleRowSelection(checkbox) {
+    const row = checkbox.closest("tr");
+    if (checkbox.checked) {
+      row.classList.add("selected");
+    } else {
+      row.classList.remove("selected");
+      // 取消全选
+      const type = checkbox.classList.contains("user-checkbox")
+        ? "user"
+        : "group";
+      document.getElementById(`select-all-${type}s`).checked = false;
+    }
+  }
+
+  // 移除单个黑名单
+  async function removeFromBlacklist(type, id) {
+    try {
+      Swal.fire({
+        title: "确认移除",
+        text: `确定要将${
+          type === "user" ? "用户" : "群组"
+        } ${id} 从黑名单中移除吗？`,
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonText: "确定移除",
+        cancelButtonText: "取消",
+      }).then(async (result) => {
+        if (result.isConfirmed) {
+          // 显示加载状态
+          Swal.fire({
+            title: "移除中...",
+            text: "正在从黑名单中移除",
+            allowOutsideClick: false,
+            didOpen: () => {
+              Swal.showLoading();
+            },
+          });
+
+          // 调用API移除黑名单
+          const response = await fetch(`/api/blacklist/remove/${type}/${id}`, {
+            method: "POST",
+          });
+
+          if (response.ok) {
+            Swal.close();
+            Swal.fire({
+              title: "移除成功",
+              text: "已成功从黑名单中移除",
+              icon: "success",
+              timer: 1500,
+              showConfirmButton: false,
+            }).then(() => {
+              // 刷新页面
+              location.reload();
+            });
+          } else {
+            throw new Error("移除失败");
+          }
+        }
+      });
+    } catch (error) {
+      console.error("移除黑名单失败:", error);
+      Swal.close();
+      Swal.fire({
+        title: "移除失败",
+        text: "无法从黑名单中移除",
+        icon: "error",
+        timer: 2000,
+      });
+    }
+  }
+
+  // 批量移除选中的黑名单
+  async function removeSelected(type) {
+    const checkboxes = document.querySelectorAll(`.${type}-checkbox:checked`);
+
+    if (checkboxes.length === 0) {
+      Swal.fire({
+        title: "请选择",
+        text: "请至少选择一项进行移除",
+        icon: "warning",
+        timer: 1500,
+        showConfirmButton: false,
+      });
+      return;
+    }
+
+    const ids = Array.from(checkboxes).map((checkbox) => checkbox.value);
+
+    try {
+      Swal.fire({
+        title: "确认批量移除",
+        text: `确定要将选中的 ${ids.length} 个${
+          type === "user" ? "用户" : "群组"
+        }从黑名单中移除吗？`,
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonText: "确定移除",
+        cancelButtonText: "取消",
+      }).then(async (result) => {
+        if (result.isConfirmed) {
+          // 显示加载状态
+          Swal.fire({
+            title: "移除中...",
+            text: `正在批量移除 ${ids.length} 个${
+              type === "user" ? "用户" : "群组"
+            }`,
+            allowOutsideClick: false,
+            didOpen: () => {
+              Swal.showLoading();
+            },
+          });
+
+          // 调用API批量移除黑名单
+          const response = await fetch(`/api/blacklist/remove-batch/${type}`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ ids: ids }),
+          });
+
+          if (response.ok) {
+            Swal.close();
+            Swal.fire({
+              title: "批量移除成功",
+              text: `已成功移除 ${ids.length} 个${
+                type === "user" ? "用户" : "群组"
+              }`,
+              icon: "success",
+              timer: 1500,
+              showConfirmButton: false,
+            }).then(() => {
+              // 刷新页面
+              location.reload();
+            });
+          } else {
+            throw new Error("批量移除失败");
+          }
+        }
+      });
+    } catch (error) {
+      console.error("批量移除黑名单失败:", error);
+      Swal.close();
+      Swal.fire({
+        title: "移除失败",
+        text: "无法从黑名单中移除选中的项目",
+        icon: "error",
+        timer: 2000,
+      });
+    }
+  }
+
+  // 刷新黑名单列表
+  function refreshBlacklist() {
+    // 显示加载状态
+    Swal.fire({
+      title: "刷新中...",
+      text: "正在获取最新黑名单信息",
+      allowOutsideClick: false,
+      didOpen: () => {
+        Swal.showLoading();
+      },
+    });
+
+    // 刷新页面
+    location.reload();
+  }
+
+  // 页面加载完成后初始化
+  document.addEventListener("DOMContentLoaded", function () {
+    // 绑定复选框点击事件
+    document
+      .querySelectorAll(".user-checkbox, .group-checkbox")
+      .forEach((checkbox) => {
+        checkbox.addEventListener("change", function () {
+          toggleRowSelection(this);
+        });
+      });
+  });
+</script>
+{% endblock %}

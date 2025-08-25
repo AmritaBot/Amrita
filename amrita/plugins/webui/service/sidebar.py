@@ -25,7 +25,7 @@ class SideBar(BaseModel):
             children=[
                 SideBarItem(name="状态监控", url="/bot/status", active=False),
                 SideBarItem(name="插件管理", url="/bot/plugins", active=False),
-                SideBarItem(name="配置管理", url="/bot/config", active=False),
+                # SideBarItem(name="配置管理", url="/bot/config", active=False),
             ],
         ),
         SideBarItem(
@@ -34,7 +34,8 @@ class SideBar(BaseModel):
             url="/users",
             active=False,
             children=[
-                SideBarItem(name="权限管理", url="/users/permissions", active=False),
+                # SideBarItem(name="权限管理", url="/users/permissions", active=False),
+                SideBarItem(name="黑名单管理", url="/user/blacklist", active=False)
             ],
         ),
     ]

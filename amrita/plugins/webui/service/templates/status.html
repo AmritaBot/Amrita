@@ -13,6 +13,8 @@ endblock %} {% block extra_css %}
     border-radius: 10px;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
     padding: 20px;
+    margin-bottom: 20px;
+    margin-top: 10px;
   }
 
   .card-header {
@@ -93,7 +95,7 @@ endblock %} {% block extra_css %}
   }
 
   .chart-container {
-    height: 300px;
+    height: 400px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -145,25 +147,9 @@ endblock %} {% block extra_css %}
       <span class="info-value" id="bot-id">{{ bot_static_info.id }}</span>
     </div>
     <div class="info-item">
-      <span class="info-label">名称:</span>
-      <span class="info-value" id="bot-name">{{ bot_static_info.name }}</span>
-    </div>
-    <div class="info-item">
-      <span class="info-label">版本:</span>
-      <span class="info-value" id="bot-version"
-        >{{ bot_static_info.version }}</span
-      >
-    </div>
-    <div class="info-item">
-      <span class="info-label">运行平台:</span>
-      <span class="info-value" id="bot-platform"
-        >{{ bot_static_info.platform }}</span
-      >
-    </div>
-    <div class="info-item">
-      <span class="info-label">作者:</span>
-      <span class="info-value" id="bot-author"
-        >{{ bot_static_info.author }}</span
+      <span class="info-label">Bot昵称:</span>
+      <span class="info-value" id="bot-nickname"
+        >{{ bot_static_info.bot_name }}</span
       >
     </div>
   </div>
@@ -172,6 +158,10 @@ endblock %} {% block extra_css %}
   <div class="info-card">
     <div class="card-header">
       <div class="card-title">系统信息</div>
+    </div>
+    <div class="info-item">
+      <span class="info-label">Bot名称:</span>
+      <span class="info-value" id="bot-name">{{ bot_static_info.name }}</span>
     </div>
     <div class="info-item">
       <span class="info-label">操作系统:</span>
@@ -187,6 +177,18 @@ endblock %} {% block extra_css %}
       <span class="info-label">主机名:</span>
       <span class="info-value" id="system-hostname"
         >{{ system_info.hostname }}</span
+      >
+    </div>
+    <div class="info-item">
+      <span class="info-label">Amrita版本:</span>
+      <span class="info-value" id="bot-version"
+        >{{ bot_static_info.version }}</span
+      >
+    </div>
+    <div class="info-item">
+      <span class="info-label">运行协议:</span>
+      <span class="info-value" id="bot-platform"
+        >{{ bot_static_info.platform }}</span
       >
     </div>
   </div>

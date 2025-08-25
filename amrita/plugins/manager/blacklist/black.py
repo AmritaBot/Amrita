@@ -1,3 +1,6 @@
+from dataclasses import dataclass
+from datetime import datetime
+
 from nonebot import logger, require
 from sqlalchemy import delete, insert, select
 from sqlalchemy.exc import IntegrityError
@@ -6,6 +9,12 @@ require("nonebot_plugin_orm")
 from nonebot_plugin_orm import get_session
 
 from .models import GroupBlacklist, PrivateBlacklist
+
+
+@dataclass
+class BL_Data:
+    reason: str
+    time: datetime
 
 
 class BL_Manager:
@@ -89,6 +98,27 @@ class BL_Manager:
             result = await session.execute(stmt)
             records = result.scalars().all()
             return {record.group_id: record.reason for record in records}
+
+    @staticmethod
+    async def get_full_blacklist() -> dict[str, dict[str, BL_Data]]:
+        async with get_session() as session:
+            private_blacklist = (
+                (await session.execute(select(PrivateBlacklist))).scalars().all()
+            )
+            session.add_all(private_blacklist)
+            pri_bl = {
+                record.user_id: BL_Data(record.reason, record.created_at)
+                for record in private_blacklist
+            }
+            group_blacklist = (
+                (await session.execute(select(GroupBlacklist))).scalars().all()
+            )
+            session.add_all(group_blacklist)
+            grp_bl = {
+                record.group_id: BL_Data(record.reason, record.created_at)
+                for record in group_blacklist
+            }
+            return {"group": grp_bl, "private": pri_bl}
 
 
 bl_manager = BL_Manager

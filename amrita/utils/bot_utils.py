@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 
 CUSTOM_FORMAT = (
     "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | "
-    "<level>{level: <5}</level> | "
+    "<level>{level: <7}</level> | "
     "<magenta>{name}:{function}:{line}</magenta> | "
     "<level>{message}</level>"
 )
