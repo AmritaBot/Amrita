@@ -133,7 +133,7 @@ if __name__ == "__main__":
     permissions.set_permission("user.read", True)
     permissions.set_permission("user.write", True)
     permissions.set_permission("user.*", True)
-    permissions.set_permission("user", True)
+    permissions.set_permission("user", False)
     permissions.set_permission("children", True)
     permissions.set_permission("children.read", True)
     permissions.set_permission("children.children", True)

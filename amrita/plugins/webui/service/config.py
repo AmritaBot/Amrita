@@ -8,9 +8,6 @@ class Config(BaseModel):
     """
 
     webui_enable: bool = True
-    webui_host: str = "127.0.0.1"
-    webui_port: int = 8000
-    # weibui_use_nonebot_app: bool = False
     webui_user_name: str = "admin"
     webui_password: str = "admin123"
 

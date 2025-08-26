@@ -1,0 +1,9 @@
+include README.md
+include LICENSE
+recursive-include amrita/plugins/webui/service/templates *.html
+recursive-include amrita/plugins/webui/service/static *
+recursive-include amrita/plugins/webui/service *.py
+global-exclude __pycache__
+global-exclude *.pyc
+global-exclude *.pyo
+global-exclude *~

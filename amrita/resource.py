@@ -6,7 +6,10 @@ LOCALSTORE_USE_CWD=true
 DATABASE_URL=aiosqlite:///db.sqlite3
 LOG_DIR=logs
 BOT_NAME=Amrita
-RATE_LIMIT=5"""
+RATE_LIMIT=5
+WEBUI_ENABLE=true
+WEBUI_USER_NAME=admin
+WEBUI_PASSWORD=admin123"""
 DOTENV_DEV = """LOG_LEVEL=DEBUG"""
 DOTENV_PROD = """"""
 GITIGNORE = """# Created by https://www.toptal.com/developers/gitignore/api/python

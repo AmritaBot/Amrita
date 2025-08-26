@@ -1,6 +1,6 @@
 [project]
 name = "amrita"
-version = "0.2.0"
+version = "0.2.0.post1"
 description = "A bot powered by NoneBot2"
 readme = "README.md"
 license = "GPL-3.0-or-later"
@@ -50,6 +50,10 @@ amrita = "amrita.cli:main"
 
 [tool.setuptools.packages.find]
 include = ["amrita", "amrita.*"]
+
+# 添加资源文件包含配置
+[tool.setuptools.package-data]
+"amrita.plugins.webui.service" = ["templates/*.html", "static/**/*"]
 
 [tool.uv]
 dev-dependencies = [
