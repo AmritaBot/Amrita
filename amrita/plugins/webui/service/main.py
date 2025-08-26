@@ -5,18 +5,19 @@ from pathlib import Path
 import nonebot
 from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.responses import RedirectResponse
-from fastapi.staticfiles import StaticFiles
+
+# from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from nonebot import logger
 
 from .authlib import AuthManager
 
 app: FastAPI = nonebot.get_app()
-app.mount(
+"""app.mount(
     "/static",
     StaticFiles(directory=Path(__file__).resolve().parent / "static"),
     name="static",
-)
+)"""
 templates = Jinja2Templates(directory=Path(__file__).resolve().parent / "templates")
 
 
