@@ -33,7 +33,6 @@ async def _(event: RequestEvent, bot: Bot):
             )
             await event.reject(bot)
             return
-        flag = event.flag
         group_list = await bot.get_group_list()
         group_joins = [int(group["group_id"]) for group in group_list]
         if event.sub_type != "invite":
@@ -42,4 +41,4 @@ async def _(event: RequestEvent, bot: Bot):
             await send_to_admin(
                 f"收到{event.user_id}加入群组邀请，已自动加入群组{event.group_id}"
             )
-            await bot.set_group_add_request(approve=True, sub_type="invite", flag=flag)
+            await event.approve(bot=bot)
