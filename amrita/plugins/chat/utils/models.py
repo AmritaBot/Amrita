@@ -89,6 +89,7 @@ class UniResponseUsage(BaseModel, Generic[T_INT]):
 class UniResponse(BaseModel, Generic[T, T_TOOL]):
     """统一响应格式"""
 
+    role: Literal["assistant", "function"] = "assistant"
     usage: UniResponseUsage | None = None
     content: T
     tool_calls: T_TOOL
@@ -109,7 +110,9 @@ class TextContent(BaseModel):
 
 
 class Message(BaseModel, Generic[_T]):
-    role: Literal["user", "assistant", "system"] = Field(..., description="角色")
+    role: Literal["user", "assistant", "system"] = Field(
+        default="assistant", description="角色"
+    )
     content: list[TextContent | ImageContent] | _T = Field(..., description="内容")
     tool_calls: list[ToolCall] | None = Field(default=None, description="工具调用")
 
