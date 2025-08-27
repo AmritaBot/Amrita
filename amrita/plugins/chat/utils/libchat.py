@@ -29,12 +29,14 @@ from ..utils.models import InsightsModel
 from ..utils.protocol import ToolCall
 from .functions import remove_think_tag
 from .memory import BaseModel, Message, ToolResult, get_memory_data
-from .protocol import (
-    AdapterManager,
-    ModelAdapter,
+from .models import (
     ToolChoice,
     UniResponse,
     UniResponseUsage,
+)
+from .protocol import (
+    AdapterManager,
+    ModelAdapter,
 )
 
 
