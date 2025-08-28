@@ -1,3 +1,8 @@
+"""Amrita CLI工具模块
+
+该模块提供了Amrita项目的命令行界面工具，用于项目管理、依赖检查、插件管理等功能。
+"""
+
 import signal
 import subprocess
 import sys
@@ -16,6 +21,21 @@ _subprocesses: list[subprocess.Popen] = []
 def run_proc(
     cmd: list[str], stdin=None, stdout=sys.stdout, stderr=sys.stderr, **kwargs
 ):
+    """运行子进程并等待其完成
+
+    Args:
+        cmd: 要执行的命令列表
+        stdin: 标准输入流
+        stdout: 标准输出流
+        stderr: 标准错误流
+        **kwargs: 其他传递给Popen的参数
+
+    Returns:
+        进程的返回码
+
+    Raises:
+        subprocess.CalledProcessError: 当进程返回非零退出码时
+    """
     proc = subprocess.Popen(
         cmd,
         stdout=stdout,
@@ -39,6 +59,17 @@ def run_proc(
 
 
 def stdout_run_proc(cmd: list[str]):
+    """运行子进程并返回标准输出
+
+    Args:
+        cmd: 要执行的命令列表
+
+    Returns:
+        进程的标准输出内容（字符串格式）
+
+    Raises:
+        subprocess.CalledProcessError: 当进程返回非零退出码时
+    """
     proc = subprocess.Popen(
         cmd,
         stdout=subprocess.PIPE,
@@ -60,7 +91,10 @@ def stdout_run_proc(cmd: list[str]):
 
 
 def _cleanup_subprocesses():
-    """清理所有子进程"""
+    """清理所有子进程
+
+    终止所有正在运行的子进程，首先尝试优雅地终止，超时后强制杀死。
+    """
     for proc in _subprocesses:
         try:
             proc.terminate()
@@ -73,7 +107,14 @@ def _cleanup_subprocesses():
 
 
 def _signal_handler(signum, frame):
-    """信号处理函数"""
+    """信号处理函数
+
+    当接收到终止信号时，清理所有子进程并退出程序。
+
+    Args:
+        signum: 信号编号
+        frame: 当前堆栈帧
+    """
     _cleanup_subprocesses()
     sys.exit(0)
 
@@ -96,7 +137,16 @@ def check_optional_dependency(is_self: bool = False) -> bool: ...
 def check_optional_dependency(
     is_self: bool = False, with_details: bool = False
 ) -> bool | tuple[bool, list[str]]:
-    """检测amrita[full]可选依赖是否已安装"""
+    """检测amrita[full]可选依赖是否已安装
+
+    Args:
+        is_self: 是否在当前环境中直接检查
+        with_details: 是否返回详细信息（缺失的依赖列表）
+
+    Returns:
+        如果with_details为True，返回(状态, 缺失依赖列表)元组；
+        否则只返回状态布尔值
+    """
     if not is_self:
         try:
             run_proc(
@@ -123,6 +173,11 @@ def check_optional_dependency(
 
 
 def install_optional_dependency_no_venv() -> bool:
+    """在不使用虚拟环境的情况下安装可选依赖
+
+    Returns:
+        安装是否成功
+    """
     try:
         run_proc(["pip", "install", "amrita[full]"])
         return True
@@ -132,7 +187,13 @@ def install_optional_dependency_no_venv() -> bool:
 
 
 def install_optional_dependency() -> bool:
-    """安装amrita[full]可选依赖"""
+    """安装amrita[full]可选依赖
+
+    使用uv工具安装amrita的完整依赖包。
+
+    Returns:
+        安装是否成功
+    """
     try:
         proc = subprocess.Popen(
             ["uv", "add", "amrita[full]"],
@@ -163,7 +224,11 @@ def install_optional_dependency() -> bool:
 
 
 def check_nb_cli_available():
-    """检查nb-cli是否可用"""
+    """检查nb-cli是否可用
+
+    Returns:
+        nb-cli是否可用
+    """
     try:
         proc = subprocess.Popen(
             ["nb", "--version"], stdout=subprocess.PIPE, stderr=subprocess.PIPE
@@ -183,22 +248,62 @@ def check_nb_cli_available():
 
 
 def warn(message: str):
+    """返回带警告颜色的消息
+
+    Args:
+        message: 要着色的消息文本
+
+    Returns:
+        带颜色编码的警告消息
+    """
     return f"{Fore.YELLOW}[!]{Style.RESET_ALL} {message}"
 
 
 def info(message: str):
+    """返回带信息颜色的消息
+
+    Args:
+        message: 要着色的消息文本
+
+    Returns:
+        带颜色编码的信息消息
+    """
     return f"{Fore.GREEN}[+]{Style.RESET_ALL} {message}"
 
 
 def error(message: str):
+    """返回带错误颜色的消息
+
+    Args:
+        message: 要着色的消息文本
+
+    Returns:
+        带颜色编码的错误消息
+    """
     return f"{Fore.RED}[-]{Style.RESET_ALL} {message}"
 
 
 def question(message: str):
+    """返回带问题颜色的消息
+
+    Args:
+        message: 要着色的消息文本
+
+    Returns:
+        带颜色编码的问题消息
+    """
     return f"{Fore.BLUE}[?]{Style.RESET_ALL} {message}"
 
 
 def success(message: str):
+    """返回带成功颜色的消息
+
+    Args:
+        message: 要着色的消息文本
+
+    Returns:
+        带颜色编码的成功消息
+    """
     return f"{Fore.GREEN}[+]{Style.RESET_ALL} {message}"
 
 
@@ -218,6 +323,7 @@ cli.add_command(plugin)
 
 
 def main():
+    """CLI主函数"""
     colorama.init()
     cli()
 

@@ -1,3 +1,8 @@
+"""Amrita CLI主命令模块
+
+该模块实现了Amrita CLI的主要命令，包括项目创建、初始化、运行、依赖检查等功能。
+"""
+
 import importlib.metadata as metadata
 import os
 import subprocess
@@ -28,6 +33,8 @@ from ..utils.utils import get_amrita_version
 
 
 class Pyproject(BaseModel):
+    """Pyproject.toml项目配置模型"""
+
     name: str
     description: str = ""
     version: str = "0.1.0"
@@ -39,6 +46,8 @@ class Pyproject(BaseModel):
 
 
 class NonebotTool(BaseModel):
+    """Nonebot工具配置模型"""
+
     plugins: list[str] = [
         "nonebot_plugin_orm",
         "amrita.plugins.chat",
@@ -53,17 +62,24 @@ class NonebotTool(BaseModel):
 
 
 class Tool(BaseModel):
+    """工具配置模型"""
+
     nonebot: NonebotTool = NonebotTool()
 
 
 class PyprojectFile(BaseModel):
+    """Pyproject文件模型"""
+
     project: Pyproject
     tool: Tool = Tool()
 
 
 @cli.command()
 def version():
-    """Print the version number."""
+    """Print the version number.
+
+    显示Amrita和NoneBot的版本信息。
+    """
     try:
         version = get_amrita_version()
         click.echo(f"Amrita version: {version}")
@@ -82,7 +98,13 @@ def version():
 @cli.command()
 @click.option("--self", "-s", help="Check directly in this environment", is_flag=True)
 def check_dependencies(self):
-    """Check dependencies."""
+    """Check dependencies.
+
+    检查项目依赖是否完整，如不完整则提供修复选项。
+
+    Args:
+        self: 是否在当前环境中直接检查
+    """
     click.echo(info("Checking dependencies..."))
 
     # 检查uv是否可用
@@ -111,7 +133,16 @@ def check_dependencies(self):
 )
 @click.option("--this-dir", "-t", is_flag=True, help="Use current directory")
 def create(project_name, description, python_version, this_dir):
-    """Create a new project."""
+    """Create a new project.
+
+    创建一个新的Amrita项目，包括目录结构和必要文件。
+
+    Args:
+        project_name: 项目名称
+        description: 项目描述
+        python_version: Python版本要求
+        this_dir: 是否在当前目录创建项目
+    """
     cwd = Path(os.getcwd())
     project_name = project_name or click.prompt(question("Project name"), type=str)
     description = description or click.prompt(
@@ -182,7 +213,10 @@ def create(project_name, description, python_version, this_dir):
 
 @cli.command()
 def entry():
-    """Generate a bot.py on current directory."""
+    """Generate a bot.py on current directory.
+
+    在当前目录生成bot.py入口文件。
+    """
     click.echo(info("Generating bot.py..."))
     if os.path.exists("bot.py"):
         click.echo(error("bot.py already exists."))
@@ -196,7 +230,13 @@ def entry():
     "--run", "-r", is_flag=True, help="Run the project without installing dependencies."
 )
 def run(run: bool):
-    """Run the project."""
+    """Run the project.
+
+    运行Amrita项目。
+
+    Args:
+        run: 是否直接运行项目而不安装依赖
+    """
     if run:
         try:
             # 添加当前目录到sys.path以确保插件能被正确导入
@@ -235,7 +275,13 @@ def run(run: bool):
 @cli.command()
 @click.option("--description", "-d", help="Project description")
 def init(description):
-    """Initialize current directory as an Amrita project."""
+    """Initialize current directory as an Amrita project.
+
+    将当前目录初始化为Amrita项目。
+
+    Args:
+        description: 项目描述
+    """
     cwd = Path(os.getcwd())
     project_name = cwd.name
 
@@ -291,7 +337,10 @@ def init(description):
 
 @cli.command()
 def proj_info():
-    """Show project information."""
+    """Show project information.
+
+    显示项目信息，包括名称、版本、描述和依赖等。
+    """
     if not os.path.exists("pyproject.toml"):
         click.echo(error("No pyproject.toml found."))
         return
@@ -328,7 +377,13 @@ def proj_info():
 )
 @click.argument("nb_args", nargs=-1, type=click.UNPROCESSED)
 def nb(nb_args):
-    """Run nb-cli commands directly."""
+    """Run nb-cli commands directly.
+
+    直接运行nb-cli命令。
+
+    Args:
+        nb_args: 传递给nb-cli的参数
+    """
     if not check_nb_cli_available():
         click.echo(
             error(
@@ -357,7 +412,10 @@ def nb(nb_args):
 
 @cli.command()
 def test():
-    """Run a load test for Amrita project"""
+    """Run a load test for Amrita project
+
+    运行Amrita项目的负载测试。
+    """
     if not check_optional_dependency():
         click.echo(error("Missing optional dependency 'full'"))
     else:

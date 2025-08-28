@@ -1,3 +1,9 @@
+"""Amrita资源模板模块
+
+该模块定义了Amrita项目所需的各类资源模板，包括环境配置、git忽略文件、README模板等。
+"""
+
+# 默认环境配置文件内容
 DOTENV = """ENVIRONMENT=dev
 DRIVER=~fastapi
 PORT=8080
@@ -10,8 +16,14 @@ RATE_LIMIT=5
 WEBUI_ENABLE=true
 WEBUI_USER_NAME=admin
 WEBUI_PASSWORD=admin123"""
+
+# 开发环境配置文件内容
 DOTENV_DEV = """LOG_LEVEL=DEBUG"""
+
+# 生产环境配置文件内容
 DOTENV_PROD = """"""
+
+# Git忽略文件内容
 GITIGNORE = """# Created by https://www.toptal.com/developers/gitignore/api/python
 # Edit at https://www.toptal.com/developers/gitignore?templates=python
 
@@ -189,6 +201,7 @@ pyrightconfig.json
 
 # End of https://www.toptal.com/developers/gitignore/api/python"""
 
+# README文件模板
 README = """
 # {project_name}
 
@@ -205,6 +218,8 @@ README = """
 
 See Nonebot [Docs](https://nonebot.dev/)
 """
+
+# 插件示例代码模板
 EXAMPLE_PLUGIN = """from nonebot import on_command
 from nonebot.adapters.onebot.v11 import MessageEvent
 
@@ -215,6 +230,8 @@ from nonebot.adapters.onebot.v11 import MessageEvent
 async def handle_function(event: MessageEvent):
     await {name}.finish("Hello from {name}!")
 """
+
+# 插件配置文件模板
 EXAMPLE_PLUGIN_CONFIG = """# Configuration for {name} plugin
 from pydantic import BaseModel
 from nonebot import get_plugin_config

@@ -1,3 +1,8 @@
+"""WebUI API路由模块
+
+该模块定义了WebUI的API端点，用于处理黑名单管理、消息统计、插件列表等后台管理功能。
+"""
+
 from __future__ import annotations
 
 from datetime import datetime
@@ -19,17 +24,34 @@ from ..sidebar import SideBarManager
 
 
 class RequestDataSchema(BaseModel):
+    """请求数据模型
+
+    用于黑名单添加接口的数据验证。
+    """
+
     id: str
     type: Literal["group", "user"]
     reason: str
 
 
 class BlacklistRemoveSchema(BaseModel):
+    """黑名单批量删除数据模型
+
+    用于批量删除黑名单条目的数据验证。
+    """
+
     ids: list[str]
 
 
 @app.post("/api/blacklist/add")
-async def _(data: RequestDataSchema):
+async def add_blacklist_item(data: RequestDataSchema):
+    """添加黑名单条目
+
+    根据类型（群组或用户）将指定ID添加到黑名单中。
+
+    :param data: 包含ID、类型和原因的请求数据
+    :return: 操作结果的JSON响应
+    """
     try:
         func = (
             BL_Manager.private_append
@@ -44,12 +66,19 @@ async def _(data: RequestDataSchema):
 
 @app.get("/api/chart/messages")
 async def get_messages_chart_data():
+    """获取消息图表数据
+
+    获取消息统计数据用于图表展示。
+
+    :return: 包含标签和数据的字典
+    :raises HTTPException: 当机器人未连接或发生其他错误时
+    """
     try:
         bot = get_bot()
         usage = await get_usage(bot.self_id)
-        lables = [usage[i].created_at for i in range(len(usage))]
+        labels = [usage[i].created_at for i in range(len(usage))]
         data = [usage[i].msg_received for i in range(len(usage))]
-        return {"labels": lables, "data": data}
+        return {"labels": labels, "data": data}
     except ValueError:
         raise HTTPException(status_code=500, detail="Bot未连接")
     except Exception as e:
@@ -58,6 +87,13 @@ async def get_messages_chart_data():
 
 @app.get("/api/chart/today-usage")
 async def get_msg_io_status_chart_data():
+    """获取今日消息使用量图表数据
+
+    获取今日消息收发统计数据用于图表展示。
+
+    :return: 包含收发标签和数据的字典
+    :raises HTTPException: 当机器人未连接、数据不存在或发生其他错误时
+    """
     try:
         bot = get_bot()
         usage_data = await get_usage(bot.self_id)
@@ -75,7 +111,15 @@ async def get_msg_io_status_chart_data():
 
 
 @app.post("/api/blacklist/remove-batch/{type}")
-async def _(data: BlacklistRemoveSchema, type: str):
+async def remove_blacklist_batch(data: BlacklistRemoveSchema, type: str):
+    """批量删除黑名单条目
+
+    根据类型批量删除黑名单中的条目。
+
+    :param data: 包含要删除的ID列表的数据
+    :param type: 黑名单类型（"user" 或 "group"）
+    :return: 操作结果的JSON响应
+    """
     for id in data.ids:
         if type == "user":
             await BL_Manager.private_remove(id)
@@ -85,14 +129,30 @@ async def _(data: BlacklistRemoveSchema, type: str):
 
 
 @app.post("/api/blacklist/remove/{type}/{id}")
-async def _(request: Request, type: str, id: str):
+async def remove_blacklist_item(request: Request, type: str, id: str):
+    """删除单个黑名单条目
+
+    根据类型和ID删除黑名单中的条目。
+
+    :param request: HTTP请求对象
+    :param type: 黑名单类型（"user" 或 "group"）
+    :param id: 要删除的条目ID
+    :return: 操作结果的JSON响应
+    """
     func = BL_Manager.private_remove if type == "user" else BL_Manager.group_remove
     await func(id)
     return JSONResponse({"code": 200, "error": None}, 200)
 
 
 @app.get("/api/plugins/list")
-async def _(request: Request):
+async def list_plugins(request: Request):
+    """获取插件列表
+
+    获取已加载插件的详细信息列表。
+
+    :param request: HTTP请求对象
+    :return: 插件信息列表
+    """
     plugins = nonebot.get_loaded_plugins()
     plugin_list = [
         {
@@ -119,7 +179,14 @@ async def _(request: Request):
 
 
 @app.get("/api/bot/status", response_class=JSONResponse)
-async def _(request: Request):
+async def get_bot_status(request: Request):
+    """获取机器人状态
+
+    获取机器人在线状态、系统使用情况和侧边栏项目信息。
+
+    :param request: HTTP请求对象
+    :return: 包含机器人状态信息的JSON响应
+    """
     side_bar = SideBarManager().get_sidebar_dump()
     for bar in side_bar:
         if bar.get("name") == "机器人管理":

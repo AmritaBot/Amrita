@@ -1,3 +1,8 @@
+"""聊天处理器模块
+
+该模块实现了聊天功能的核心逻辑，包括群聊和私聊的处理、会话管理、消息处理等功能。
+"""
+
 import asyncio
 import contextlib
 import copy
@@ -61,6 +66,8 @@ command_prefix = get_driver().config.command_start or "/"
 
 
 class FakeEvent(Event):
+    """伪造事件类，用于模拟用户事件"""
+
     user_id: int
 
     @override
@@ -71,6 +78,15 @@ class FakeEvent(Event):
 async def get_tokens(
     memory: list[Message | ToolResult], response: UniResponse[str, None]
 ) -> UniResponseUsage[int]:
+    """计算消息和响应的token数量
+
+    Args:
+        memory: 消息历史列表
+        response: 模型响应
+
+    Returns:
+        包含token使用情况的对象
+    """
     memory_l = [i.model_dump() for i in memory]
     full_string = ""
     if (
@@ -101,8 +117,15 @@ async def enforce_token_limit(
     train: dict[str, Any],
     response: UniResponse[str, None],
 ) -> UniResponseUsage[int]:
-    """
-    控制 token 数量，删除超出限制的旧消息.
+    """控制 token 数量，删除超出限制的旧消息
+
+    Args:
+        data: 内存模型数据
+        train: 训练数据
+        response: 模型响应
+
+    Returns:
+        token使用情况
     """
     train_model = Message.model_validate(train)
     memory_l: list[Message | ToolResult] = [train_model, *data.memory.messages]
@@ -143,8 +166,12 @@ async def enforce_token_limit(
 
 
 async def chat(event: MessageEvent, matcher: Matcher, bot: Bot):
-    """
-    聊天处理主函数，根据消息类型（群聊或私聊）调用对应的处理逻辑。
+    """聊天处理主函数，根据消息类型（群聊或私聊）调用对应的处理逻辑。
+
+    Args:
+        event: 消息事件
+        matcher: 匹配器
+        bot: Bot实例
     """
 
     async def handle_group_message(
@@ -155,13 +182,20 @@ async def chat(event: MessageEvent, matcher: Matcher, bot: Bot):
         memory_length_limit: int,
         Date: str,
     ):
-        """
-        处理群聊消息：
+        """处理群聊消息：
         - 检查是否启用群聊功能。
         - 管理会话上下文。
         - 处理消息内容和引用消息。
         - 控制记忆长度和 token 限制。
         - 调用聊天模型生成回复并发送。
+
+        Args:
+            event: 群消息事件
+            matcher: 匹配器
+            bot: Bot实例
+            data: 内存模型数据
+            memory_length_limit: 记忆长度限制
+            Date: 当前时间戳
         """
         if not config_manager.config.function.enable_group_chat:
             matcher.skip()
@@ -243,13 +277,20 @@ async def chat(event: MessageEvent, matcher: Matcher, bot: Bot):
         memory_length_limit: int,
         Date: str,
     ):
-        """
-        处理私聊消息：
+        """处理私聊消息：
         - 检查是否启用私聊功能。
         - 管理会话上下文。
         - 处理消息内容和引用消息。
         - 控制记忆长度和 token 限制。
         - 调用聊天模型生成回复并发送。
+
+        Args:
+            event: 私聊消息事件
+            matcher: 匹配器
+            bot: Bot实例
+            data: 内存模型数据
+            memory_length_limit: 记忆长度限制
+            Date: 当前时间戳
         """
         if not config_manager.config.function.enable_private_chat:
             matcher.skip()
@@ -312,10 +353,14 @@ async def chat(event: MessageEvent, matcher: Matcher, bot: Bot):
         data: MemoryModel,
         session_clear_map: dict[str, SessionTemp],
     ):
-        """
-        管理会话上下文：
+        """管理会话上下文：
         - 控制会话超时和历史记录。
-        - 提供“继续”功能以恢复上下文。
+        - 提供"继续"功能以恢复上下文。
+
+        Args:
+            event: 消息事件
+            data: 内存模型数据
+            session_clear_map: 会话清理映射
         """
         if config_manager.config.session.session_control:
             session_id = str(
@@ -381,10 +426,18 @@ async def chat(event: MessageEvent, matcher: Matcher, bot: Bot):
     async def handle_reply(
         reply: Reply, bot: Bot, group_id: int | None, content: str
     ) -> str:
-        """
-        处理引用消息：
+        """处理引用消息：
         - 提取引用消息的内容和时间信息。
         - 格式化为可读的引用内容。
+
+        Args:
+            reply: 回复消息
+            bot: Bot实例
+            group_id: 群组ID（私聊为None）
+            content: 原始内容
+
+        Returns:
+            格式化后的内容
         """
         if not reply.sender.user_id:
             return content
@@ -398,8 +451,15 @@ async def chat(event: MessageEvent, matcher: Matcher, bot: Bot):
         return f"{content}\n（（（引用的消息）））：\n{formatted_time} {weekday} [{role}]{reply.sender.nickname}（QQ:{reply.sender.user_id}）说：{reply_content}"
 
     async def get_user_role(bot: Bot, group_id: int, user_id: int) -> str:
-        """
-        获取用户在群聊中的身份（群主、管理员或普通成员）。
+        """获取用户在群聊中的身份（群主、管理员或普通成员）。
+
+        Args:
+            bot: Bot实例
+            group_id: 群组ID
+            user_id: 用户ID
+
+        Returns:
+            用户角色字符串
         """
         role = (await bot.get_group_member_info(group_id=group_id, user_id=user_id))[
             "role"
@@ -409,8 +469,11 @@ async def chat(event: MessageEvent, matcher: Matcher, bot: Bot):
         )
 
     async def enforce_memory_limit(data: MemoryModel, memory_length_limit: int):
-        """
-        控制记忆长度，删除超出限制的旧消息，移除不支持的消息。
+        """控制记忆长度，删除超出限制的旧消息，移除不支持的消息。
+
+        Args:
+            data: 内存模型数据
+            memory_length_limit: 记忆长度限制
         """
         is_multimodal = (
             await config_manager.get_preset(config_manager.config.preset)
@@ -439,8 +502,14 @@ async def chat(event: MessageEvent, matcher: Matcher, bot: Bot):
                 break
 
     def prepare_send_messages(data: MemoryModel, train: dict[str, str]) -> list:
-        """
-        准备发送给聊天模型的消息列表，包括系统提示词数据和上下文。
+        """准备发送给聊天模型的消息列表，包括系统提示词数据和上下文。
+
+        Args:
+            data: 内存模型数据
+            train: 训练数据
+
+        Returns:
+            准备发送的消息列表
         """
         train = copy.deepcopy(train)
         if config_manager.config.llm_config.use_base_prompt:
@@ -464,8 +533,14 @@ async def chat(event: MessageEvent, matcher: Matcher, bot: Bot):
     async def process_chat(
         event: MessageEvent, send_messages: list[Message | ToolResult]
     ) -> UniResponse[str, None]:
-        """
-        调用聊天模型生成回复，并触发相关事件。
+        """调用聊天模型生成回复，并触发相关事件。
+
+        Args:
+            event: 消息事件
+            send_messages: 发送消息列表
+
+        Returns:
+            模型响应
         """
         if config_manager.config.matcher_function:
             chat_event = BeforeChatEvent(
@@ -532,8 +607,11 @@ async def chat(event: MessageEvent, matcher: Matcher, bot: Bot):
         return response
 
     async def send_response(event: MessageEvent, response: str):
-        """
-        发送聊天模型的回复，根据配置选择不同的发送方式。
+        """发送聊天模型的回复，根据配置选择不同的发送方式。
+
+        Args:
+            event: 消息事件
+            response: 模型响应内容
         """
         if not config_manager.config.function.nature_chat_style:
             await matcher.send(
@@ -547,10 +625,12 @@ async def chat(event: MessageEvent, matcher: Matcher, bot: Bot):
                 )
 
     async def handle_exception(e: BaseException):
-        """
-        处理异常：
+        """处理异常：
         - 通知用户出错。
         - 记录日志并通知管理员。
+
+        Args:
+            e: 异常对象
         """
         await matcher.send("出错了稍后试试吧（错误已反馈）")
 

@@ -1,3 +1,8 @@
+"""Amrita框架初始化模块
+
+该模块是Amrita框架的入口点，负责导入和初始化核心组件。
+"""
+
 import nonebot
 from nonebot import run
 

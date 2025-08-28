@@ -1,3 +1,8 @@
+"""Amrita CLI插件管理模块
+
+该模块实现了Amrita CLI的插件管理命令，包括插件的安装、创建、删除和列表查看等功能。
+"""
+
 import os
 import subprocess
 from pathlib import Path
@@ -22,6 +27,14 @@ from amrita.resource import EXAMPLE_PLUGIN, EXAMPLE_PLUGIN_CONFIG
 
 
 def get_package_metadata(package_name: str) -> dict[str, Any] | None:
+    """获取PyPI包的元数据信息
+
+    Args:
+        package_name: 包名称
+
+    Returns:
+        包的元数据字典，如果获取失败则返回None
+    """
     try:
         response = requests.get(f"https://pypi.org/pypi/{package_name}/json")
         response.raise_for_status()
@@ -31,6 +44,11 @@ def get_package_metadata(package_name: str) -> dict[str, Any] | None:
 
 
 def pypi_install(name: str):
+    """从PyPI安装插件
+
+    Args:
+        name: 插件名称
+    """
     name = name.replace("_", "-")
     click.echo(info("Try to install plugin from pypi directly..."))
     metadata = get_package_metadata(name)
@@ -66,7 +84,14 @@ def pypi_install(name: str):
     "--pypi", "-p", help="Install from PyPI directly", is_flag=True, default=False
 )
 def install(name: str, pypi: bool):
-    """Install a plugin."""
+    """Install a plugin.
+
+    安装指定的插件。
+
+    Args:
+        name: 插件名称
+        pypi: 是否直接从PyPI安装
+    """
     cwd = Path(os.getcwd())
     if (cwd / "plugins" / name).exists():
         click.echo(warn(f"Plugin {name} already exists."))
@@ -87,7 +112,13 @@ def install(name: str, pypi: bool):
 @plugin.command()
 @click.argument("name", default="")
 def new(name: str):
-    """Create a new plugin."""
+    """Create a new plugin.
+
+    创建一个新的插件。
+
+    Args:
+        name: 插件名称
+    """
     cwd = Path(os.getcwd())
     if not name:
         name = click.prompt(question("Plugin name"))
@@ -127,7 +158,13 @@ def new(name: str):
 @plugin.command()
 @click.argument("name", default="")
 def remove(name: str):
-    """Remove a plugin."""
+    """Remove a plugin.
+
+    删除指定的插件。
+
+    Args:
+        name: 插件名称
+    """
     if not name:
         name = click.prompt(question("Enter plugin name"))
     cwd = Path(os.getcwd())
@@ -159,6 +196,10 @@ def remove(name: str):
 
 
 def echo_plugins():
+    """列出所有可用插件
+
+    显示本地和已安装的插件列表。
+    """
     cwd = Path(os.getcwd())
     plugins_dir = cwd / "plugins"
     plugins = []
@@ -200,5 +241,8 @@ def echo_plugins():
 
 @plugin.command()
 def list():
-    """List all plugins."""
+    """List all plugins.
+
+    列出所有插件。
+    """
     echo_plugins()
