@@ -11,6 +11,7 @@ from nonebot.exception import NoneBotException
 from nonebot.log import logger
 
 from amrita.plugins.chat.utils.llm_tools.models import ToolContext
+from amrita.utils.admin import send_to_admin
 
 from .config import config_manager
 from .event import BeforeChatEvent, ChatEvent
@@ -20,11 +21,10 @@ from .exception import (
     PassException,
 )
 from .on_event import on_before_chat, on_chat
-from .utils.admin import send_to_admin
 from .utils.libchat import (
     tools_caller,
 )
-from .utils.llm_tools.builtin_tools import REPORT_TOOL, report
+from .utils.llm_tools.builtin_tools import REPORT_TOOL, STOP_TOOL, report
 from .utils.llm_tools.manager import ToolsManager
 from .utils.memory import (
     Message,
@@ -42,17 +42,13 @@ ChatException: TypeAlias = (
 
 @prehook.handle()
 async def run_tools(event: BeforeChatEvent) -> None:
-    config = config_manager.config
-    if not config.llm_config.tools.enable_tools:
-        return
-    nonebot_event = event.get_nonebot_event()
-    if not isinstance(nonebot_event, MessageEvent):
-        return
-    bot = typing.cast(Bot, get_bot(str(nonebot_event.self_id)))
-    msg_list = event._send_message
-    chat_list_backup = deepcopy(event.message.copy())
-
-    try:
+    async def run_tools(
+        msg_list: list,
+        nonebot_event: MessageEvent,
+        call_count: int = 0,
+    ):
+        if call_count > config_manager.config.llm_config.tools.agent_tool_call_limit:
+            return
         tools: list[dict[str, Any]] = []
         if config.llm_config.tools.enable_report:
             tools.append(REPORT_TOOL.model_dump(exclude_none=True))
@@ -67,12 +63,15 @@ async def run_tools(event: BeforeChatEvent) -> None:
         if tool_calls := response_msg.tool_calls:
             msg_list.append(Message.model_validate(dict(response_msg)))
             for tool_call in tool_calls:
+                call_count += 1
                 function_name = tool_call.function.name
                 function_args: dict[str, Any] = json.loads(tool_call.function.arguments)
                 logger.debug(f"函数参数为{tool_call.function.arguments}")
                 logger.debug(f"正在调用函数{function_name}")
                 match function_name:
-                    case "report":
+                    case STOP_TOOL.function.name:
+                        return
+                    case REPORT_TOOL.function.name:
                         func_response = await report(
                             nonebot_event,
                             function_args.get("content", ""),
@@ -97,7 +96,7 @@ async def run_tools(event: BeforeChatEvent) -> None:
                                     tool_data.func,
                                 )(function_args)
                             elif (
-                                response := await typing.cast(
+                                tool_response := await typing.cast(
                                     Callable[[ToolContext], Awaitable[str | None]],
                                     tool_data.func,
                                 )(
@@ -110,7 +109,7 @@ async def run_tools(event: BeforeChatEvent) -> None:
                             ) is None:
                                 continue
                             else:
-                                func_response = response
+                                func_response = tool_response
                         else:
                             logger.opt(exception=True, colors=True).error(
                                 f"ChatHook中遇到了未定义的函数：{function_name}"
@@ -124,6 +123,22 @@ async def run_tools(event: BeforeChatEvent) -> None:
                     tool_call_id=tool_call.id,
                 )
                 msg_list.append(msg)
+        if config_manager.config.llm_config.tools.agent_mode_enable:
+            await run_tools(msg_list, nonebot_event, call_count)
+
+    config = config_manager.config
+    if not config.llm_config.tools.enable_tools:
+        return
+    nonebot_event = event.get_nonebot_event()
+    if not isinstance(nonebot_event, MessageEvent):
+        return
+    bot = typing.cast(Bot, get_bot(str(nonebot_event.self_id)))
+    msg_list = event._send_message
+    chat_list_backup = deepcopy(event.message.copy())
+
+    try:
+        await run_tools(msg_list, nonebot_event)
+
     except Exception as e:
         if isinstance(e, ChatException):
             raise

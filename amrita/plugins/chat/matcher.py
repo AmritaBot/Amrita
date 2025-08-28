@@ -5,6 +5,7 @@ from types import FrameType
 from typing import Any, ClassVar
 
 from nonebot import logger
+from nonebot.dependencies import Dependent
 from nonebot.exception import (
     FinishedException,
     NoneBotException,
@@ -187,6 +188,9 @@ class MatcherManager:
                     for param_name, param in kwparams.items()
                     if param.annotation in session_kwargs
                 }
+                f_kwargs.update(
+                    {k: await v() for k, v in f_kwargs.items() if type(v) is Dependent}
+                )
                 if len(new_args_tuple) != len(list(filtered_args_types)):
                     continue
 

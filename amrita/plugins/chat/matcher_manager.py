@@ -18,7 +18,6 @@ from .handlers.disable import disable
 from .handlers.enable import enable
 from .handlers.fakepeople_switch import switch
 from .handlers.insights import insights
-from .handlers.menus import menu
 from .handlers.poke_event import poke_event
 from .handlers.presets import presets
 from .handlers.prompt import prompt
@@ -163,19 +162,6 @@ on_command(
         usage="/disable",
     ).model_dump(),
 ).append_handler(disable)
-
-base_matcher.on_command(
-    "聊天菜单",
-    block=True,
-    aliases={"chat_menu"},
-    priority=10,
-    state=MatcherData(
-        name="聊天功能菜单",
-        description="显示聊天功能菜单",
-        usage="/聊天菜单",
-    ).model_dump(),
-).append_handler(menu)
-
 base_matcher.on_command(
     "insights",
     aliases={"今日用量"},

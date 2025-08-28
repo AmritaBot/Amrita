@@ -99,6 +99,8 @@ class ToolsConfig(BaseModel):
     enable_report: bool = True
     report_then_block: bool = True
     require_tools: bool = False
+    agent_mode_enable: bool = False  # 使用实验性的智能体模式
+    agent_tool_call_limit: int = 10  # 智能体模式下的工具调用限制
 
 
 class SessionConfig(BaseModel):
@@ -217,7 +219,10 @@ class ExtendConfig(BaseModel):
 
 class AdminConfig(BaseModel):
     allow_send_to_admin: bool = False
-    admins: list[int] = []
+
+    @property
+    def admins(self) -> list[int]:
+        return [int(i) for i in get_driver().config.superusers if i.isdigit()]
 
     @property
     def admin_group(self) -> int:

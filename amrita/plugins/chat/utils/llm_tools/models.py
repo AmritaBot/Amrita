@@ -104,6 +104,9 @@ class ToolFunctionSchema(BaseModel):
     strict: bool = Field(default=False, description="是否严格模式")
 
 
+ToolChoice = Literal["none", "auto", "required"] | ToolFunctionSchema
+
+
 @dataclass
 class ToolContext:
     data: dict[str, Any] = field()

@@ -47,7 +47,6 @@ async def insights(event: MessageEvent, matcher: Matcher, args: Message = Comman
             + f"\n输出token使用量：{data.token_output}token"
             + f"\n总使用次数：{data.usage_count}次"
             + f"\n总使用token为：{data.token_input + data.token_output}tokens"
-            + f"\n(I: {data.token_input}tokens, O: {data.token_output}tokens)"
         )
 
     await matcher.finish(

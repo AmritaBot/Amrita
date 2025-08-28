@@ -8,11 +8,12 @@ from nonebot.adapters.onebot.v11 import Bot, MessageSegment
 from nonebot.adapters.onebot.v11.event import PokeNotifyEvent
 from nonebot.matcher import Matcher
 
+from amrita.utils.admin import send_to_admin
+
 from ..chatmanager import chat_manager
 from ..config import config_manager
 from ..event import BeforePokeEvent, PokeEvent  # 自定义事件类型
 from ..matcher import MatcherManager  # 自定义匹配器
-from ..utils.admin import send_to_admin
 from ..utils.functions import (
     get_friend_name,
     split_message_into_chats,

@@ -28,7 +28,6 @@ from sqlalchemy.orm import Mapped, mapped_column
 from typing_extensions import Self
 
 from ..config import config_manager
-from .llm_tools.models import ToolFunctionSchema
 from .lock import database_lock
 
 # Pydantic 模型
@@ -36,7 +35,6 @@ from .lock import database_lock
 _T = typing.TypeVar("_T", str, None, str | None)
 T = typing.TypeVar("T", None, str, None | typing.Literal[""])
 T_INT = typing.TypeVar("T_INT", int, None)
-ToolChoice = Literal["none", "auto", "required"] | ToolFunctionSchema
 
 
 class BaseModel(B_Model):

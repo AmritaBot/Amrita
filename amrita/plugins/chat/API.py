@@ -1,27 +1,30 @@
+from __future__ import annotations
+
 from nonebot import logger
+
+from amrita.utils.admin import send_to_admin
 
 from .chatmanager import chat_manager
 from .config import Config, ConfigManager, config_manager
 from .on_event import on_before_chat, on_before_poke, on_chat, on_event, on_poke
-from .utils.admin import send_to_admin
 from .utils.libchat import (
     AdapterManager,
     ModelAdapter,
     get_chat,
     tools_caller,
 )
-from .utils.llm_tools.manager import ToolsManager
+from .utils.llm_tools.manager import ToolsManager, on_tools
 from .utils.llm_tools.models import (
     FunctionDefinitionSchema,
     FunctionParametersSchema,
     FunctionPropertySchema,
+    ToolChoice,
     ToolContext,
     ToolData,
     ToolFunctionSchema,
 )
 from .utils.memory import get_memory_data
 from .utils.models import InsightsModel
-from .utils.protocol import ToolChoice
 from .utils.tokenizer import Tokenizer, hybrid_token_count
 
 
@@ -30,7 +33,7 @@ class Menu:
     Menu 类用于通过注册菜单项来构建菜单。
     """
 
-    def reg_menu(self, cmd_name: str, describe: str, args: str = "") -> "Menu":
+    def reg_menu(self, cmd_name: str, describe: str, args: str = "") -> Menu:
         """
         注册一个新的菜单项。
 
@@ -65,7 +68,7 @@ class Admin:
         """
         self.config = config_manager.ins_config
 
-    async def send_with(self, msg: str) -> "Admin":
+    async def send_with(self, msg: str) -> Admin:
         """
         异步发送消息给管理员。
 
@@ -78,7 +81,7 @@ class Admin:
         await send_to_admin(msg)
         return self
 
-    async def send_error(self, msg: str) -> "Admin":
+    async def send_error(self, msg: str) -> Admin:
         """
         异步发送错误消息给管理员，并记录错误日志。
 
@@ -104,7 +107,7 @@ class Admin:
         """
         return int(user_id) in self.config.admin.admins
 
-    def add_admin(self, user_id: int) -> "Admin":
+    def add_admin(self, user_id: int) -> Admin:
         """
         添加新的管理员用户ID到配置中。
 
@@ -117,7 +120,7 @@ class Admin:
         self.config.admin.admins.append(user_id)
         return self._save_config_to_toml()
 
-    def set_admin_group(self, group_id: int) -> "Admin":
+    def set_admin_group(self, group_id: int) -> Admin:
         """在Amrita不适用。"""
         return self
 
@@ -202,5 +205,6 @@ __all__ = [
     "on_chat",
     "on_event",
     "on_poke",
+    "on_tools",
     "tools_caller",
 ]

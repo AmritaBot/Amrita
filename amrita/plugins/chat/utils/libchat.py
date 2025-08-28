@@ -28,9 +28,9 @@ from ..utils.llm_tools.models import ToolFunctionSchema
 from ..utils.models import InsightsModel
 from ..utils.protocol import ToolCall
 from .functions import remove_think_tag
+from .llm_tools.models import ToolChoice
 from .memory import BaseModel, Message, ToolResult, get_memory_data
 from .models import (
-    ToolChoice,
     UniResponse,
     UniResponseUsage,
 )

@@ -7,7 +7,8 @@ from nonebot.adapters.onebot.v11 import (
     MessageEvent,
 )
 
-from ..admin import send_to_admin
+from amrita.utils.admin import send_to_admin
+
 from .models import (
     FunctionDefinitionSchema,
     FunctionParametersSchema,
@@ -49,5 +50,14 @@ REPORT_TOOL = ToolFunctionSchema(
             required=["content"],
             type="object",
         ),
+    ),
+)
+
+STOP_TOOL = ToolFunctionSchema(
+    type="function",
+    function=FunctionDefinitionSchema(
+        name="completion",
+        description="当前用户所有任务处理完成时结束处理",
+        parameters=FunctionParametersSchema(type="object", properties={}, required=[]),
     ),
 )

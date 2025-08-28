@@ -8,7 +8,8 @@ from typing import Any
 from nonebot import logger
 
 from ..config import Config, ModelPreset
-from .models import ToolCall, ToolChoice, ToolFunctionSchema, UniResponse
+from .llm_tools.models import ToolChoice, ToolFunctionSchema
+from .models import ToolCall, UniResponse
 
 
 @dataclass

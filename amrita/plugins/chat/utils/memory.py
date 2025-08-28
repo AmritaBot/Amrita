@@ -186,7 +186,8 @@ async def write_memory_data(
                 group_conf.last_updated = datetime.now()
             await session.commit()
         except Exception as e:
-            logger.opt(exception=e, colors=True).error(f"写入记忆数据时出错: {e}")
             await session.rollback()
             if raise_err:
                 raise e
+            else:
+                logger.opt(exception=e, colors=True).error(f"写入记忆数据时出错: {e}")

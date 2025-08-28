@@ -8,6 +8,10 @@ from nonebot.adapters.onebot.v11 import (
 )
 from typing_extensions import override
 
+from amrita.plugins.chat.utils.models import Message, ToolResult
+
+SEND_MESSAGES = list[Message[str | None] | ToolResult]
+
 
 class EventTypeEnum(str, Enum):
     """
@@ -127,7 +131,7 @@ class SuggarEvent(BasicEvent):
         model_response: list[str],
         nbevent: Event,
         user_id: int,
-        send_message: list,
+        send_message: SEND_MESSAGES,
     ):
         """
         初始化SuggarEvent对象
@@ -146,7 +150,7 @@ class SuggarEvent(BasicEvent):
         # 初始化用户ID
         self._user_id: int = user_id
         # 初始化要发送的消息内容
-        self._send_message: list = send_message
+        self._send_message: SEND_MESSAGES = send_message
 
     def __bool__(self):
         return True
@@ -257,7 +261,7 @@ class ChatEvent(SuggarEvent):
 
     参数:
     - nbevent: MessageEvent - 消息事件对象，包含事件的相关信息。
-    - send_message: list - 发送到模型的上下文。
+    - send_message: SEND_MESSAGES - 发送到模型的上下文。
     - model_response: str - 模型的响应内容。
     - user_id: int - 用户ID。
     """
@@ -265,7 +269,7 @@ class ChatEvent(SuggarEvent):
     def __init__(
         self,
         nbevent: MessageEvent,
-        send_message: list,
+        send_message: SEND_MESSAGES,
         model_response: list[str],
         user_id: int,
     ):
@@ -327,7 +331,7 @@ class PokeEvent(SuggarEvent):
 
     参数:
     - nbevent: PokeNotifyEvent类型，表示戳一戳通知事件。
-    - send_message: list 发送到模型的上下文。
+    - send_message: SEND_MESSAGES 发送到模型的上下文。
     - model_response: str类型，模型的响应。
     - user_id: int类型，用户ID。
     """
@@ -335,8 +339,8 @@ class PokeEvent(SuggarEvent):
     def __init__(
         self,
         nbevent: PokeNotifyEvent,
-        send_message: list,
-        model_response: list,
+        send_message: SEND_MESSAGES,
+        model_response: list[str],
         user_id: int,
     ):
         # 初始化PokeEvent类，并设置相关属性
@@ -373,7 +377,7 @@ class BeforePokeEvent(PokeEvent):
     继承自PokeEvent的BeforePokeEvent类，用于处理调用模型之前的事件，通常用于依赖注入或权限控制的写法中。
     参数:
     - nbevent: PokeNotifyEvent类型，表示戳一戳通知事件。
-    - send_message: list 发送到模型的上下文。
+    - send_message: SEND_MESSAGES 发送到模型的上下文。
     - model_response: str类型，模型的响应。
     - user_id: int类型，用户ID。
     """
@@ -381,8 +385,8 @@ class BeforePokeEvent(PokeEvent):
     def __init__(
         self,
         nbevent: PokeNotifyEvent,
-        send_message: list,
-        model_response: list,
+        send_message: SEND_MESSAGES,
+        model_response: list[str],
         user_id: int,
     ):
         # 初始化BeforePokeEvent类，并设置相关属性
@@ -410,7 +414,7 @@ class BeforeChatEvent(ChatEvent):
     继承自ChatEvent的BeforeChatEvent类，用于处理调用模型之前的事件，通常用于依赖注入或权限控制的写法中。
     参数:
     - nbevent: MessageEvent类型，表示消息事件。
-    - send_message: list 发送到模型的上下文。
+    - send_message: SEND_MESSAGES 发送到模型的上下文。
     - model_response: str类型，模型的响应。
     - user_id: int类型，用户ID。
 
@@ -419,8 +423,8 @@ class BeforeChatEvent(ChatEvent):
     def __init__(
         self,
         nbevent: MessageEvent,
-        send_message: list,
-        model_response: list,
+        send_message: SEND_MESSAGES,
+        model_response: list[str],
         user_id: int,
     ):
         # 初始化BeforeChatEvent类，并设置相关属性
@@ -441,16 +445,3 @@ class BeforeChatEvent(ChatEvent):
     def get_event_type(self) -> str:
         # 重写get_event_type方法，返回聊天事件类型
         return self._event_type
-
-
-class FinalObject:
-    """
-    最终返回的对象
-    """
-
-    def __init__(self, send_message: list):
-        self.__message = send_message
-
-    @property
-    def message(self) -> list:
-        return self.__message
