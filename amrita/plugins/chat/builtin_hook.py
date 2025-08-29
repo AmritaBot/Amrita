@@ -46,6 +46,7 @@ async def run_tools(event: BeforeChatEvent) -> None:
         msg_list: list,
         nonebot_event: MessageEvent,
         call_count: int = 0,
+        original_msg: str = "",
     ):
         if call_count > config_manager.config.llm_config.tools.agent_tool_call_limit:
             return
@@ -70,6 +71,17 @@ async def run_tools(event: BeforeChatEvent) -> None:
                 logger.debug(f"正在调用函数{function_name}")
                 match function_name:
                     case STOP_TOOL.function.name:
+                        msg_list.append(
+                            Message(
+                                role="user",
+                                content="You had done the job, please continue the completion of the job."
+                                + (
+                                    f"\n<INPUT>{original_msg}</INPUT>"
+                                    if original_msg
+                                    else ""
+                                ),
+                            )
+                        )
                         return
                     case REPORT_TOOL.function.name:
                         func_response = await report(
@@ -104,6 +116,7 @@ async def run_tools(event: BeforeChatEvent) -> None:
                                         data=function_args,
                                         event=event,
                                         matcher=prehook,
+                                        bot=bot,
                                     )
                                 )
                             ) is None:
@@ -123,8 +136,14 @@ async def run_tools(event: BeforeChatEvent) -> None:
                     tool_call_id=tool_call.id,
                 )
                 msg_list.append(msg)
-        if config_manager.config.llm_config.tools.agent_mode_enable:
-            await run_tools(msg_list, nonebot_event, call_count)
+            if config_manager.config.llm_config.tools.agent_mode_enable:
+                msg_list.append(
+                    Message(
+                        role="user",
+                        content=f"Please continue the conversation if the job hasn't been completed, or use tool '{STOP_TOOL.function.name}' to mark the end of the job.",
+                    )
+                )
+                await run_tools(msg_list, nonebot_event, call_count)
 
     config = config_manager.config
     if not config.llm_config.tools.enable_tools:

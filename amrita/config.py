@@ -15,6 +15,8 @@ class AmritaConfig(BaseModel):
     # 日志目录
     log_dir: str = "logs"
 
+    max_event_record: int = 1000
+
     # 管理员群组ID
     admin_group: int
 

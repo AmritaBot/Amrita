@@ -9,7 +9,6 @@ from nonebot import logger
 
 from amrita.utils.admin import send_to_admin
 
-from .chatmanager import chat_manager
 from .config import Config, ConfigManager, config_manager
 from .on_event import on_before_chat, on_before_poke, on_chat, on_event, on_poke
 from .utils.libchat import (
@@ -50,7 +49,6 @@ class Menu:
         返回:
         - Menu: 返回 Menu 类的实例，支持方法链式调用。
         """
-        chat_manager.menu_msg += f"/{cmd_name} {args} 说明：{describe} \n"
         return self
 
     @property
@@ -60,7 +58,7 @@ class Menu:
         返回:
         - str: 完整的菜单字符串。
         """
-        return chat_manager.menu_msg
+        return "nil"
 
 
 class Admin:

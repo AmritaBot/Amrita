@@ -4,6 +4,7 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from typing import Any, Generic, Literal, TypeVar
 
+from nonebot.adapters.onebot.v11 import Bot
 from pydantic import BaseModel, Field, model_validator
 from typing_extensions import Self
 
@@ -112,6 +113,7 @@ class ToolContext:
     data: dict[str, Any] = field()
     event: SuggarEvent = field()
     matcher: Matcher = field()
+    bot: Bot = field()
 
 
 class ToolData(BaseModel):

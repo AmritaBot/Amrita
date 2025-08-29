@@ -650,12 +650,9 @@ async def chat(event: MessageEvent, matcher: Matcher, bot: Bot):
     if any(
         event.message.extract_plain_text().strip().startswith(prefix)
         for prefix in command_prefix
-        if prefix.strip()
+        if prefix.strip().isdigit()
     ):
         matcher.skip()
-
-    if event.message.extract_plain_text().startswith("聊天菜单"):
-        await matcher.finish(chat_manager.menu_msg)
 
     try:
         data = await get_memory_data(event)

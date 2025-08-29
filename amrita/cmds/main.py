@@ -386,6 +386,23 @@ def proj_info():
         "ignore_unknown_options": True,
     }
 )
+@click.argument("orm_args", nargs=-1, type=click.UNPROCESSED)
+def orm(orm_args):
+    """Run nb-orm commands directly.
+
+    直接运行nb-orm命令。
+
+    Args:
+        orm_args: 传递给orm的参数
+    """
+    nb(["orm", *list(orm_args)])
+
+
+@cli.command(
+    context_settings={
+        "ignore_unknown_options": True,
+    }
+)
 @click.argument("nb_args", nargs=-1, type=click.UNPROCESSED)
 def nb(nb_args):
     """Run nb-cli commands directly.
