@@ -31,7 +31,7 @@ async def _(bot: Bot, event: MessageEvent):
         except Exception as e:
             logger.error(f"⚠️ 获取群成员信息失败: {e!s}")
             continue
-        admins = set(get_driver().config.superusers)
+        admins = {int(i) for i in get_driver().config.superusers if i.isdigit()}
 
         if len(members) < 20:
             admin_members = members & admins

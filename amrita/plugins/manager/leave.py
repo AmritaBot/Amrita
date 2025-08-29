@@ -28,6 +28,7 @@ async def leave(
             await send_to_admin(f"⚠️ 尝试离开群：{event.group_id}")
             await matcher.send("✅ 已退出本群！")
             await bot.set_group_leave(group_id=event.group_id)
+            return
     if str_id != "--this":
         try:
             int(str_id)
