@@ -4,7 +4,6 @@
 """
 
 import importlib.metadata as metadata
-import json
 import os
 import subprocess
 import sys
@@ -241,8 +240,6 @@ def run(run: bool):
         run: 是否直接运行项目而不安装依赖
     """
     if metadata := get_package_metadata("amrita"):
-        with open("meta.json", "w") as f:
-            json.dump(metadata, f)
         if (
             metadata["releases"] != {}
             and list(metadata["releases"].keys())[-1] > get_amrita_version()
@@ -253,7 +250,6 @@ def run(run: bool):
         else:
             click.echo(success("Amrita is up to date"))
     if run:
-
         try:
             # 添加当前目录到sys.path以确保插件能被正确导入
             if "." not in sys.path:
