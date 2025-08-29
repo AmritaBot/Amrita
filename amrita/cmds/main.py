@@ -31,6 +31,7 @@ from ..cli import (
     warn,
 )
 from ..resource import DOTENV, DOTENV_DEV, DOTENV_PROD, GITIGNORE, README
+from ..utils.logging import LoggingData
 from ..utils.utils import get_amrita_version
 
 
@@ -397,6 +398,31 @@ def orm(orm_args):
     """
     nb(["orm", *list(orm_args)])
 
+@cli.command()
+@click.option("--count", "-c", default="10")
+@click.option("--details", "-d", is_flag=True)
+def event(count: str, details: bool):
+    """Get the last events(10 by default)."""
+    if not count.isdigit():
+        click.echo(error("Count must be a number"))
+        return
+    from amrita import init
+
+    init()
+    click.echo(
+        success(
+            f"Getting {count} events...",
+        )
+    )
+    events = LoggingData._get_data_sync()
+    if not events.data:
+        click.echo(warn("No events found."))
+        return
+    for event in events.data[-int(count) :]:
+        click.echo(
+            f"{event.time.strftime('%Y-%m-%d %H:%M:%S')} {event.log_level} {event.description}"
+            + (f"\n- {event.message}" if details else "")
+        )
 
 @cli.command(
     context_settings={

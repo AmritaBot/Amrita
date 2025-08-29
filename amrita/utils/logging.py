@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Literal
 
 import aiofiles
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from amrita.config import get_amrita_config
 
@@ -15,7 +15,7 @@ class LoggingEvent(BaseModel):
     log_level: Literal["WARNING", "ERROR", "FATAL", "INFO"]
     description: str
     message: str
-    time: datetime = datetime.now()
+    time: datetime = Field(default_factory=datetime.now)
 
 
 class LoggingData(BaseModel):
@@ -45,9 +45,20 @@ class LoggingData(BaseModel):
                 await f.write(data.model_dump_json())
         else:
             async with aiofiles.open(log_path, encoding="utf-8") as f:
-                data = LoggingData.model_validate(await f.read())
+                data = LoggingData.model_validate_json(await f.read())
         return data
 
+    @staticmethod
+    def _get_data_sync():
+        log_path = Path(get_amrita_config().log_dir) / "event.json"
+        if not log_path.exists():
+            data = LoggingData()
+            with open(log_path, "w", encoding="utf-8") as f:
+                f.write(data.model_dump_json())
+        else:
+            with open(log_path, encoding="utf-8") as f:
+                data = LoggingData.model_validate_json(f.read())
+        return data
     async def append(self, event: LoggingEvent):
         self.data.append(event)
         await self.save()

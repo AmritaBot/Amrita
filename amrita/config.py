@@ -5,8 +5,8 @@
 
 from typing import Literal
 
-from nonebot import get_plugin_config
-from pydantic import BaseModel
+from nonebot import get_plugin_config, logger
+from pydantic import BaseModel, model_validator
 
 
 class AmritaConfig(BaseModel):
@@ -18,7 +18,7 @@ class AmritaConfig(BaseModel):
     max_event_record: int = 1000
 
     # 管理员群组ID
-    admin_group: int
+    admin_group: int = -1
 
     # 禁用的内置插件列表
     disabled_builtin_plugins: list[Literal["chat", "manager", "perm", "menu"]] = []
@@ -39,6 +39,15 @@ class AmritaConfig(BaseModel):
 
     # 是否禁用内置菜单
     disable_builtin_menu: bool = False
+
+    @model_validator(mode="after")
+    def _vali(self):
+        if not self.admin_group > 0:
+            logger.error("Amrita config 'admin_group' must be set as a real group ID")
+            raise ValueError(
+                "Amrita config 'admin_group' must be set as a real group ID"
+            )
+        return self
 
 
 def get_amrita_config() -> AmritaConfig:

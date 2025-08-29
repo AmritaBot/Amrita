@@ -9,6 +9,7 @@ import nonebot
 from nonebot.log import default_format, logger_id
 
 from amrita.config import get_amrita_config
+from amrita.utils.logging import LoggingData, LoggingEvent
 from amrita.utils.utils import get_amrita_version
 
 if TYPE_CHECKING:
@@ -43,7 +44,12 @@ def init():
 
     class AsyncErrorHandler:
         def write(self, message):
-            self.task = asyncio.create_task(self.process(message))
+            try:
+                self.task = asyncio.create_task(self.process(message))
+            except RuntimeError:
+                print(
+                    "RuntimeWarning:\nThis is a known bug.\nPlease ignore this warning.\n----------\n"
+                )
 
         async def process(self, message):
             try:
@@ -80,6 +86,13 @@ def init():
                             bot.self_id,
                             [MessageSegment.text(content)],
                         )
+                    await (await LoggingData.get()).append(
+                        LoggingEvent(
+                            log_level=record["level"],
+                            description=record["message"],
+                            message=traceback_str,
+                        )
+                    )
 
             except Exception as e:
                 logger.warning(f"发送群消息失败: {e}")
