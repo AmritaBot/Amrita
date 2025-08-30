@@ -133,6 +133,15 @@
     color: #856404;
   }
 
+  /* 添加文件选择下拉框样式 */
+  .file-selector {
+    padding: 5px 10px;
+    border-radius: 4px;
+    border: 1px solid #ddd;
+    background: white;
+    font-size: 14px;
+  }
+
   @media (max-width: 768px) {
     .config-header {
       flex-direction: column;
@@ -157,6 +166,11 @@
   <div class="config-header">
     <h1 class="config-title">环境配置编辑器</h1>
     <div class="config-actions">
+      <select class="file-selector" id="fileSelector">
+        {% for file in env_files %}
+          <option value="{{ file }}" {% if file == selected_file %}selected{% endif %}>{{ file }}</option>
+        {% endfor %}
+      </select>
       <button class="btn btn-secondary" id="resetConfig">
         <i class="fas fa-undo"></i> 重置
       </button>
@@ -168,7 +182,7 @@
 
   <div class="config-editor">
     <div class="editor-header">
-      <span>.env 配置文件</span>
+      <span id="currentFileName">{{ selected_file }} 配置文件</span>
       <span>UTF-8</span>
     </div>
     <div class="editor-content">
@@ -198,13 +212,55 @@
     const saveConfigBtn = document.getElementById('saveConfig');
     const resetConfigBtn = document.getElementById('resetConfig');
     const saveStatus = document.getElementById('saveStatus');
+    const fileSelector = document.getElementById('fileSelector');
+    const currentFileName = document.getElementById('currentFileName');
     
     // 保存原始内容用于重置
     const originalContent = configContent.value;
+    let currentFile = "{{ selected_file }}";
+    
+    // 文件切换处理
+    fileSelector.addEventListener('change', async function() {
+      const selectedFile = this.value;
+      
+      // 更新状态为加载中
+      saveStatus.textContent = '加载中...';
+      saveStatus.className = 'save-status status-saving';
+      
+      try {
+        const response = await fetch(`/api/bot/config/${selectedFile}`);
+        const result = await response.json();
+        
+        if (result.code === 200) {
+          // 加载成功
+          configContent.value = result.content;
+          currentFile = selectedFile;
+          currentFileName.textContent = selectedFile + ' 配置文件';
+          saveStatus.textContent = `已加载 ${selectedFile}`;
+          saveStatus.className = 'save-status status-success';
+          
+          // 3秒后恢复状态
+          setTimeout(() => {
+            saveStatus.textContent = '就绪';
+            saveStatus.className = 'save-status';
+          }, 3000);
+        } else {
+          // 加载失败
+          saveStatus.textContent = '加载失败: ' + result.message;
+          saveStatus.className = 'save-status status-error';
+        }
+      } catch (error) {
+        // 网络错误
+        saveStatus.textContent = '加载失败: 网络错误';
+        saveStatus.className = 'save-status status-error';
+        console.error('加载配置时出错:', error);
+      }
+    });
     
     // 保存配置
     saveConfigBtn.addEventListener('click', async function() {
       const content = configContent.value;
+      const filename = currentFile;
       
       // 更新状态为保存中
       saveStatus.textContent = '保存中...';
@@ -217,7 +273,10 @@
             'Content-Type': 'application/json',
           
           },
-          body: JSON.stringify({ content: content })
+          body: JSON.stringify({ 
+            content: content,
+            filename: filename
+          })
         });
         
         const result = await response.json();
@@ -226,6 +285,22 @@
           // 保存成功
           saveStatus.textContent = '保存成功';
           saveStatus.className = 'save-status status-success';
+          
+          // 更新选项列表
+          let optionExists = false;
+          for (let i = 0; i < fileSelector.options.length; i++) {
+            if (fileSelector.options[i].value === filename) {
+              optionExists = true;
+              break;
+            }
+          }
+          
+          if (!optionExists) {
+            const newOption = document.createElement('option');
+            newOption.value = filename;
+            newOption.textContent = filename;
+            fileSelector.appendChild(newOption);
+          }
           
           // 3秒后恢复状态
           setTimeout(() => {
