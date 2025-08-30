@@ -14,8 +14,6 @@ from typing_extensions import Self
 
 from amrita.plugins.webui.service.config import get_webui_config
 
-from .csrf import CSRFManager
-
 T = TypeVar("T")
 
 
@@ -93,14 +91,10 @@ class TokenManager:
         async with self.__tokens_lock:
             data_cache = self.__tokens[token]
             self.__tokens.pop(token, None)
-            # 清理CSRF令牌
-            CSRFManager().clear_csrf_token(token)
         access_token_expires = timedelta(minutes=30)
         access_token = await self.create_access_token(
             data={"sub": data_cache.username}, expires_delta=access_token_expires
         )
-        # 为新令牌生成CSRF令牌
-        CSRFManager().generate_csrf_token(access_token)
         return access_token
 
 
@@ -128,8 +122,6 @@ class AuthManager:
         token_data = await token_manager.get_token_data(token)
         if token_data.expire < datetime.utcnow():
             await token_manager.pop_token_data(token, None)
-            # 清理CSRF令牌
-            CSRFManager().clear_csrf_token(token)
             raise HTTPException(status_code=401, detail="认证已过期")
 
     @staticmethod
@@ -152,14 +144,10 @@ class AuthManager:
         token = await self._token_manager.create_access_token(
             data={"sub": username}, expires_delta=expire
         )
-        # 为新创建的令牌生成CSRF令牌
-        CSRFManager().generate_csrf_token(token)
         return token
 
     async def user_log_out(self, token: str):
         await self._token_manager.pop_token_data(token)
-        # 清理CSRF令牌
-        CSRFManager().clear_csrf_token(token)
 
     async def refresh_token(self, request: Request):
         await self.check_current_user(request)

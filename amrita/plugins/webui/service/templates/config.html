@@ -1,0 +1,280 @@
+{% extends "base.html" %}
+
+{% block title %}Amrita Dashboard - 配置编辑{% endblock %}
+
+{% block topbar_title %}配置编辑{% endblock %}
+
+{% block extra_css %}
+<style>
+  .config-container {
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .config-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #eee;
+  }
+
+  .config-title {
+    font-size: 24px;
+    font-weight: 600;
+    color: #333;
+  }
+
+  .config-actions {
+    display: flex;
+    gap: 10px;
+  }
+
+  .btn {
+    padding: 8px 16px;
+    border-radius: 4px;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.3s;
+  }
+
+  .btn-primary {
+    background: #8a2be2;
+    color: white;
+  }
+
+  .btn-primary:hover {
+    background: #7a1bd2;
+  }
+
+  .btn-secondary {
+    background: #6c757d;
+    color: white;
+  }
+
+  .btn-secondary:hover {
+    background: #5c656d;
+  }
+
+  .config-editor {
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+
+  .editor-header {
+    background: #f8f9fa;
+    padding: 10px 15px;
+    border-bottom: 1px solid #ddd;
+    font-weight: 600;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .editor-content {
+    position: relative;
+  }
+
+  .config-textarea {
+    width: 100%;
+    min-height: 500px;
+    padding: 15px;
+    border: none;
+    resize: vertical;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 14px;
+    line-height: 1.5;
+    background: #fff;
+    color: #333;
+    tab-size: 4;
+  }
+
+  .config-textarea:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(138, 43, 226, 0.25);
+  }
+
+  .editor-footer {
+    background: #f8f9fa;
+    padding: 10px 15px;
+    border-top: 1px solid #ddd;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .editor-info {
+    font-size: 13px;
+    color: #6c757d;
+  }
+
+  .save-status {
+    font-size: 13px;
+    padding: 4px 8px;
+    border-radius: 4px;
+  }
+
+  .status-success {
+    background: #d4edda;
+    color: #155724;
+  }
+
+  .status-error {
+    background: #f8d7da;
+    color: #721c24;
+  }
+
+  .status-saving {
+    background: #fff3cd;
+    color: #856404;
+  }
+
+  @media (max-width: 768px) {
+    .config-header {
+      flex-direction: column;
+      gap: 15px;
+      align-items: flex-start;
+    }
+
+    .config-actions {
+      width: 100%;
+      justify-content: space-between;
+    }
+
+    .config-textarea {
+      min-height: 400px;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="config-container">
+  <div class="config-header">
+    <h1 class="config-title">环境配置编辑器</h1>
+    <div class="config-actions">
+      <button class="btn btn-secondary" id="resetConfig">
+        <i class="fas fa-undo"></i> 重置
+      </button>
+      <button class="btn btn-primary" id="saveConfig">
+        <i class="fas fa-save"></i> 保存配置
+      </button>
+    </div>
+  </div>
+
+  <div class="config-editor">
+    <div class="editor-header">
+      <span>.env 配置文件</span>
+      <span>UTF-8</span>
+    </div>
+    <div class="editor-content">
+      <textarea 
+        class="config-textarea" 
+        id="configContent"
+        placeholder="在此处编辑配置文件内容...">{{ env_content }}</textarea>
+    </div>
+    <div class="editor-footer">
+      <div class="editor-info">
+        <i class="fas fa-info-circle"></i> 编辑配置后需要重启机器人以使更改生效
+      </div>
+      <div class="save-status" id="saveStatus">
+        就绪
+      </div>
+    </div>
+  </div>
+  
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // 页面加载完成后初始化
+  document.addEventListener('DOMContentLoaded', function() {
+    const configContent = document.getElementById('configContent');
+    const saveConfigBtn = document.getElementById('saveConfig');
+    const resetConfigBtn = document.getElementById('resetConfig');
+    const saveStatus = document.getElementById('saveStatus');
+    
+    // 保存原始内容用于重置
+    const originalContent = configContent.value;
+    
+    // 保存配置
+    saveConfigBtn.addEventListener('click', async function() {
+      const content = configContent.value;
+      
+      // 更新状态为保存中
+      saveStatus.textContent = '保存中...';
+      saveStatus.className = 'save-status status-saving';
+      
+      try {
+        const response = await fetch('/api/bot/config', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          
+          },
+          body: JSON.stringify({ content: content })
+        });
+        
+        const result = await response.json();
+        
+        if (result.code === 200) {
+          // 保存成功
+          saveStatus.textContent = '保存成功';
+          saveStatus.className = 'save-status status-success';
+          
+          // 3秒后恢复状态
+          setTimeout(() => {
+            saveStatus.textContent = '就绪';
+            saveStatus.className = 'save-status';
+          }, 3000);
+        } else {
+          // 保存失败
+          saveStatus.textContent = '保存失败: ' + result.error;
+          saveStatus.className = 'save-status status-error';
+        }
+      } catch (error) {
+        // 网络错误
+        saveStatus.textContent = '保存失败: 网络错误';
+        saveStatus.className = 'save-status status-error';
+        console.error('保存配置时出错:', error);
+      }
+    });
+    
+    // 重置配置
+    resetConfigBtn.addEventListener('click', function() {
+      Swal.fire({
+        title: '确认重置',
+        text: '确定要将配置文件重置为原始内容吗？此操作不可撤销。',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: '确定重置',
+        cancelButtonText: '取消'
+      }).then((result) => {
+        if (result.isConfirmed) {
+          configContent.value = originalContent;
+          saveStatus.textContent = '已重置为原始内容';
+          saveStatus.className = 'save-status status-success';
+          
+          // 3秒后恢复状态
+          setTimeout(() => {
+            saveStatus.textContent = '就绪';
+            saveStatus.className = 'save-status';
+          }, 3000);
+        }
+      });
+    });
+    
+    // 监听内容变化
+    configContent.addEventListener('input', function() {
+      if (saveStatus.textContent === '就绪') {
+        saveStatus.textContent = '内容已修改';
+      }
+    });
+  });
+</script>
+{% endblock %}

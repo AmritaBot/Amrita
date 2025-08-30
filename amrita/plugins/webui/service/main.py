@@ -10,7 +10,6 @@ from fastapi.templating import Jinja2Templates
 from nonebot import logger
 
 from .authlib import AuthManager
-from .csrf import add_csrf_token, validate_csrf
 
 app: FastAPI = nonebot.get_app()
 app.mount(
@@ -29,18 +28,9 @@ def try_get_bot():
     return bot
 
 
-# 重写模板响应函数以添加CSRF令牌
-def create_template_response(name: str, context: dict, status_code: int = 200):
-    """创建带有CSRF令牌的模板响应"""
-    request = context.get("request")
-    if request:
-        context = add_csrf_token(request, context)
-    return templates.TemplateResponse(name, context, status_code=status_code)
-
-
 @app.exception_handler(404)
 async def _(request: Request, exc: HTTPException):
-    return create_template_response(
+    return templates.TemplateResponse(
         "error.html",
         {
             "request": request,
@@ -58,7 +48,7 @@ async def _(request: Request, exc: HTTPException):
 @app.exception_handler(500)
 async def _(request: Request, exc: Exception):
     if isinstance(exc, HTTPException):
-        response = create_template_response(
+        response = templates.TemplateResponse(
             "error.html",
             {
                 "request": request,
@@ -69,7 +59,7 @@ async def _(request: Request, exc: Exception):
             status_code=exc.status_code,
         )
     else:
-        response = create_template_response(
+        response = templates.TemplateResponse(
             "error.html",
             {
                 "request": request,
@@ -86,7 +76,7 @@ async def _(request: Request, exc: HTTPException):
     if exc.status_code == 401:
         logger.warning("401!" + str(request))
         return RedirectResponse(url="/", status_code=303)
-    return create_template_response(
+    return templates.TemplateResponse(
         "error.html",
         {
             "request": request,
@@ -95,36 +85,6 @@ async def _(request: Request, exc: HTTPException):
             "error_details": str(exc) if app.debug else None,
         },
     )
-
-
-@app.middleware("http")
-async def csrf_middleware(request: Request, call_next):
-    """
-    CSRF保护中间件
-    """
-    # 对于不需要CSRF保护的路径，跳过验证
-    public_paths = [
-        "/",
-        "/public",
-        "/login",
-        "/docs",
-        "/onebot/v11",
-        "/password-help",
-        "/robots.txt",
-        "/sitemap.xml",
-    ]
-    if (
-        request.url.path in public_paths
-        or request.url.path.startswith("/static")
-        or request.method in ["GET", "HEAD", "OPTIONS"]
-    ):
-        response = await call_next(request)
-    else:
-        # 验证CSRF令牌
-        if not validate_csrf(request):
-            raise HTTPException(status_code=403, detail="CSRF token validation failed")
-        response = await call_next(request)
-    return response
 
 
 @app.middleware("http")

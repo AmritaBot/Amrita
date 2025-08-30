@@ -15,7 +15,7 @@ from amrita.utils.logging import LoggingData
 from amrita.utils.system_health import calculate_system_health
 
 from ..authlib import AuthManager
-from ..main import app, create_template_response, try_get_bot
+from ..main import app, templates, try_get_bot
 from ..sidebar import SideBarManager
 
 
@@ -41,7 +41,7 @@ async def sitemap_xml():
 
 @app.get("/password-help", response_class=HTMLResponse)
 async def _(request: Request):
-    return create_template_response(
+    return templates.TemplateResponse(
         "password-help.html",
         context={
             "request": request,
@@ -59,7 +59,7 @@ async def index(request: Request):
         return response
     except HTTPException:
         # 如果没有有效令牌，显示登录页面
-        return create_template_response(
+        return templates.TemplateResponse(
             "index.html", {"request": request, "logo_url": "/static/images/Amrita.png"}
         )
 
@@ -118,7 +118,7 @@ async def dashboard(request: Request):
             break
     events = (await LoggingData.get()).data[-20:]
     events.reverse()
-    return create_template_response(
+    return templates.TemplateResponse(
         "dashboard.html",
         {
             "request": request,

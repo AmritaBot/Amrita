@@ -570,6 +570,7 @@ endblock %} {% block extra_css %}
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            
           },
           body: JSON.stringify({
             type: type,
@@ -658,7 +659,9 @@ endblock %} {% block extra_css %}
 
           // 调用API移除黑名单
           const response = await fetch(`/api/blacklist/remove/${type}/${id}`, {
-            method: "POST",
+            method: "POST",headers: {
+              
+            },
           });
 
           if (response.ok) {
@@ -736,6 +739,7 @@ endblock %} {% block extra_css %}
             method: "POST",
             headers: {
               "Content-Type": "application/json",
+              
             },
             body: JSON.stringify({ ids: ids }),
           });
