@@ -6,6 +6,24 @@
     <title>Amrita Dashboard - Login</title>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
+      :root {
+        --primary-color: #8a2be2;
+        --secondary-color: #9370db;
+        --accent-color: #ba55d3;
+        --bg-color: #f8f9fa;
+        --text-color: #333;
+        --text-light: #fff;
+        --card-bg: #ffffff;
+        --border-color: #e0d6ff;
+        --input-bg: rgba(255, 255, 255, 0.8);
+        /* 深色模式变量 */
+        --dark-bg-color: #1a1a1a;
+        --dark-text-color: #f0f0f0;
+        --dark-card-bg: #252525;
+        --dark-border-color: #444;
+        --dark-input-bg: rgba(37, 37, 37, 0.8);
+      }
+
       * {
         margin: 0;
         padding: 0;
@@ -22,6 +40,12 @@
         align-items: center;
         animation: gradientBG 15s ease infinite;
         overflow: hidden;
+      }
+
+      /* 深色模式 */
+      body.dark-mode {
+        background: linear-gradient(-45deg, #2c1a2c, #2a1f2a, #251a25, #1a1a2c);
+        background-size: 400% 400%;
       }
 
       /* 动态背景动画 */
@@ -117,6 +141,13 @@
         transform: scale(0.1) translateY(100px);
       }
 
+      /* 深色模式下的登录容器 */
+      body.dark-mode .login-container {
+        background-color: rgba(37, 37, 37, 0.9);
+        box-shadow: 0 10px 30px rgba(100, 50, 120, 0.3);
+        border: 1px solid rgba(100, 100, 100, 0.5);
+      }
+
       .logo-section {
         text-align: center;
         margin-bottom: 30px;
@@ -156,6 +187,15 @@
         animation: shine 3s infinite;
       }
 
+      body.dark-mode .logo-circle::after {
+        background: linear-gradient(
+          45deg,
+          transparent,
+          rgba(100, 100, 100, 0.3),
+          transparent
+        );
+      }
+
       @keyframes shine {
         0% {
           transform: translateX(-100%) rotate(45deg);
@@ -173,10 +213,19 @@
         text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.1);
       }
 
+      body.dark-mode h1 {
+        color: #ba55d3;
+        text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.3);
+      }
+
       .subtitle {
         color: #888;
         font-size: 14px;
         margin-bottom: 10px;
+      }
+
+      body.dark-mode .subtitle {
+        color: #aaa;
       }
 
       .form-group {
@@ -192,6 +241,10 @@
         font-size: 14px;
       }
 
+      body.dark-mode label {
+        color: #ba55d3;
+      }
+
       input[type="text"],
       input[type="password"] {
         width: 100%;
@@ -203,11 +256,24 @@
         background-color: rgba(255, 255, 255, 0.8);
       }
 
+      body.dark-mode input[type="text"],
+      body.dark-mode input[type="password"] {
+        border: 2px solid #444;
+        background-color: rgba(37, 37, 37, 0.8);
+        color: #f0f0f0;
+      }
+
       input[type="text"]:focus,
       input[type="password"]:focus {
         border-color: #9f78ff;
         outline: none;
         box-shadow: 0 0 0 3px rgba(159, 120, 255, 0.2);
+      }
+
+      body.dark-mode input[type="text"]:focus,
+      body.dark-mode input[type="password"]:focus {
+        border-color: #ba55d3;
+        box-shadow: 0 0 0 3px rgba(186, 85, 211, 0.2);
       }
 
       .login-btn {
@@ -226,9 +292,18 @@
         overflow: hidden;
       }
 
+      body.dark-mode .login-btn {
+        background: linear-gradient(to right, #ba55d3, #8a2be2);
+        box-shadow: 0 4px 10px rgba(186, 85, 211, 0.4);
+      }
+
       .login-btn:hover {
         transform: translateY(-2px);
         box-shadow: 0 6px 15px rgba(159, 120, 255, 0.5);
+      }
+
+      body.dark-mode .login-btn:hover {
+        box-shadow: 0 6px 15px rgba(186, 85, 211, 0.5);
       }
 
       .login-btn:active {
@@ -245,6 +320,10 @@
         background: rgba(255, 255, 255, 0.3);
         transform: rotate(25deg);
         transition: all 0.6s;
+      }
+
+      body.dark-mode .login-btn::after {
+        background: rgba(100, 100, 100, 0.3);
       }
 
       .login-btn:hover::after {
@@ -268,10 +347,19 @@
         transition: all 0.3s ease;
       }
 
+      body.dark-mode .extension-btn {
+        color: #ba55d3;
+      }
+
       .extension-btn:hover {
         color: #6a40bf;
         background-color: rgba(159, 120, 255, 0.1);
         transform: translateY(-2px);
+      }
+
+      body.dark-mode .extension-btn:hover {
+        color: #8a2be2;
+        background-color: rgba(186, 85, 211, 0.1);
       }
 
       .footer {
@@ -279,6 +367,10 @@
         margin-top: 30px;
         color: #aaa;
         font-size: 13px;
+      }
+
+      body.dark-mode .footer {
+        color: #888;
       }
 
       /* 响应式设计 */
@@ -389,6 +481,51 @@
             confirmButtonText: "确定",
           });
         }
+
+        // 深色模式功能
+        function setTheme(theme) {
+          if (theme === 'dark') {
+            document.body.classList.add('dark-mode');
+            localStorage.setItem('theme', 'dark');
+          } else {
+            document.body.classList.remove('dark-mode');
+            localStorage.setItem('theme', 'light');
+          }
+        }
+
+        // 自动检测系统主题偏好
+        function detectSystemTheme() {
+          if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            return 'dark';
+          }
+          return 'light';
+        }
+
+        // 初始化主题
+        function initTheme() {
+          // 检查本地存储的主题设置
+          const savedTheme = localStorage.getItem('theme');
+          
+          if (savedTheme) {
+            // 使用保存的主题设置
+            setTheme(savedTheme);
+          } else {
+            // 根据系统偏好设置主题
+            const systemTheme = detectSystemTheme();
+            setTheme(systemTheme);
+          }
+          
+          // 监听系统主题变化
+          window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+            // 只有在没有手动设置主题时才跟随系统变化
+            if (!localStorage.getItem('theme')) {
+              setTheme(e.matches ? 'dark' : 'light');
+            }
+          });
+        }
+
+        // 初始化主题
+        initTheme();
       });
     </script>
   </body>

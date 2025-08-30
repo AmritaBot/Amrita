@@ -9,7 +9,86 @@ endblock %} {% block extra_css %}
     padding-bottom: 15px;
     border-bottom: 1px solid #eee;
   }
+  body.dark-mode .plugins-header {
+    border-bottom: 1px solid var(--dark-border-color);
+  }
+  body.dark-mode .page-title {
+    color: var(--accent-color);
+  }
+  body.dark-mode .action-btn {
+    background: var(--accent-color);
+  }
+  body.dark-mode .action-btn:hover {
+    background: #8a2be2;
+  }
+  body.dark-mode .action-btn.secondary {
+    background: #5a6268;
+    color: var(--dark-text-color);
+  }
+  body.dark-mode .action-btn.secondary:hover {
+    background: #495057;
+  }
+  body.dark-mode .plugin-card {
+    background: var(--dark-card-bg);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--dark-border-color);
+  }
+  body.dark-mode .search-icon {
+    color: #aaa;
+  }
+  body.dark-mode .filter-label {
+    color: #ddd;
+  }
+  body.dark-mode .filter-select {
+    border: 1px solid var(--dark-border-color);
+    background: var(--dark-card-bg);
+    color: var(--dark-text-color);
+  }
+  body.dark-mode .search-input {
+    border: 1px solid var(--dark-border-color);
+    background: var(--dark-card-bg);
+    color: var(--dark-text-color);
+  }
+  body.dark-mode .plugin-tag {
+    background: #333;
+    color: #ccc;
+  }
 
+  body.dark-mode .plugin-meta {
+    color: #aaa;
+  }
+  body.dark-mode .plugin-description {
+    color: #bbb;
+  }
+  body.dark-mode .plugin-version {
+    background: rgba(186, 85, 211, 0.2);
+    color: var(--accent-color);
+  }
+  body.dark-mode .plugin-name {
+    color: var(--accent-color);
+  }
+  body.dark-mode .plugin-card:hover {
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+  }
+  body.dark-mode .slider {
+    background-color: #555;
+  }
+  body.dark-mode input:checked + .slider {
+    background-color: var(--accent-color);
+  }
+  body.dark-mode .plugin-action-btn:hover {
+    background: var(--dark-sidebar-hover);
+    color: var(--accent-color);
+  }
+  body.dark-mode .plugin-action-btn {
+    color: #aaa;
+  }
+  body.dark-mode .no-plugins {
+    color: #aaa;
+  }
+  body.dark-mode .no-plugins i {
+    color: #555;
+  }
   .page-title {
     font-size: 24px;
     font-weight: 600;

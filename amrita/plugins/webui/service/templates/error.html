@@ -20,6 +20,14 @@
         --bg-color: #f8f9fa;
         --text-color: #333;
         --text-light: #fff;
+        --card-bg: #ffffff;
+        --border-color: #e0d6ff;
+        /* 深色模式变量 */
+        --dark-bg-color: #1a1a1a;
+        --dark-text-color: #f0f0f0;
+        --dark-card-bg: #252525;
+        --dark-border-color: #444;
+        --dark-code-bg: #1e1e1e;
       }
 
       * {
@@ -40,6 +48,12 @@
         padding: 20px;
       }
 
+      /* 深色模式 */
+      body.dark-mode {
+        background-color: var(--dark-bg-color);
+        color: var(--dark-text-color);
+      }
+
       .error-container {
         text-align: center;
         max-width: 800px;
@@ -48,6 +62,11 @@
         background: white;
         border-radius: 15px;
         box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+      }
+
+      body.dark-mode .error-container {
+        background: var(--dark-card-bg);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
       }
 
       .error-icon {
@@ -102,11 +121,19 @@
         color: #333;
       }
 
+      body.dark-mode .error-title {
+        color: #f0f0f0;
+      }
+
       .error-message {
         font-size: 18px;
         color: #666;
         margin-bottom: 30px;
         line-height: 1.6;
+      }
+
+      body.dark-mode .error-message {
+        color: #ccc;
       }
 
       .error-actions {
@@ -135,9 +162,21 @@
         cursor: pointer;
       }
 
+      body.dark-mode .btn {
+        background: linear-gradient(
+          135deg,
+          var(--primary-color),
+          var(--accent-color)
+        );
+      }
+
       .btn:hover {
         transform: translateY(-2px);
         box-shadow: 0 6px 15px rgba(138, 43, 226, 0.3);
+      }
+
+      body.dark-mode .btn:hover {
+        box-shadow: 0 6px 15px rgba(186, 85, 211, 0.3);
       }
 
       .btn-outline {
@@ -146,8 +185,18 @@
         color: var(--primary-color);
       }
 
+      body.dark-mode .btn-outline {
+        border: 2px solid var(--accent-color);
+        color: var(--accent-color);
+      }
+
       .btn-outline:hover {
         background: var(--primary-color);
+        color: white;
+      }
+
+      body.dark-mode .btn-outline:hover {
+        background: var(--accent-color);
         color: white;
       }
 
@@ -163,10 +212,18 @@
         text-align: left;
       }
 
+      body.dark-mode .error-details {
+        background: #1e1e1e;
+      }
+
       .error-details summary {
         cursor: pointer;
         font-weight: 500;
         color: #666;
+      }
+
+      body.dark-mode .error-details summary {
+        color: #ccc;
       }
 
       .error-details pre {
@@ -176,6 +233,11 @@
         border-radius: 6px;
         overflow-x: auto;
         font-size: 14px;
+      }
+
+      body.dark-mode .error-details pre {
+        background: #121212;
+        color: #f0f0f0;
       }
 
       /* 动画效果 */
@@ -235,9 +297,17 @@
         font-size: 14px;
       }
 
+      body.dark-mode .footer {
+        color: #aaa;
+      }
+
       .footer a {
         color: var(--primary-color);
         text-decoration: none;
+      }
+
+      body.dark-mode .footer a {
+        color: var(--accent-color);
       }
 
       .footer a:hover {
@@ -309,6 +379,51 @@
           // 可以使用原生alert或创建一个简单的提示
           alert("您的登录会话已过期，请重新登录。");
         }
+
+        // 深色模式功能
+        function setTheme(theme) {
+          if (theme === 'dark') {
+            document.body.classList.add('dark-mode');
+            localStorage.setItem('theme', 'dark');
+          } else {
+            document.body.classList.remove('dark-mode');
+            localStorage.setItem('theme', 'light');
+          }
+        }
+
+        // 自动检测系统主题偏好
+        function detectSystemTheme() {
+          if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            return 'dark';
+          }
+          return 'light';
+        }
+
+        // 初始化主题
+        function initTheme() {
+          // 检查本地存储的主题设置
+          const savedTheme = localStorage.getItem('theme');
+          
+          if (savedTheme) {
+            // 使用保存的主题设置
+            setTheme(savedTheme);
+          } else {
+            // 根据系统偏好设置主题
+            const systemTheme = detectSystemTheme();
+            setTheme(systemTheme);
+          }
+          
+          // 监听系统主题变化
+          window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+            // 只有在没有手动设置主题时才跟随系统变化
+            if (!localStorage.getItem('theme')) {
+              setTheme(e.matches ? 'dark' : 'light');
+            }
+          });
+        }
+
+        // 初始化主题
+        initTheme();
       });
       const currentYear = new Date().getFullYear();
       document.getElementById("fullYear").textContent = currentYear;

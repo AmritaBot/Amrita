@@ -10,10 +10,18 @@ endblock %} {% block extra_css %}
     border-bottom: 1px solid #eee;
   }
 
+  body.dark-mode .blacklist-header {
+    border-bottom: 1px solid var(--dark-border-color);
+  }
+
   .page-title {
     font-size: 24px;
     font-weight: 600;
     color: var(--primary-color);
+  }
+
+  body.dark-mode .page-title {
+    color: var(--accent-color);
   }
 
   .actions-container {
@@ -35,8 +43,16 @@ endblock %} {% block extra_css %}
     transition: background 0.3s;
   }
 
+  body.dark-mode .action-btn {
+    background: var(--accent-color);
+  }
+
   .action-btn:hover {
     background: var(--accent-color);
+  }
+
+  body.dark-mode .action-btn:hover {
+    background: #8a2be2;
   }
 
   .action-btn i {
@@ -47,8 +63,16 @@ endblock %} {% block extra_css %}
     background: #e74c3c;
   }
 
+  body.dark-mode .action-btn.danger {
+    background: #c0392b;
+  }
+
   .action-btn.danger:hover {
     background: #c0392b;
+  }
+
+  body.dark-mode .action-btn.danger:hover {
+    background: #a53125;
   }
 
   .tabs-container {
@@ -57,17 +81,31 @@ endblock %} {% block extra_css %}
     border-bottom: 1px solid #ddd;
   }
 
+  body.dark-mode .tabs-container {
+    border-bottom: 1px solid var(--dark-border-color);
+  }
+
   .tab {
     padding: 10px 20px;
     cursor: pointer;
     border-bottom: 3px solid transparent;
     transition: all 0.3s;
+    color: #555;
+  }
+
+  body.dark-mode .tab {
+    color: #aaa;
   }
 
   .tab.active {
     border-bottom-color: var(--primary-color);
     color: var(--primary-color);
     font-weight: 500;
+  }
+
+  body.dark-mode .tab.active {
+    border-bottom-color: var(--accent-color);
+    color: var(--accent-color);
   }
 
   .tab-content {
@@ -85,6 +123,11 @@ endblock %} {% block extra_css %}
     overflow: hidden;
   }
 
+  body.dark-mode .table-container {
+    background: var(--dark-card-bg);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+  }
+
   .table-header {
     display: flex;
     justify-content: space-between;
@@ -93,9 +136,17 @@ endblock %} {% block extra_css %}
     border-bottom: 1px solid #eee;
   }
 
+  body.dark-mode .table-header {
+    border-bottom: 1px solid var(--dark-border-color);
+  }
+
   .table-title {
     font-size: 16px;
     font-weight: 600;
+  }
+
+  body.dark-mode .table-title {
+    color: var(--dark-text-color);
   }
 
   .batch-actions {
@@ -114,6 +165,45 @@ endblock %} {% block extra_css %}
     margin-right: 5px;
   }
 
+  .batch-btn {
+    background: #6c757d;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background 0.3s;
+  }
+
+  body.dark-mode .batch-btn {
+    background: #5a6268;
+  }
+
+  .batch-btn:hover {
+    background: #5a6268;
+  }
+
+  body.dark-mode .batch-btn:hover {
+    background: #505a60;
+  }
+
+  .batch-btn.danger {
+    background: #e74c3c;
+  }
+
+  body.dark-mode .batch-btn.danger {
+    background: #c0392b;
+  }
+
+  .batch-btn.danger:hover {
+    background: #c0392b;
+  }
+
+  body.dark-mode .batch-btn.danger:hover {
+    background: #a53125;
+  }
+
   .table {
     width: 100%;
     border-collapse: collapse;
@@ -126,10 +216,20 @@ endblock %} {% block extra_css %}
     border-bottom: 1px solid #eee;
   }
 
+  body.dark-mode .table th,
+  body.dark-mode .table td {
+    border-bottom: 1px solid var(--dark-border-color);
+  }
+
   .table th {
     background-color: #f8f9fa;
     font-weight: 600;
     color: #555;
+  }
+
+  body.dark-mode .table th {
+    background-color: var(--dark-sidebar-bg);
+    color: var(--dark-text-color);
   }
 
   .table tbody tr {
@@ -138,6 +238,10 @@ endblock %} {% block extra_css %}
 
   .table tbody tr:hover {
     background-color: #f8f9fa;
+  }
+
+  body.dark-mode .table tbody tr:hover {
+    background-color: rgba(255, 255, 255, 0.05);
   }
 
   .table tbody tr.selected {
@@ -177,16 +281,82 @@ endblock %} {% block extra_css %}
     background: rgba(231, 76, 60, 0.1);
   }
 
-  .empty-state {
-    padding: 40px 20px;
-    text-align: center;
-    color: #777;
+  .table-actions {
+    display: flex;
+    gap: 5px;
   }
 
-  .empty-icon {
-    font-size: 48px;
-    color: #ddd;
-    margin-bottom: 15px;
+  .table-action-btn {
+    background: none;
+    border: none;
+    color: #777;
+    cursor: pointer;
+    padding: 5px;
+    border-radius: 4px;
+    transition: background 0.3s;
+    font-size: 14px;
+  }
+
+  body.dark-mode .table-action-btn {
+    color: #aaa;
+  }
+
+  .table-action-btn:hover {
+    background: #e9ecef;
+    color: var(--primary-color);
+  }
+
+  body.dark-mode .table-action-btn:hover {
+    background: var(--dark-sidebar-hover);
+    color: var(--accent-color);
+  }
+
+  .pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+    gap: 10px;
+  }
+
+  .page-btn {
+    background: #f8f9fa;
+    border: 1px solid #ddd;
+    color: #333;
+    padding: 8px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.3s;
+  }
+
+  body.dark-mode .page-btn {
+    background: var(--dark-sidebar-bg);
+    border: 1px solid var(--dark-border-color);
+    color: var(--dark-text-color);
+  }
+
+  .page-btn:hover {
+    background: #e9ecef;
+  }
+
+  body.dark-mode .page-btn:hover {
+    background: var(--dark-sidebar-hover);
+  }
+
+  .page-btn.active {
+    background: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+  }
+
+  body.dark-mode .page-btn.active {
+    background: var(--accent-color);
+    border-color: var(--accent-color);
+  }
+
+  .page-btn.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 
   .add-form {
@@ -194,7 +364,23 @@ endblock %} {% block extra_css %}
     border-radius: 10px;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
     padding: 20px;
+    margin-bottom: 30px;
+  }
+
+  body.dark-mode .add-form {
+    background: var(--dark-card-bg);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+  }
+
+  .form-header {
+    font-size: 18px;
+    font-weight: 600;
     margin-bottom: 20px;
+    color: var(--primary-color);
+  }
+
+  body.dark-mode .form-header {
+    color: var(--accent-color);
   }
 
   .form-title {
@@ -208,6 +394,7 @@ endblock %} {% block extra_css %}
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 15px;
+    margin-bottom: 20px;
   }
 
   .form-group {
@@ -230,21 +417,89 @@ endblock %} {% block extra_css %}
     color: #555;
   }
 
+  body.dark-mode .form-label {
+    color: #ddd;
+  }
+
   .form-input,
-  .form-select {
-    padding: 10px;
+  .form-select,
+  .form-textarea {
+    padding: 10px 12px;
     border: 1px solid #ddd;
     border-radius: 5px;
     font-size: 14px;
+    background: white;
+    color: #333;
+  }
+
+  body.dark-mode .form-input,
+  body.dark-mode .form-select,
+  body.dark-mode .form-textarea {
+    border: 1px solid var(--dark-border-color);
+    background: var(--dark-card-bg);
+    color: var(--dark-text-color);
+  }
+
+  .form-input:focus,
+  .form-select:focus,
+  .form-textarea:focus {
+    outline: none;
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 2px rgba(186, 85, 211, 0.25);
   }
 
   .form-textarea {
-    padding: 10px;
-    border: 1px solid #ddd;
-    border-radius: 5px;
-    font-size: 14px;
+    min-height: 100px;
     resize: vertical;
-    min-height: 80px;
+  }
+
+  .form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+  }
+
+  .form-btn {
+    padding: 10px 20px;
+    border-radius: 5px;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background 0.3s;
+  }
+
+  .form-btn.primary {
+    background: var(--primary-color);
+    color: white;
+  }
+
+  body.dark-mode .form-btn.primary {
+    background: var(--accent-color);
+  }
+
+  .form-btn.primary:hover {
+    background: var(--accent-color);
+  }
+
+  body.dark-mode .form-btn.primary:hover {
+    background: #8a2be2;
+  }
+
+  .form-btn.secondary {
+    background: #6c757d;
+    color: white;
+  }
+
+  body.dark-mode .form-btn.secondary {
+    background: #5a6268;
+  }
+
+  .form-btn.secondary:hover {
+    background: #5a6268;
+  }
+
+  body.dark-mode .form-btn.secondary:hover {
+    background: #505a60;
   }
 
   .form-submit {
@@ -264,21 +519,33 @@ endblock %} {% block extra_css %}
     background: var(--accent-color);
   }
 
-  /* 对齐修复：确保表单元素在横屏时对齐 */
-  @media (min-width: 769px) {
-    .form-grid {
-      align-items: end;
-    }
+  .no-data,
+  .empty-state {
+    text-align: center;
+    padding: 50px 20px;
+    color: #777;
+  }
 
-    .form-group {
-      display: inline-flex;
-      flex-direction: column;
-    }
+  body.dark-mode .no-data,
+  body.dark-mode .empty-state {
+    color: #aaa;
+  }
 
-    .form-input,
-    .form-select {
-      align-self: stretch;
-    }
+  .no-data i,
+  .empty-icon {
+    font-size: 48px;
+    margin-bottom: 15px;
+    color: #ddd;
+  }
+
+  body.dark-mode .no-data i,
+  body.dark-mode .empty-icon {
+    color: #555;
+  }
+
+  .no-data p {
+    font-size: 18px;
+    margin-bottom: 20px;
   }
 
   /* 响应式设计 */
@@ -289,8 +556,21 @@ endblock %} {% block extra_css %}
       gap: 15px;
     }
 
+    .actions-container {
+      width: 100%;
+      margin-top: 15px;
+    }
+
     .form-grid {
       grid-template-columns: 1fr;
+    }
+
+    .table-container {
+      overflow-x: auto;
+    }
+
+    .table {
+      min-width: 600px;
     }
 
     .table-header {
@@ -325,6 +605,23 @@ endblock %} {% block extra_css %}
       font-size: 14px;
       margin-bottom: 10px;
       margin-top: 5px;
+    }
+  }
+
+  /* 对齐修复：确保表单元素在横屏时对齐 */
+  @media (min-width: 769px) {
+    .form-grid {
+      align-items: end;
+    }
+
+    .form-group {
+      display: inline-flex;
+      flex-direction: column;
+    }
+
+    .form-input,
+    .form-select {
+      align-self: stretch;
     }
   }
 </style>
@@ -570,7 +867,6 @@ endblock %} {% block extra_css %}
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            
           },
           body: JSON.stringify({
             type: type,
@@ -659,9 +955,8 @@ endblock %} {% block extra_css %}
 
           // 调用API移除黑名单
           const response = await fetch(`/api/blacklist/remove/${type}/${id}`, {
-            method: "POST",headers: {
-              
-            },
+            method: "POST",
+            headers: {},
           });
 
           if (response.ok) {
@@ -739,7 +1034,6 @@ endblock %} {% block extra_css %}
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              
             },
             body: JSON.stringify({ ids: ids }),
           });
