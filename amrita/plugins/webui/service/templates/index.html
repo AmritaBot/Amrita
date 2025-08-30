@@ -318,6 +318,9 @@
       </div>
 
       <form action="/login" method="post">
+        {% if csrf_token %}
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        {% endif %}
         <div class="form-group">
           <label for="username">用户名</label>
           <input

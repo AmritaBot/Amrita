@@ -5,7 +5,7 @@ from fastapi.responses import HTMLResponse
 
 from amrita.plugins.manager.blacklist.black import BL_Manager
 
-from ..main import app, templates
+from ..main import app, create_template_response
 from ..sidebar import SideBarManager
 
 
@@ -18,7 +18,7 @@ async def _(request: Request):
         if bar["name"] == "用户管理":
             bar["active"] = True
             break
-    response = templates.TemplateResponse(
+    response = create_template_response(
         "blacklist.html",
         {
             "request": request,
