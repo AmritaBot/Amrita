@@ -288,6 +288,24 @@
           background: #f0f0f0;
       }
 
+      /* 页面加载指示条 */
+      .loading-bar {
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 0%;
+          height: 3px;
+          background: linear-gradient(90deg, var(--primary-color), var(--accent-color));
+          z-index: 9999;
+          transition: width 0.3s ease;
+          box-shadow: 0 0 5px rgba(138, 43, 226, 0.5);
+      }
+
+      .loading-bar.hidden {
+          opacity: 0;
+          transition: opacity 0.3s ease;
+      }
+
       /* 内容区域 */
       .content {
           padding: 20px;
@@ -322,9 +340,11 @@
       {% block extra_css %}{% endblock %}
     </style>
     {% block head_extra %}{% endblock %}
-    
   </head>
   <body>
+    <!-- 页面加载指示条 -->
+    <div class="loading-bar" id="loadingBar"></div>
+
     <div class="dashboard-container">
       <!-- 侧边栏 -->
       <div class="sidebar">
@@ -387,6 +407,9 @@
               <div class="user-name">Admin</div>
             </div>
             <form action="/logout" method="post">
+              {% if csrf_token %}
+              <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+              {% endif %}
               <button type="submit" class="logout-btn" title="退出登录">
                 <i class="fas fa-sign-out-alt"></i>
               </button>
@@ -400,6 +423,49 @@
     </div>
 
     <script>
+      // 页面加载指示条
+      const loadingBar = document.getElementById("loadingBar");
+
+      // 显示加载条
+      function showLoading() {
+        loadingBar.style.width = "30%";
+        loadingBar.classList.remove("hidden");
+      }
+
+      // 更新加载条
+      function updateLoading(progress) {
+        loadingBar.style.width = progress + "%";
+      }
+
+      // 隐藏加载条
+      function hideLoading() {
+        loadingBar.style.width = "100%";
+        setTimeout(() => {
+          loadingBar.classList.add("hidden");
+          loadingBar.style.width = "0%";
+        }, 300);
+      }
+
+      // 页面开始加载时显示加载条
+      showLoading();
+
+      // 模拟加载进度
+      let progress = 30;
+      const interval = setInterval(() => {
+        progress += Math.random() * 15;
+        if (progress >= 90) {
+          progress = 90;
+          clearInterval(interval);
+        }
+        updateLoading(progress);
+      }, 200);
+
+      // 页面加载完成时隐藏加载条
+      window.addEventListener("load", () => {
+        clearInterval(interval);
+        hideLoading();
+      });
+
       // 侧边栏切换
       document
         .querySelector(".toggle-sidebar")

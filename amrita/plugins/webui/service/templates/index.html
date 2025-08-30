@@ -225,18 +225,18 @@
         position: relative;
         overflow: hidden;
       }
-      
+
       .login-btn:hover {
         transform: translateY(-2px);
         box-shadow: 0 6px 15px rgba(159, 120, 255, 0.5);
       }
-      
+
       .login-btn:active {
         transform: translateY(0);
       }
-      
+
       .login-btn::after {
-        content: '';
+        content: "";
         position: absolute;
         top: -50%;
         left: -60%;
@@ -246,7 +246,7 @@
         transform: rotate(25deg);
         transition: all 0.6s;
       }
-      
+
       .login-btn:hover::after {
         left: 120%;
       }
@@ -309,7 +309,13 @@
     <div class="login-container">
       <div class="logo-section">
         {% if logo_url %}
-        <img src="{{ logo_url }}" alt="Amrita Logo" class="logo" height="150" width="150" />
+        <img
+          src="{{ logo_url }}"
+          alt="Amrita Logo"
+          class="logo"
+          height="150"
+          width="150"
+        />
         {% else %}
         <div class="logo-circle">A</div>
         {% endif %}
@@ -319,7 +325,7 @@
 
       <form action="/login" method="post">
         {% if csrf_token %}
-        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
         {% endif %}
         <div class="form-group">
           <label for="username">用户名</label>
@@ -359,9 +365,9 @@
       // 添加一些交互效果
       document.addEventListener("DOMContentLoaded", function () {
         // 触发登录窗口弹出动画
-        const loginContainer = document.querySelector('.login-container');
+        const loginContainer = document.querySelector(".login-container");
         setTimeout(() => {
-          loginContainer.style.opacity = '1';
+          loginContainer.style.opacity = "1";
         }, 100);
 
         const inputs = document.querySelectorAll("input");
