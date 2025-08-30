@@ -2,6 +2,7 @@ import asyncio
 import os
 import sys
 import traceback
+from datetime import timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -16,6 +17,20 @@ if TYPE_CHECKING:
     # avoid sphinx autodoc resolve annotation failed
     # because loguru module do not have `Logger` class actually
     from loguru import Record
+
+
+class EventRecorder:
+    def write(self, message):
+        record: Record = message.record
+        data = LoggingEvent(
+            log_level=record["level"].name,  # type: ignore
+            description=record["message"],
+            message=str(record.get("exception", "")),
+        )
+        logging_data = LoggingData._get_data_sync()
+        logging_data.data.append(data)
+        logging_data._save_sync()
+
 
 CUSTOM_FORMAT = (
     "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | "
@@ -53,14 +68,16 @@ def init():
 
         async def process(self, message):
             try:
-                record = message.record
+                record: Record = message.record
                 if record["level"].name == "ERROR":
                     # 处理异常 traceback
                     if record["exception"]:
                         exc_info = record["exception"]
                         traceback_str = "".join(
                             traceback.format_exception(
-                                exc_info.type, exc_info.value, exc_info.traceback
+                                exc_info.type,  # type: ignore
+                                exc_info.value,  # type: ignore
+                                exc_info.traceback,  # type: ignore
                             )
                         )
                     else:
@@ -86,13 +103,6 @@ def init():
                             bot.self_id,
                             [MessageSegment.text(content)],
                         )
-                    await (await LoggingData.get()).append(
-                        LoggingEvent(
-                            log_level=record["level"],
-                            description=record["message"],
-                            message=traceback_str,
-                        )
-                    )
 
             except Exception as e:
                 logger.warning(f"发送群消息失败: {e}")
@@ -107,6 +117,7 @@ def init():
         filter=default_filter,
     )
     logger.add(AsyncErrorHandler(), level="ERROR")
+    logger.add(EventRecorder(), level="WARNING")
     nonebot.init()
     logger.success(f"Amrita v{get_amrita_version()} is initializing......")
     driver = nonebot.get_driver()
@@ -120,7 +131,7 @@ def init():
         level=config.amrita_log_level,
         format=default_format,
         rotation="00:00",
-        retention="7 days",
+        retention=timedelta(days=7),
         encoding="utf-8",
         enqueue=True,
     )

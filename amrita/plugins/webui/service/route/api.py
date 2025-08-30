@@ -170,7 +170,11 @@ async def list_plugins(request: Request):
             "version": (
                 metadata.version(plugin.module_name)
                 if "." not in plugin.module_name
-                else "(不适用)"
+                else (
+                    "(不适用)"
+                    if "amrita.plugins." not in plugin.module_name
+                    else "Amrita内置插件"
+                )
             ),
         }
         for plugin in plugins

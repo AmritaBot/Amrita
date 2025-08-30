@@ -5,19 +5,18 @@ from pathlib import Path
 import nonebot
 from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.responses import RedirectResponse
-
-# from fastapi.staticfiles import StaticFiles
+from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from nonebot import logger
 
 from .authlib import AuthManager
 
 app: FastAPI = nonebot.get_app()
-"""app.mount(
+app.mount(
     "/static",
     StaticFiles(directory=Path(__file__).resolve().parent / "static"),
     name="static",
-)"""
+)
 templates = Jinja2Templates(directory=Path(__file__).resolve().parent / "templates")
 
 
@@ -29,10 +28,22 @@ def try_get_bot():
     return bot
 
 
+@app.exception_handler(404)
+async def _(request: Request, exc: HTTPException):
+    return templates.TemplateResponse(
+        "error.html",
+        {
+            "request": request,
+            "error_code": 404,
+            "debug": app.debug,
+            "error_details": "Not Found",
+        },
+    )
+
+
 @app.exception_handler(400)
 @app.exception_handler(402)
 @app.exception_handler(403)
-@app.exception_handler(404)
 @app.exception_handler(405)
 @app.exception_handler(500)
 async def _(request: Request, exc: Exception):
@@ -79,15 +90,18 @@ async def _(request: Request, exc: HTTPException):
 @app.middleware("http")
 async def auth_middleware(request: Request, call_next):
     # 定义不需要认证的路径
-    public_paths = ["/", "/public", "/static", "/login", "/docs", "/onebot/v11"]
-    if request.url.path in public_paths:
+    public_paths = ["/", "/public", "/login", "/docs", "/onebot/v11", "/password-help"]
+    if request.url.path in public_paths or request.url.path.startswith("/static"):
         response = await call_next(request)
     else:
         try:
             await AuthManager().check_current_user(request)
             response: Response = await call_next(request)
-            access_token = await AuthManager().refresh_token(request)
-            response.set_cookie(key="access_token", value=access_token, httponly=True)
+            if not request.url.path.startswith("/api"):
+                access_token = await AuthManager().refresh_token(request)
+                response.set_cookie(
+                    key="access_token", value=access_token, httponly=True
+                )
         except HTTPException as e:
             # 令牌无效或过期，重定向到登录页面
             response = RedirectResponse(url="/", status_code=303)

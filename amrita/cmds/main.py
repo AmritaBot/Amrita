@@ -280,8 +280,11 @@ def run(run: bool):
     click.echo(info("Starting project"))
     # 构建运行命令
     cmd = ["uv", "run", "amrita", "run", "--run"]
-
-    run_proc(cmd)
+    try:
+        run_proc(cmd)
+    except Exception:
+        click.echo(error("Something went wrong when running the project."))
+        return
 
 
 @cli.command()
@@ -398,13 +401,14 @@ def orm(orm_args):
     """
     nb(["orm", *list(orm_args)])
 
+
 @cli.command()
 @click.option("--count", "-c", default="10")
 @click.option("--details", "-d", is_flag=True)
 def event(count: str, details: bool):
     """Get the last events(10 by default)."""
     if not count.isdigit():
-        click.echo(error("Count must be a number"))
+        click.echo(error("Count must be a number greater than 0."))
         return
     from amrita import init
 
@@ -420,9 +424,11 @@ def event(count: str, details: bool):
         return
     for event in events.data[-int(count) :]:
         click.echo(
-            f"{event.time.strftime('%Y-%m-%d %H:%M:%S')} {event.log_level} {event.description}"
-            + (f"\n- {event.message}" if details else "")
+            f"- {event.time.strftime('%Y-%m-%d %H:%M:%S')} {event.log_level} {event.description}"
+            + (f"\n   |__{event.message}" if details else "")
         )
+    click.echo(info(f"Total {len(events.data)} events."))
+
 
 @cli.command(
     context_settings={

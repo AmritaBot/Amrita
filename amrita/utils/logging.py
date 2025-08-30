@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from asyncio import Lock
 from datetime import datetime
 from pathlib import Path
@@ -12,23 +14,56 @@ _lock = Lock()
 
 
 class LoggingEvent(BaseModel):
-    log_level: Literal["WARNING", "ERROR", "FATAL", "INFO"]
+    log_level: Literal["WARNING", "ERROR", "FATAL", "INFO", "DEBUG"]
     description: str
     message: str
     time: datetime = Field(default_factory=datetime.now)
+
+    @property
+    def color(self):
+        match self.log_level:
+            case "WARNING":
+                return "yellow"
+            case "ERROR":
+                return "red"
+            case "FATAL":
+                return "purple"
+            case "INFO":
+                return "green"
+            case "DEBUG":
+                return "blue"
+
+    @property
+    def icon(self):
+        match self.log_level:
+            case "WARNING":
+                return "exclamation-triangle"
+            case "ERROR":
+                return "bug"
+            case "FATAL":
+                return "times"
+            case "INFO":
+                return "info"
+            case "DEBUG":
+                return "code"
 
 
 class LoggingData(BaseModel):
     data: list[LoggingEvent] = []
 
     @staticmethod
-    async def _limit_length():
-        data = await LoggingData.get()
+    def _limit_length(data: LoggingData):
         while len(data.data) > get_amrita_config().max_event_record:
             data.data.pop(0)
-        await data.save()
+
+    def _save_sync(self):
+        self._limit_length(self)
+        log_path = Path(get_amrita_config().log_dir) / "event.json"
+        with open(log_path, "w", encoding="utf-8") as f:
+            f.write(self.model_dump_json())
 
     async def save(self):
+        self._limit_length(self)
         async with _lock:
             async with aiofiles.open(
                 Path(get_amrita_config().log_dir) / "event.json", "w", encoding="utf-8"
@@ -37,7 +72,6 @@ class LoggingData(BaseModel):
 
     @staticmethod
     async def get():
-        await LoggingData._limit_length()
         log_path = Path(get_amrita_config().log_dir) / "event.json"
         if not log_path.exists():
             data = LoggingData()
@@ -59,6 +93,7 @@ class LoggingData(BaseModel):
             with open(log_path, encoding="utf-8") as f:
                 data = LoggingData.model_validate_json(f.read())
         return data
+
     async def append(self, event: LoggingEvent):
         self.data.append(event)
         await self.save()

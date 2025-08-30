@@ -40,7 +40,7 @@ async def _(request: Request):
                 "platform": "OneBot V11",
                 "bot_name": (
                     next(iter(typing.cast(Bot, bot).config.nickname))
-                    if typing.cast(Bot, bot).config.nickname
+                    if bot and typing.cast(Bot, bot).config.nickname
                     else "<获取失败>"
                 ),
             },
@@ -81,7 +81,11 @@ async def _(request: Request):
             "version": (
                 importlib.metadata.version(plugin.module_name)
                 if "." not in plugin.module_name
-                else "(不适用)"
+                else (
+                    "(不适用)"
+                    if "amrita.plugins." not in plugin.module_name
+                    else "Amrita内置插件"
+                )
             ),
         }
         for plugin in plugins
