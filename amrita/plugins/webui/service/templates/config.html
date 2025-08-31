@@ -397,6 +397,7 @@
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            "Authorization": "Bearer " + (await getOnetimeToken()),
           
           },
           body: JSON.stringify({ 

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import secrets
 from abc import ABC
 from asyncio import Lock
@@ -9,12 +10,21 @@ from typing import TypeVar, overload
 import bcrypt
 from fastapi import HTTPException, Request
 from nonebot import logger
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing_extensions import Self
 
 from amrita.plugins.webui.service.config import get_webui_config
 
 T = TypeVar("T")
+
+
+def get_restful_auth_header(request: Request) -> str | None:
+    if auth_header := request.headers.get("Authorization"):
+        search = r"Bearer (.+)"
+        result = re.search(search, auth_header)
+        if not result:
+            raise HTTPException(status_code=403, detail="未授权的访问")
+        return result.group(1)
 
 
 class NOT_GIVEN(ABC):
@@ -25,27 +35,47 @@ class NOT_GIVEN(ABC):
 
 class TokenData(BaseModel):
     username: str
-    expire: datetime
+    expire: datetime = Field(
+        default_factory=lambda: datetime.utcnow() + timedelta(minutes=30)
+    )
+    onetime_tokens: set[str] = set()
+
+
+class OnetimeTokenData(BaseModel):
+    token: str
+    expire: datetime = Field(
+        default_factory=lambda: datetime.utcnow() + timedelta(minutes=10)
+    )
 
 
 class TokenManager:
     _instance = None
     __tokens_lock: Lock
     __tokens: dict[str, TokenData]
+    __onetime_token_index: dict[str, OnetimeTokenData]  # one time token->token
 
     def __new__(cls) -> Self:
         if cls._instance is None:
             cls._instance = super().__new__(cls)
             cls.__tokens_lock = Lock()
             cls.__tokens = {}
+            cls.__onetime_token_index = {}
         return cls._instance
 
     async def has_token(self, token: str) -> bool:
         async with self.__tokens_lock:
+            if token in self.__onetime_token_index:
+                auth: bool = False
+                otk_data = self.__onetime_token_index[token]
+                if not otk_data.expire < datetime.utcnow():
+                    auth = True
+                self.__onetime_token_index.pop(token, None)
+                self.__tokens[otk_data.token].onetime_tokens.remove(token)
+                return auth
             return token in self.__tokens
 
     @overload
-    async def get_token_data(self, token: str) -> TokenData: ...
+    async def get_token_data(self, token: str, /) -> TokenData: ...
 
     @overload
     async def get_token_data(self, token: str, default: T) -> TokenData | T: ...
@@ -69,6 +99,16 @@ class TokenManager:
             else:
                 return self.__tokens.pop(token)
 
+    async def create_one_time_token(self, token_id: str) -> str:
+        logger.debug(f"Creating one time token for '{token_id[:10]}...'")
+        token = secrets.token_urlsafe(32)
+        async with self.__tokens_lock:
+            self.__tokens[token_id].onetime_tokens.add(token)
+            self.__onetime_token_index[token] = OnetimeTokenData(
+                token=token_id, expire=datetime.utcnow() + timedelta(minutes=10)
+            )
+        return token
+
     async def create_access_token(
         self, data: dict, expires_delta: timedelta | None = None
     ):
@@ -90,6 +130,9 @@ class TokenManager:
     async def refresh_token(self, token: str) -> str:
         async with self.__tokens_lock:
             data_cache = self.__tokens[token]
+            onetime_tokens = data_cache.onetime_tokens
+            for one_time_token in onetime_tokens:
+                self.__onetime_token_index.pop(one_time_token, None)
             self.__tokens.pop(token, None)
         access_token_expires = timedelta(minutes=30)
         access_token = await self.create_access_token(
@@ -115,7 +158,7 @@ class AuthManager:
         return cls._instance
 
     async def check_current_user(self, request: Request):
-        token = request.cookies.get("access_token")
+        token = request.cookies.get("access_token") or get_restful_auth_header(request)
         token_manager = self._token_manager
         if not token or not await token_manager.has_token(token):
             raise HTTPException(status_code=401, detail="未认证")

@@ -17,6 +17,7 @@ from pydantic import BaseModel
 
 from amrita.plugins.manager.blacklist.black import BL_Manager
 from amrita.plugins.manager.models import get_usage
+from amrita.plugins.webui.service.authlib import TokenManager
 from amrita.utils.system_health import calculate_system_usage
 
 from ..main import app, try_get_bot
@@ -41,6 +42,16 @@ class BlacklistRemoveSchema(BaseModel):
     """
 
     ids: list[str]
+
+
+@app.get("/api/auth/otk")
+async def get_otk(request: Request):
+    """获取一次性令牌"""
+    access_token = request.cookies.get("access_token")
+    if not access_token:
+        raise HTTPException(status_code=401, detail="未授权")
+    token = await TokenManager().create_one_time_token(access_token)
+    return {"token": token}
 
 
 @app.post("/api/blacklist/add")

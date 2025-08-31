@@ -790,39 +790,44 @@
 
       // 深色模式切换功能
       function setTheme(theme) {
-        if (theme === 'dark') {
-          document.body.classList.add('dark-mode');
-          document.getElementById('themeToggle').innerHTML = '<i class="fas fa-sun"></i>';
-          localStorage.setItem('theme', 'dark');
+        if (theme === "dark") {
+          document.body.classList.add("dark-mode");
+          document.getElementById("themeToggle").innerHTML =
+            '<i class="fas fa-sun"></i>';
+          localStorage.setItem("theme", "dark");
         } else {
-          document.body.classList.remove('dark-mode');
-          document.getElementById('themeToggle').innerHTML = '<i class="fas fa-moon"></i>';
-          localStorage.setItem('theme', 'light');
+          document.body.classList.remove("dark-mode");
+          document.getElementById("themeToggle").innerHTML =
+            '<i class="fas fa-moon"></i>';
+          localStorage.setItem("theme", "light");
         }
       }
 
       // 切换主题
       function toggleTheme() {
-        if (document.body.classList.contains('dark-mode')) {
-          setTheme('light');
+        if (document.body.classList.contains("dark-mode")) {
+          setTheme("light");
         } else {
-          setTheme('dark');
+          setTheme("dark");
         }
       }
 
       // 自动检测系统主题偏好
       function detectSystemTheme() {
-        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-          return 'dark';
+        if (
+          window.matchMedia &&
+          window.matchMedia("(prefers-color-scheme: dark)").matches
+        ) {
+          return "dark";
         }
-        return 'light';
+        return "light";
       }
 
       // 初始化主题
       function initTheme() {
         // 检查本地存储的主题设置
-        const savedTheme = localStorage.getItem('theme');
-        
+        const savedTheme = localStorage.getItem("theme");
+
         if (savedTheme) {
           // 使用保存的主题设置
           setTheme(savedTheme);
@@ -831,26 +836,46 @@
           const systemTheme = detectSystemTheme();
           setTheme(systemTheme);
         }
-        
+
         // 监听系统主题变化
-        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
-          // 只有在没有手动设置主题时才跟随系统变化
-          if (!localStorage.getItem('theme')) {
-            setTheme(e.matches ? 'dark' : 'light');
-          }
-        });
+        window
+          .matchMedia("(prefers-color-scheme: dark)")
+          .addEventListener("change", (e) => {
+            // 只有在没有手动设置主题时才跟随系统变化
+            if (!localStorage.getItem("theme")) {
+              setTheme(e.matches ? "dark" : "light");
+            }
+          });
       }
 
       // 页面加载完成后执行
       document.addEventListener("DOMContentLoaded", function () {
         // 初始化主题
         initTheme();
-        
+
         // 绑定主题切换按钮事件
-        document.getElementById('themeToggle').addEventListener('click', toggleTheme);
-        
+        document
+          .getElementById("themeToggle")
+          .addEventListener("click", toggleTheme);
+
         checkTokenExpired();
       });
+      async function getOnetimeToken() {
+        let token;
+        const response = await fetch("/api/auth/otk");
+        if (response.ok) {
+          const data = await response.json();
+          token = data.token;
+        } else {
+          Swal.fire({
+            title: "错误",
+            text: "获取一次性令牌失败，请稍后再试。",
+            icon: "error",
+            confirmButtonText: "确定",
+          });
+        }
+        return token;
+      }
     </script>
 
     {% block scripts %}{% endblock %}

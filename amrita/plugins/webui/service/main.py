@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import nonebot
@@ -9,7 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from nonebot import logger
 
-from .authlib import AuthManager
+from .authlib import AuthManager, TokenManager
 
 app: FastAPI = nonebot.get_app()
 app.mount(
@@ -105,15 +106,27 @@ async def auth_middleware(request: Request, call_next):
     else:
         try:
             await AuthManager().check_current_user(request)
+            access_token = request.cookies.get("access_token")
+            assert access_token
             response: Response = await call_next(request)
-            if not request.url.path.startswith("/api"):
-                access_token = await AuthManager().refresh_token(request)
-                response.set_cookie(
-                    key="access_token",
-                    value=access_token,
-                    httponly=True,
-                    samesite="lax",
+            if (
+                not request.url.path.startswith("/api")
+                and (
+                    token_data := await TokenManager().get_token_data(
+                        access_token, None
+                    )
                 )
+                is not None
+            ):
+                expire = token_data.expire
+                if expire - datetime.utcnow() < timedelta(minutes=10):
+                    access_token = await AuthManager().refresh_token(request)
+                    response.set_cookie(
+                        key="access_token",
+                        value=access_token,
+                        httponly=True,
+                        samesite="lax",
+                    )
         except HTTPException as e:
             # 令牌无效或过期，重定向到登录页面
             response = RedirectResponse(url="/", status_code=303)

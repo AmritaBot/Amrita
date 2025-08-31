@@ -315,6 +315,104 @@
     color: #888;
   }
 
+  /* 新增分页控件样式 */
+  .activity-pagination {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 20px;
+    padding-top: 15px;
+    border-top: 1px solid #eee;
+  }
+
+  body.dark-mode .activity-pagination {
+    border-top: 1px solid var(--dark-border-color);
+  }
+
+  .pagination-info {
+    color: #777;
+    font-size: 14px;
+  }
+
+  body.dark-mode .pagination-info {
+    color: #aaa;
+  }
+
+  .pagination-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .page-size-selector {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .page-size-selector label {
+    color: #777;
+    font-size: 14px;
+  }
+
+  body.dark-mode .page-size-selector label {
+    color: #aaa;
+  }
+
+  .page-size-selector select {
+    padding: 5px 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background: white;
+    color: #333;
+  }
+
+  body.dark-mode .page-size-selector select {
+    background: var(--dark-card-bg);
+    border-color: var(--dark-border-color);
+    color: var(--dark-text-color);
+  }
+
+  .pagination-buttons {
+    display: flex;
+    gap: 5px;
+  }
+
+  .pagination-btn {
+    padding: 5px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background: white;
+    color: #333;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .pagination-btn:hover:not(:disabled) {
+    background: #f0f0f0;
+  }
+
+  .pagination-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  body.dark-mode .pagination-btn {
+    background: var(--dark-card-bg);
+    border-color: var(--dark-border-color);
+    color: var(--dark-text-color);
+  }
+
+  body.dark-mode .pagination-btn:hover:not(:disabled) {
+    background: var(--dark-sidebar-hover);
+  }
+
+  .pagination-btn.active {
+    background: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+  }
+
   /* 响应式设计 */
   @media (max-width: 768px) {
     .charts-grid {
@@ -328,11 +426,37 @@
     .stat-card {
       flex-direction: row;
     }
+
+    .activity-pagination {
+      flex-direction: column;
+      gap: 15px;
+      align-items: flex-start;
+    }
+
+    .pagination-controls {
+      width: 100%;
+      justify-content: space-between;
+    }
   }
 
   @media (max-width: 480px) {
     .stats-grid {
       grid-template-columns: 1fr;
+    }
+
+    .pagination-controls {
+      flex-direction: column;
+      gap: 15px;
+      align-items: flex-start;
+    }
+
+    .page-size-selector,
+    .pagination-buttons {
+      width: 100%;
+    }
+
+    .pagination-buttons {
+      justify-content: center;
     }
   }
 
@@ -431,9 +555,18 @@
   <div class="chart-header">
     <div class="chart-title">最近活动</div>
   </div>
-  <ul class="activity-list">
+
+  <!-- 隐藏原始活动列表，用于存储数据 -->
+  <ul class="activity-list" id="activity-data" style="display: none">
     {% for activity in recent_activity %}
-    <li class="activity-item">
+    <li
+      class="activity-item"
+      data-icon="{{activity.icon}}"
+      data-icon-color="{{activity.icon_color}}"
+      data-title="{{activity.title}}"
+      data-desc="{{activity.desc}}"
+      data-time="{{activity.time}}"
+    >
       <div class="activity-icon {{activity.icon_color}}">
         <i class="fas fa-{{activity.icon}}"></i>
       </div>
@@ -445,6 +578,49 @@
     </li>
     {% endfor %}
   </ul>
+
+  <!-- 实际显示的活动列表 -->
+  <ul class="activity-list" id="activity-display"></ul>
+
+  <!-- 分页控件 -->
+  <div
+    class="activity-pagination"
+    id="activity-pagination"
+    style="display: none"
+  >
+    <div class="pagination-info" id="pagination-info">
+      显示 <span id="start-index">0</span>-<span id="end-index">0</span> 条，共
+      <span id="total-activities">0</span> 条记录
+    </div>
+    <div class="pagination-controls">
+      <div class="page-size-selector">
+        <label for="page-size">每页显示:</label>
+        <select id="page-size">
+          <option value="5">5条</option>
+          <option value="10" selected>10条</option>
+          <option value="20">20条</option>
+          <option value="50">50条</option>
+        </select>
+      </div>
+      <div class="pagination-buttons" id="pagination-buttons">
+        <button class="pagination-btn" id="first-page" disabled>
+          <i class="fas fa-angle-double-left"></i>
+        </button>
+        <button class="pagination-btn" id="prev-page" disabled>
+          <i class="fas fa-angle-left"></i>
+        </button>
+
+        <div id="page-numbers"></div>
+
+        <button class="pagination-btn" id="next-page">
+          <i class="fas fa-angle-right"></i>
+        </button>
+        <button class="pagination-btn" id="last-page">
+          <i class="fas fa-angle-double-right"></i>
+        </button>
+      </div>
+    </div>
+  </div>
 </div>
 {% endblock %} {% block scripts %}
 <script>
@@ -461,13 +637,22 @@
   let messagesChart;
   let botMsgStatusChart;
 
-  // 页面加载完成后初始化图表
+  // 分页相关变量
+  let currentPage = 1;
+  let itemsPerPage = 10;
+  let totalActivities = 0;
+  let totalPages = 1;
+
+  // 页面加载完成后初始化
   document.addEventListener('DOMContentLoaded', function() {
       // 初始化图表
       initCharts();
 
       // 绑定按钮事件
       bindButtonEvents();
+
+      // 初始化分页
+      initPagination();
   });
 
   // 初始化图表函数
@@ -617,7 +802,11 @@
       try {
           if (chartTitle === '消息统计') {
               // 从API获取消息统计数据
-              const response = await fetch('/api/chart/messages');
+              const response = await fetch('/api/chart/messages',{
+          headers: {
+            "Authorization": "Bearer " + await getOnetimeToken(),
+          },
+        });
               const data = await response.json();
 
               // 更新图表数据
@@ -637,6 +826,147 @@
       } catch (error) {
           console.error('获取图表数据失败:', error);
           throw error;
+      }
+  }
+
+  // 初始化分页功能
+  function initPagination() {
+      // 获取所有活动项
+      const activityItems = document.querySelectorAll('#activity-data .activity-item');
+      totalActivities = activityItems.length;
+
+      // 如果没有活动项，隐藏分页控件
+      if (totalActivities === 0) {
+          return;
+      }
+
+      // 显示分页控件
+      document.getElementById('activity-pagination').style.display = 'flex';
+
+      // 设置每页显示数量选择器事件
+      document.getElementById('page-size').addEventListener('change', function() {
+          itemsPerPage = parseInt(this.value);
+          currentPage = 1;
+          renderActivities();
+          updatePaginationControls();
+      });
+
+      // 设置分页按钮事件
+      document.getElementById('first-page').addEventListener('click', function() {
+          if (currentPage > 1) {
+              currentPage = 1;
+              renderActivities();
+              updatePaginationControls();
+          }
+      });
+
+      document.getElementById('prev-page').addEventListener('click', function() {
+          if (currentPage > 1) {
+              currentPage--;
+              renderActivities();
+              updatePaginationControls();
+          }
+      });
+
+      document.getElementById('next-page').addEventListener('click', function() {
+          if (currentPage < totalPages) {
+              currentPage++;
+              renderActivities();
+              updatePaginationControls();
+          }
+      });
+
+      document.getElementById('last-page').addEventListener('click', function() {
+          if (currentPage < totalPages) {
+              currentPage = totalPages;
+              renderActivities();
+              updatePaginationControls();
+          }
+      });
+
+      // 初始渲染
+      renderActivities();
+      updatePaginationControls();
+  }
+
+  // 渲染当前页的活动项
+  function renderActivities() {
+      const activityItems = document.querySelectorAll('#activity-data .activity-item');
+      const displayList = document.getElementById('activity-display');
+      displayList.innerHTML = '';
+
+      // 计算总页数
+      totalPages = Math.ceil(totalActivities / itemsPerPage);
+
+      // 计算当前页的起始和结束索引
+      const startIndex = (currentPage - 1) * itemsPerPage;
+      const endIndex = Math.min(startIndex + itemsPerPage, totalActivities);
+
+      // 更新分页信息
+      document.getElementById('start-index').textContent = startIndex + 1;
+      document.getElementById('end-index').textContent = endIndex;
+      document.getElementById('total-activities').textContent = totalActivities;
+
+      // 渲染当前页的活动项
+      for (let i = startIndex; i < endIndex; i++) {
+          const item = activityItems[i];
+          const icon = item.getAttribute('data-icon');
+          const iconColor = item.getAttribute('data-icon-color');
+          const title = item.getAttribute('data-title');
+          const desc = item.getAttribute('data-desc');
+          const time = item.getAttribute('data-time');
+
+          const li = document.createElement('li');
+          li.className = 'activity-item';
+          li.innerHTML = `
+              <div class="activity-icon ${iconColor}">
+                  <i class="fas fa-${icon}"></i>
+              </div>
+              <div class="activity-content">
+                  <div class="activity-title">${title}</div>
+                  <div class="activity-desc">${desc}</div>
+                  <div class="activity-time">${time}</div>
+              </div>
+          `;
+
+          displayList.appendChild(li);
+      }
+  }
+
+  // 更新分页控件状态
+  function updatePaginationControls() {
+      // 更新按钮状态
+      document.getElementById('first-page').disabled = currentPage === 1;
+      document.getElementById('prev-page').disabled = currentPage === 1;
+      document.getElementById('next-page').disabled = currentPage === totalPages;
+      document.getElementById('last-page').disabled = currentPage === totalPages;
+
+      // 生成页码按钮
+      const pageNumbersContainer = document.getElementById('page-numbers');
+      pageNumbersContainer.innerHTML = '';
+
+      // 显示最多5个页码按钮
+      let startPage = Math.max(1, currentPage - 2);
+      let endPage = Math.min(totalPages, startPage + 4);
+
+      // 调整起始页码，确保显示5个页码
+      if (endPage - startPage < 4) {
+          startPage = Math.max(1, endPage - 4);
+      }
+
+      for (let i = startPage; i <= endPage; i++) {
+          const button = document.createElement('button');
+          button.className = 'pagination-btn';
+          if (i === currentPage) {
+              button.classList.add('active');
+          }
+          button.textContent = i;
+          button.addEventListener('click', function() {
+              currentPage = i;
+              renderActivities();
+              updatePaginationControls();
+          });
+          pageNumbersContainer.appendChild(button);
       }
   }
 </script>
