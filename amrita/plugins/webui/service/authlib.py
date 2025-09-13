@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import re
 import secrets
 from abc import ABC
@@ -38,7 +39,7 @@ class TokenData(BaseModel):
     expire: datetime = Field(
         default_factory=lambda: datetime.utcnow() + timedelta(minutes=30)
     )
-    onetime_tokens: set[str] = set()
+    onetime_token: str | None = None
 
 
 class OnetimeTokenData(BaseModel):
@@ -64,15 +65,19 @@ class TokenManager:
 
     async def has_token(self, token: str) -> bool:
         async with self.__tokens_lock:
+            return token in self.__tokens
+
+    async def has_one_time_token(self, token: str) -> bool:
+        async with self.__tokens_lock:
             if token in self.__onetime_token_index:
                 auth: bool = False
                 otk_data = self.__onetime_token_index[token]
                 if not otk_data.expire < datetime.utcnow():
                     auth = True
                 self.__onetime_token_index.pop(token, None)
-                self.__tokens[otk_data.token].onetime_tokens.remove(token)
+                self.__tokens[otk_data.token].onetime_token = None
                 return auth
-            return token in self.__tokens
+            return False
 
     @overload
     async def get_token_data(self, token: str, /) -> TokenData: ...
@@ -99,14 +104,29 @@ class TokenManager:
             else:
                 return self.__tokens.pop(token)
 
+    async def _expire_token_waiter(self, token: str, expire_at: datetime):
+        await asyncio.sleep((expire_at - datetime.utcnow()).total_seconds())
+
+        if data := await self.pop_token_data(token, None):
+            async with self.__tokens_lock:
+                if data.onetime_token:
+                    self.__onetime_token_index.pop(data.onetime_token, None)
+
+    async def _expire_onetime_token_waiter(self, token: str, expire_at: datetime):
+        await asyncio.sleep((expire_at - datetime.utcnow()).total_seconds())
+        if otk_data := self.__onetime_token_index.pop(token, None):
+            self.__tokens[otk_data.token].onetime_token = None
+
     async def create_one_time_token(self, token_id: str) -> str:
         logger.debug(f"Creating one time token for '{token_id[:10]}...'")
         token = secrets.token_urlsafe(32)
         async with self.__tokens_lock:
-            self.__tokens[token_id].onetime_tokens.add(token)
+            self.__tokens[token_id].onetime_token = token
+            expire_at = datetime.utcnow() + timedelta(minutes=10)
             self.__onetime_token_index[token] = OnetimeTokenData(
-                token=token_id, expire=datetime.utcnow() + timedelta(minutes=10)
+                token=token_id, expire=expire_at
             )
+            asyncio.create_task(self._expire_onetime_token_waiter(token, expire_at))  # noqa: RUF006
         return token
 
     async def create_access_token(
@@ -125,14 +145,14 @@ class TokenManager:
             self.__tokens[encoded_jwt] = TokenData(
                 username=to_encode["sub"], expire=expire
             )
+            asyncio.create_task(self._expire_token_waiter(encoded_jwt, expire))  # noqa: RUF006
         return encoded_jwt
 
     async def refresh_token(self, token: str) -> str:
         async with self.__tokens_lock:
             data_cache = self.__tokens[token]
-            onetime_tokens = data_cache.onetime_tokens
-            for one_time_token in onetime_tokens:
-                self.__onetime_token_index.pop(one_time_token, None)
+            if onetime_token := data_cache.onetime_token:
+                self.__onetime_token_index.pop(onetime_token, None)
             self.__tokens.pop(token, None)
         access_token_expires = timedelta(minutes=30)
         access_token = await self.create_access_token(
@@ -157,10 +177,16 @@ class AuthManager:
             }
         return cls._instance
 
+    async def check_otk_request(self, header: str):
+        if not await self._token_manager.has_one_time_token(header):
+            raise HTTPException(status_code=403, detail="访问不合法")
+
     async def check_current_user(self, request: Request):
-        token = request.cookies.get("access_token") or get_restful_auth_header(request)
+        if otk := get_restful_auth_header(request):
+            return await self.check_otk_request(otk)
+        token = request.cookies.get("access_token")
         token_manager = self._token_manager
-        if not token or not await token_manager.has_token(token):
+        if not token or (not await token_manager.has_token(token)):
             raise HTTPException(status_code=401, detail="未认证")
         token_data = await token_manager.get_token_data(token)
         if token_data.expire < datetime.utcnow():
@@ -195,5 +221,6 @@ class AuthManager:
     async def refresh_token(self, request: Request):
         await self.check_current_user(request)
         token = request.cookies.get("access_token")
-        assert token
+        if not token:
+            raise HTTPException(status_code=401, detail="未认证")
         return await self._token_manager.refresh_token(token)

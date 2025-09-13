@@ -130,7 +130,7 @@ async def auth_middleware(request: Request, call_next):
         except HTTPException as e:
             # 令牌无效或过期，重定向到登录页面
             response = RedirectResponse(url="/", status_code=303)
-            if e.status_code in (401, 403):
+            if e.status_code == 401:
                 response.delete_cookie("access_token")
                 return response
             raise e
