@@ -600,15 +600,47 @@
       /* 响应式设计 */
       @media (max-width: 768px) {
           .sidebar {
-              width: 60px;
+              width: 0;
+              overflow-x: hidden;
           }
-
+          
+          .sidebar.mobile-open {
+              width: 250px;
+          }
+          
           .sidebar-title, .menu-text, .submenu {
+              display: block;
+          }
+          
+          .sidebar.collapsed .sidebar-title,
+          .sidebar.collapsed .menu-text,
+          .sidebar.collapsed .submenu {
               display: none;
           }
-
+          
           .main-content {
-              margin-left: 60px;
+              margin-left: 0;
+          }
+          
+          .sidebar-overlay {
+              display: none;
+              position: fixed;
+              top: 0;
+              left: 0;
+              width: 100%;
+              height: 100%;
+              background-color: rgba(0, 0, 0, 0.5);
+              z-index: 999;
+          }
+          
+          .sidebar-overlay.open {
+              display: block;
+          }
+      }
+
+      @media (min-width: 769px) {
+          .sidebar-overlay {
+              display: none !important;
           }
       }
 
@@ -630,10 +662,13 @@
   <body>
     <!-- 页面加载指示条 -->
     <div class="loading-bar" id="loadingBar"></div>
+    
+    <!-- 移动端侧边栏遮罩 -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
     <div class="dashboard-container">
       <!-- 侧边栏 -->
-      <div class="sidebar">
+      <div class="sidebar" id="sidebar">
         <div class="sidebar-header">
           <div class="sidebar-logo">
             <i class="fas fa-robot"></i>
@@ -756,9 +791,37 @@
       document
         .querySelector(".toggle-sidebar")
         .addEventListener("click", function () {
-          document.querySelector(".sidebar").classList.toggle("collapsed");
-          document.querySelector(".main-content").classList.toggle("expanded");
+          const sidebar = document.getElementById("sidebar");
+          const overlay = document.getElementById("sidebarOverlay");
+          
+          // 检查是否在移动端
+          if (window.innerWidth <= 768) {
+              // 移动端行为 - 切换侧边栏和遮罩
+              sidebar.classList.toggle("mobile-open");
+              overlay.classList.toggle("open");
+          } else {
+              // 桌面端行为 - 折叠/展开侧边栏
+              sidebar.classList.toggle("collapsed");
+              document.querySelector(".main-content").classList.toggle("expanded");
+          }
         });
+        
+      // 点击遮罩层关闭侧边栏
+      document.getElementById("sidebarOverlay").addEventListener("click", function () {
+          this.classList.remove("open");
+          document.getElementById("sidebar").classList.remove("mobile-open");
+      });
+
+      // 窗口大小改变时，如果侧边栏是打开的，则关闭它
+      window.addEventListener("resize", function() {
+          const sidebar = document.getElementById("sidebar");
+          const overlay = document.getElementById("sidebarOverlay");
+          
+          if (window.innerWidth > 768) {
+              sidebar.classList.remove("mobile-open");
+              overlay.classList.remove("open");
+          }
+      });
 
       // 添加子菜单切换功能
       document.querySelectorAll(".menu-link").forEach((link) => {
