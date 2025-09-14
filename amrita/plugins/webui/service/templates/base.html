@@ -15,9 +15,9 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
       :root {
-          --primary-color: #8a2be2;
-          --secondary-color: #9370db;
-          --accent-color: #ba55d3;
+          --primary-color: #3498db;      /* 主蓝色 */
+          --secondary-color: #2980b9;    /* 深蓝色 */
+          --accent-color: #1abc9c;       /* 蓝绿色作为点缀 */
           --text-color: #333;
           --text-light: #fff;
           --bg-color: #f8f9fa;
@@ -32,6 +32,7 @@
           --dark-sidebar-hover: #1e1e1e;
           --dark-header-bg: #2d2d2d;
           --dark-card-bg: #252525;
+          --dark-botton-bg: #3b424b;
           --dark-border-color: #444;
       }
 
@@ -121,7 +122,7 @@
       body.dark-mode select:focus,
       body.dark-mode textarea:focus {
           border-color: var(--accent-color);
-          box-shadow: 0 0 0 0.2rem rgba(186, 85, 211, 0.25);
+          box-shadow: 0 0 0 0.2rem rgba(26, 188, 156, 0.25);
       }
 
       body.dark-mode button:not(.toggle-sidebar):not(.logout-btn) {
@@ -186,7 +187,7 @@
       .sidebar-logo {
           width: 35px;
           height: 35px;
-          background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+          background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
           border-radius: 8px;
           display: flex;
           align-items: center;
@@ -391,7 +392,7 @@
           width: 32px;
           height: 32px;
           border-radius: 50%;
-          background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+          background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
           display: flex;
           align-items: center;
           justify-content: center;
@@ -426,10 +427,10 @@
           left: 0;
           width: 0%;
           height: 3px;
-          background: linear-gradient(90deg, var(--primary-color), var(--accent-color));
+          background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
           z-index: 9999;
           transition: width 0.3s ease;
-          box-shadow: 0 0 5px rgba(138, 43, 226, 0.5);
+          box-shadow: 0 0 5px rgba(52, 152, 219, 0.5);
       }
 
       .loading-bar.hidden {
@@ -517,8 +518,8 @@
       }
 
       .btn-primary:hover {
-          background-color:rgb(166, 94, 233);
-          border-color: rgb(166, 94, 233);
+          background-color: #2980b9;
+          border-color: #2980b9;
       }
 
       .btn-danger {
@@ -559,7 +560,7 @@
       textarea:focus {
           outline: none;
           border-color: var(--accent-color);
-          box-shadow: 0 0 0 0.2rem rgba(186, 85, 211, 0.25);
+          box-shadow: 0 0 0 0.2rem rgba(26, 188, 156, 0.25);
       }
 
       .form-group {
@@ -603,25 +604,25 @@
               width: 0;
               overflow-x: hidden;
           }
-          
+
           .sidebar.mobile-open {
               width: 250px;
           }
-          
+
           .sidebar-title, .menu-text, .submenu {
               display: block;
           }
-          
+
           .sidebar.collapsed .sidebar-title,
           .sidebar.collapsed .menu-text,
           .sidebar.collapsed .submenu {
               display: none;
           }
-          
+
           .main-content {
               margin-left: 0;
           }
-          
+
           .sidebar-overlay {
               display: none;
               position: fixed;
@@ -632,7 +633,7 @@
               background-color: rgba(0, 0, 0, 0.5);
               z-index: 999;
           }
-          
+
           .sidebar-overlay.open {
               display: block;
           }
@@ -662,7 +663,7 @@
   <body>
     <!-- 页面加载指示条 -->
     <div class="loading-bar" id="loadingBar"></div>
-    
+
     <!-- 移动端侧边栏遮罩 -->
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
@@ -793,34 +794,38 @@
         .addEventListener("click", function () {
           const sidebar = document.getElementById("sidebar");
           const overlay = document.getElementById("sidebarOverlay");
-          
+
           // 检查是否在移动端
           if (window.innerWidth <= 768) {
-              // 移动端行为 - 切换侧边栏和遮罩
-              sidebar.classList.toggle("mobile-open");
-              overlay.classList.toggle("open");
+            // 移动端行为 - 切换侧边栏和遮罩
+            sidebar.classList.toggle("mobile-open");
+            overlay.classList.toggle("open");
           } else {
-              // 桌面端行为 - 折叠/展开侧边栏
-              sidebar.classList.toggle("collapsed");
-              document.querySelector(".main-content").classList.toggle("expanded");
+            // 桌面端行为 - 折叠/展开侧边栏
+            sidebar.classList.toggle("collapsed");
+            document
+              .querySelector(".main-content")
+              .classList.toggle("expanded");
           }
         });
-        
+
       // 点击遮罩层关闭侧边栏
-      document.getElementById("sidebarOverlay").addEventListener("click", function () {
+      document
+        .getElementById("sidebarOverlay")
+        .addEventListener("click", function () {
           this.classList.remove("open");
           document.getElementById("sidebar").classList.remove("mobile-open");
-      });
+        });
 
       // 窗口大小改变时，如果侧边栏是打开的，则关闭它
-      window.addEventListener("resize", function() {
-          const sidebar = document.getElementById("sidebar");
-          const overlay = document.getElementById("sidebarOverlay");
-          
-          if (window.innerWidth > 768) {
-              sidebar.classList.remove("mobile-open");
-              overlay.classList.remove("open");
-          }
+      window.addEventListener("resize", function () {
+        const sidebar = document.getElementById("sidebar");
+        const overlay = document.getElementById("sidebarOverlay");
+
+        if (window.innerWidth > 768) {
+          sidebar.classList.remove("mobile-open");
+          overlay.classList.remove("open");
+        }
       });
 
       // 添加子菜单切换功能

@@ -124,6 +124,7 @@ class Permissions:
 
     @property
     def permissions_str(self) -> str:
+        self.__dump_to_str(True)
         return self.__permissions_str
 
 

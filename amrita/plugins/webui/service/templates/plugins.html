@@ -1,27 +1,6 @@
 {% extends "base.html" %} {% block title %}插件管理 - Amrita Dashboard{%
 endblock %} {% block extra_css %}
 <style>
-  :root {
-    --primary-color: #8a2be2;
-    --secondary-color: #9370db;
-    --accent-color: #ba55d3;
-    --text-color: #333;
-    --text-light: #fff;
-    --bg-color: #f8f9fa;
-    --sidebar-bg: #2c3e50;
-    --sidebar-hover: #34495e;
-    --header-height: 60px;
-    --transition-speed: 0.3s;
-    /* 深色模式变量 */
-    --dark-bg-color: #1a1a1a;
-    --dark-text-color: #f0f0f0;
-    --dark-sidebar-bg: #121212;
-    --dark-sidebar-hover: #1e1e1e;
-    --dark-header-bg: #2d2d2d;
-    --dark-card-bg: #252525;
-    --dark-border-color: #444;
-  }
-
   * {
     margin: 0;
     padding: 0;
@@ -518,8 +497,8 @@ endblock %} {% block extra_css %}
   }
 
   .btn-primary:hover {
-    background-color: rgb(166, 94, 233);
-    border-color: rgb(166, 94, 233);
+    background-color: var(--secondary-color);
+    border-color: var(--secondary-color);
   }
 
   .btn-danger {
@@ -688,7 +667,7 @@ endblock %} {% block extra_css %}
     color: #bbb;
   }
   body.dark-mode .plugin-version {
-    background: rgba(186, 85, 211, 0.2);
+    background: rgba(41, 128, 185, 0.2);
     color: var(--accent-color);
   }
   body.dark-mode .plugin-name {
