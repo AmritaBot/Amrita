@@ -40,7 +40,7 @@ wheels = [
 
 [[package]]
 name = "amrita"
-version = "0.2.4.1"
+version = "0.2.5rc1"
 source = { editable = "." }
 dependencies = [
     { name = "bcrypt" },
