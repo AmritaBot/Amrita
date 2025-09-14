@@ -19,15 +19,9 @@ __all__ = ["config", "models"]
 webui_config = get_webui_config()
 if webui_config.webui_enable:
     nonebot.logger.info("Mounting webui......")
+    from . import API
     from .service import main
     from .service.route import api, bot, index, user
     from .service.route import config as route_config
 
-    __all__ += [
-        "api",
-        "bot",
-        "index",
-        "main",
-        "route_config",
-        "user",
-    ]
+    __all__ += ["API", "api", "bot", "index", "main", "route_config", "user"]
