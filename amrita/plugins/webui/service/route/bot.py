@@ -27,6 +27,10 @@ async def _(request: Request):
     for bar in side_bar:
         if bar.get("name") == "机器人管理":
             bar["active"] = True
+            for child in bar.get("children", []):
+                if child.get("name") == "状态监控":
+                    child["active"] = True
+                    break
             break
     return templates.TemplateResponse(
         "status.html",
@@ -63,6 +67,10 @@ async def _(request: Request):
     for bar in side_bar:
         if bar.get("name") == "机器人管理":
             bar["active"] = True
+            for child in bar.get("children", []):
+                if child.get("name") == "插件管理":
+                    child["active"] = True
+                    break
             break
     plugins = nonebot.get_loaded_plugins()
     plugin_list = [

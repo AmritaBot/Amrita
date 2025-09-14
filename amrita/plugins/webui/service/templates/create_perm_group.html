@@ -1,0 +1,160 @@
+{% extends "base.html" %} {% block title %} 创建权限组 - Amrita Dashboard{%
+endblock %} {% block topbar_title %}创建权限组{% endblock %} {% block content %}
+<div class="card">
+  <div class="card-header">
+    <h2 class="card-title">创建权限组</h2>
+  </div>
+  <div class="card-body">
+    <form id="create-perm-group-form">
+      <div class="form-group mb-3">
+        <label for="group_name" class="form-label">权限组名称</label>
+        <input
+          type="text"
+          class="form-control"
+          id="group_name"
+          name="group_name"
+          placeholder="请输入权限组名称"
+        />
+      </div>
+      <div class="card mt-4">
+        <div
+          class="card-header d-flex justify-content-between align-items-center"
+        >
+          <h3 class="card-title">权限组权限</h3>
+          <button type="button" class="btn btn-success" id="add-permission">
+            <i class="fas fa-plus"></i> 添加权限
+          </button>
+        </div>
+        <div class="card-body">
+          <div class="form-group">
+            <div id="permissions-container" class="mb-3"></div>
+            <input
+              type="hidden"
+              id="permissions-data"
+              name="permissions"
+              value=""
+            />
+            <div class="d-flex gap-2">
+              <button type="submit" class="btn btn-primary">
+                <i class="fas fa-save"></i> 创建权限组
+              </button>
+              <a href="/users/permissions" class="btn btn-secondary">
+                <button type="button">
+                  <i class="fas fa-arrow-left"></i> 返回
+                </button>
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+<script>
+  function addPermissionEntry(key = "", value = "true") {
+    const container = document.getElementById("permissions-container");
+    const entryId = "perm-" + Date.now();
+
+    const entryDiv = document.createElement("div");
+    entryDiv.className = "row g-2 align-items-center mb-2 permission-entry";
+    entryDiv.id = entryId;
+
+    entryDiv.innerHTML = `
+      <div class="col-md-5">
+        <input type="text" class="form-control permission-key" placeholder="权限节点（如 a.*）" value="${key}">
+        <select class="form-select permission-value">
+          <option value="true" ${
+            value === "true" ? "selected" : ""
+          }>持有</option>
+          <option value="false" ${
+            value === "false" ? "selected" : ""
+          }>不持有</option>
+        </select>
+        <button type="button" class="btn btn-danger remove-permission w-100">
+          <i class="fas fa-trash"></i> 删除
+        </button>
+      </div>
+    `;
+
+    container.appendChild(entryDiv);
+
+    entryDiv
+      .querySelector(".remove-permission")
+      .addEventListener("click", function () {
+        container.removeChild(entryDiv);
+      });
+  }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    document
+      .getElementById("add-permission")
+      .addEventListener("click", function () {
+        addPermissionEntry();
+      });
+
+    document
+      .getElementById("create-perm-group-form")
+      .addEventListener("submit", function (e) {
+        e.preventDefault();
+
+        const groupName = document.getElementById("group_name").value.trim();
+        if (!groupName) {
+          Swal.fire("错误", "请输入权限组名称", "error");
+          return;
+        }
+
+        let permissions = "";
+        const entries = document.querySelectorAll(".permission-entry");
+
+        entries.forEach(function (entry) {
+          const keyInput = entry.querySelector(".permission-key");
+          const valueSelect = entry.querySelector(".permission-value");
+
+          const key = keyInput.value.trim();
+          const value = valueSelect.value;
+
+          if (key) {
+            permissions += `${key} ${value}\n`;
+          }
+        });
+
+        document.getElementById("permissions-data").value = permissions;
+
+        const formData = new FormData(this);
+
+        fetch(`/api/users/permissions/perm_group/${groupName}`, {
+          method: "POST",
+          body: formData,
+        })
+          .then((response) => response.json())
+          .then((data) => {
+            if (data.success) {
+              Swal.fire("成功", data.message, "success").then(() => {
+                window.location.href = "/users/permissions";
+              });
+            } else {
+              Swal.fire("错误", data.message, "error");
+            }
+          })
+          .catch((error) => {
+            Swal.fire("错误", "创建失败: " + error.message, "error");
+          });
+      });
+  });
+</script>
+<style>
+  .permission-entry {
+    padding: 0.5rem;
+    background-color: #f8f9fa;
+    border-radius: 0.375rem;
+  }
+
+  #permissions-container:empty::before {
+    content: "暂无权限配置";
+    display: block;
+    text-align: center;
+    color: #6c757d;
+    padding: 1rem;
+  }
+</style>
+{% endblock %}

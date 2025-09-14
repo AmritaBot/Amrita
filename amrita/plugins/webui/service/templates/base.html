@@ -15,9 +15,9 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
       :root {
-          --primary-color: #3498db;      /* 主蓝色 */
-          --secondary-color: #2980b9;    /* 深蓝色 */
-          --accent-color: #1abc9c;       /* 蓝绿色作为点缀 */
+          --primary-color: #3498db;
+          --secondary-color: #2980b9;
+          --accent-color: #1abc9c;
           --text-color: #333;
           --text-light: #fff;
           --bg-color: #f8f9fa;
@@ -25,14 +25,14 @@
           --sidebar-hover: #34495e;
           --header-height: 60px;
           --transition-speed: 0.3s;
-          /* 深色模式变量 */
+
           --dark-bg-color: #1a1a1a;
           --dark-text-color: #f0f0f0;
           --dark-sidebar-bg: #121212;
           --dark-sidebar-hover: #1e1e1e;
           --dark-header-bg: #2d2d2d;
           --dark-card-bg: #252525;
-          --dark-botton-bg: #3b424b;
+          --dark-button-bg: #3b424b;
           --dark-border-color: #444;
       }
 
@@ -49,7 +49,7 @@
           overflow-x: hidden;
       }
 
-      /* 深色模式 */
+
       body.dark-mode {
           background-color: var(--dark-bg-color);
           color: var(--dark-text-color);
@@ -152,13 +152,13 @@
           color: var(--dark-text-color);
       }
 
-      /* 布局 */
+
       .dashboard-container {
           display: flex;
           min-height: 100vh;
       }
 
-      /* 侧边栏 */
+
       .sidebar {
           width: 250px;
           background: var(--sidebar-bg);
@@ -298,7 +298,7 @@
           display: none;
       }
 
-      /* 主内容区域 */
+
       .main-content {
           flex: 1;
           margin-left: 250px;
@@ -309,7 +309,7 @@
           margin-left: 60px;
       }
 
-      /* 顶部导航栏 */
+
       .topbar {
           height: var(--header-height);
           background: #fff;
@@ -420,7 +420,7 @@
           background: #f0f0f0;
       }
 
-      /* 页面加载指示条 */
+
       .loading-bar {
           position: fixed;
           top: 0;
@@ -438,12 +438,12 @@
           transition: opacity 0.3s ease;
       }
 
-      /* 内容区域 */
+
       .content {
           padding: 20px;
       }
 
-      /* 卡片样式 */
+
       .card {
           background: #fff;
           border-radius: 8px;
@@ -470,7 +470,7 @@
           color: var(--primary-color);
       }
 
-      /* 表格样式 */
+
       table {
           width: 100%;
           border-collapse: collapse;
@@ -501,7 +501,7 @@
           background-color: #f8f9fa;
       }
 
-      /* 按钮样式 */
+
       button {
           padding: 8px 16px;
           border-radius: 4px;
@@ -544,7 +544,7 @@
           border-color: #219653;
       }
 
-      /* 表单样式 */
+
       input,
       select,
       textarea {
@@ -573,7 +573,7 @@
           font-weight: 500;
       }
 
-      /* 警告框样式 */
+
       .alert {
           padding: 12px 15px;
           border-radius: 4px;
@@ -598,7 +598,7 @@
           color: #856404;
       }
 
-      /* 响应式设计 */
+
       @media (max-width: 768px) {
           .sidebar {
               width: 0;
@@ -655,20 +655,15 @@
           }
       }
 
-      /* 额外的样式块 */
+
       {% block extra_css %}{% endblock %}
     </style>
     {% block head_extra %}{% endblock %}
   </head>
   <body>
-    <!-- 页面加载指示条 -->
     <div class="loading-bar" id="loadingBar"></div>
-
-    <!-- 移动端侧边栏遮罩 -->
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
-
     <div class="dashboard-container">
-      <!-- 侧边栏 -->
       <div class="sidebar" id="sidebar">
         <div class="sidebar-header">
           <div class="sidebar-logo">
@@ -710,10 +705,7 @@
           {% endfor %}
         </div>
       </div>
-
-      <!-- 主内容区域 -->
       <div class="main-content">
-        <!-- 顶部导航栏 -->
         <div class="topbar">
           <div class="topbar-left">
             <button class="toggle-sidebar">
@@ -738,28 +730,21 @@
             </form>
           </div>
         </div>
-
-        <!-- 内容区域 -->
         <div class="content">{% block content %}{% endblock %}</div>
       </div>
     </div>
-
     <script>
-      // 页面加载指示条
       const loadingBar = document.getElementById("loadingBar");
 
-      // 显示加载条
       function showLoading() {
         loadingBar.style.width = "30%";
         loadingBar.classList.remove("hidden");
       }
 
-      // 更新加载条
       function updateLoading(progress) {
         loadingBar.style.width = progress + "%";
       }
 
-      // 隐藏加载条
       function hideLoading() {
         loadingBar.style.width = "100%";
         setTimeout(() => {
@@ -768,10 +753,8 @@
         }, 300);
       }
 
-      // 页面开始加载时显示加载条
       showLoading();
 
-      // 模拟加载进度
       let progress = 30;
       const interval = setInterval(() => {
         progress += Math.random() * 15;
@@ -782,26 +765,21 @@
         updateLoading(progress);
       }, 200);
 
-      // 页面加载完成时隐藏加载条
       window.addEventListener("load", () => {
         clearInterval(interval);
         hideLoading();
       });
 
-      // 侧边栏切换
       document
         .querySelector(".toggle-sidebar")
         .addEventListener("click", function () {
           const sidebar = document.getElementById("sidebar");
           const overlay = document.getElementById("sidebarOverlay");
 
-          // 检查是否在移动端
           if (window.innerWidth <= 768) {
-            // 移动端行为 - 切换侧边栏和遮罩
             sidebar.classList.toggle("mobile-open");
             overlay.classList.toggle("open");
           } else {
-            // 桌面端行为 - 折叠/展开侧边栏
             sidebar.classList.toggle("collapsed");
             document
               .querySelector(".main-content")
@@ -809,7 +787,6 @@
           }
         });
 
-      // 点击遮罩层关闭侧边栏
       document
         .getElementById("sidebarOverlay")
         .addEventListener("click", function () {
@@ -817,7 +794,6 @@
           document.getElementById("sidebar").classList.remove("mobile-open");
         });
 
-      // 窗口大小改变时，如果侧边栏是打开的，则关闭它
       window.addEventListener("resize", function () {
         const sidebar = document.getElementById("sidebar");
         const overlay = document.getElementById("sidebarOverlay");
@@ -828,7 +804,6 @@
         }
       });
 
-      // 添加子菜单切换功能
       document.querySelectorAll(".menu-link").forEach((link) => {
         link.addEventListener("click", function (e) {
           const parentItem = this.parentElement;
@@ -842,9 +817,7 @@
         });
       });
 
-      // 检查是否有令牌失效的提示信息
       function checkTokenExpired() {
-        // 这里可以通过查询参数或其他方式传递令牌失效信息
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.get("token_expired") === "true") {
           Swal.fire({
@@ -856,7 +829,6 @@
         }
       }
 
-      // 深色模式切换功能
       function setTheme(theme) {
         if (theme === "dark") {
           document.body.classList.add("dark-mode");
@@ -871,7 +843,6 @@
         }
       }
 
-      // 切换主题
       function toggleTheme() {
         if (document.body.classList.contains("dark-mode")) {
           setTheme("light");
@@ -880,7 +851,6 @@
         }
       }
 
-      // 自动检测系统主题偏好
       function detectSystemTheme() {
         if (
           window.matchMedia &&
@@ -891,37 +861,28 @@
         return "light";
       }
 
-      // 初始化主题
       function initTheme() {
-        // 检查本地存储的主题设置
         const savedTheme = localStorage.getItem("theme");
 
         if (savedTheme) {
-          // 使用保存的主题设置
           setTheme(savedTheme);
         } else {
-          // 根据系统偏好设置主题
           const systemTheme = detectSystemTheme();
           setTheme(systemTheme);
         }
 
-        // 监听系统主题变化
         window
           .matchMedia("(prefers-color-scheme: dark)")
           .addEventListener("change", (e) => {
-            // 只有在没有手动设置主题时才跟随系统变化
             if (!localStorage.getItem("theme")) {
               setTheme(e.matches ? "dark" : "light");
             }
           });
       }
 
-      // 页面加载完成后执行
       document.addEventListener("DOMContentLoaded", function () {
-        // 初始化主题
         initTheme();
 
-        // 绑定主题切换按钮事件
         document
           .getElementById("themeToggle")
           .addEventListener("click", toggleTheme);
@@ -945,7 +906,6 @@
         return token;
       }
     </script>
-
-    {% block scripts %}{% endblock %}
+    {% block scripts %} {% endblock %}
   </body>
 </html>

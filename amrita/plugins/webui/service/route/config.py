@@ -41,6 +41,10 @@ async def config_editor(request: Request):
     for bar in side_bar:
         if bar.get("name") == "机器人管理":
             bar["active"] = True
+            for child in bar.get("children", []):
+                if child.get("name") == "配置管理":
+                    child["active"] = True
+                    break
             break
 
     return templates.TemplateResponse(

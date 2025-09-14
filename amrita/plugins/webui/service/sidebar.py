@@ -31,11 +31,11 @@ class SideBar(BaseModel):
         SideBarItem(
             name="用户管理",
             icon="fas fa-users",
-            url="/users",
+            url="#",
             active=False,
             children=[
-                # SideBarItem(name="权限管理", url="/users/permissions", active=False),
-                SideBarItem(name="黑名单管理", url="/user/blacklist", active=False)
+                SideBarItem(name="权限管理", url="/users/permissions", active=False),
+                SideBarItem(name="黑名单管理", url="/user/blacklist", active=False),
             ],
         ),
     ]

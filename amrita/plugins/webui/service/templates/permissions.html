@@ -1,0 +1,142 @@
+{% extends "base.html" %} {% block title %} 权限管理 - Amrita Dashboard{%
+endblock %} {% block topbar_title %}权限管理{% endblock %} {% block content %}
+<div class="card">
+  <div class="card-header">
+    <h2 class="card-title">权限管理</h2>
+  </div>
+  <div class="card-body">
+    <div class="row">
+      <div class="col-md-6">
+        <div class="card">
+          <div class="card-header">
+            <h3 class="card-title">用户权限</h3>
+          </div>
+          <div class="card-body">
+            <form id="user-perm-form">
+              <div class="form-group">
+                <label for="user_id" class="form-label">用户ID</label>
+                <input
+                  type="text"
+                  class="form-control"
+                  id="user_id"
+                  name="user_id"
+                  placeholder="请输入用户ID"
+                />
+              </div>
+              <button type="submit" class="btn btn-primary">
+                查看用户权限
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="card">
+          <div class="card-header">
+            <h3 class="card-title">群组权限</h3>
+          </div>
+          <div class="card-body">
+            <form id="group-perm-form">
+              <div class="form-group">
+                <label for="group_id" class="form-label">群组ID</label>
+                <input
+                  type="text"
+                  class="form-control"
+                  id="group_id"
+                  name="group_id"
+                  placeholder="请输入群组ID"
+                />
+              </div>
+              <button type="submit" class="btn btn-primary">
+                查看群组权限
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card mt-4">
+      <div
+        class="card-header d-flex justify-content-between align-items-center"
+      >
+        <h3 class="card-title">权限组列表</h3>
+        <button
+          type="button"
+          class="btn btn-primary"
+          id="create_perm_group_button"
+        >
+          创建权限组
+        </button>
+      </div>
+      <div class="card-body">
+        {% if permission_groups %}
+        <div class="table-responsive">
+          <table class="table table-striped">
+            <thead>
+              <tr>
+                <th>权限组名称</th>
+                <th>权限数量</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for group in permission_groups %}
+              <tr>
+                <td>{{ group.name }}</td>
+                <td>{{ group.permissions.strip().split('\n') | length }}</td>
+                <td>
+                  <button
+                    class="btn btn-sm btn-primary"
+                    id="check_perm_button"
+                    data-group-name="{{ group.name }}"
+                  >
+                    查看权限
+                  </button>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <p>暂无权限组数据</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+  document
+    .getElementById("user-perm-form")
+    .addEventListener("submit", function (e) {
+      e.preventDefault();
+      const userId = document.getElementById("user_id").value;
+      if (userId) {
+        window.location.href = `/users/permissions/user/${userId}`;
+      }
+    });
+  document
+    .getElementById("create_perm_group_button")
+    .addEventListener("click", function () {
+      window.location.href = "/users/permissions/create_perm_group";
+      return false;
+    });
+  document
+    .getElementById("check_perm_button")
+    .addEventListener("click", function () {
+      const groupName = this.getAttribute("data-group-name");
+      window.location.href = `/users/permissions/perm_group/${groupName}`;
+      return false;
+    });
+
+  document
+    .getElementById("group-perm-form")
+    .addEventListener("submit", function (e) {
+      e.preventDefault();
+      const groupId = document.getElementById("group_id").value;
+      if (groupId) {
+        window.location.href = `/users/permissions/group/${groupId}`;
+      }
+    });
+</script>
+{% endblock %}

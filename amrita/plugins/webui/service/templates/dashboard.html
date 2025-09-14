@@ -1,5 +1,5 @@
-{% extends "base.html" %} {% block title %}控制台 - Amrita Dashboard{% endblock
-%} {% block extra_css %}
+{% extends "base.html" %} {% block title %} 控制台 - Amrita Dashboard {%
+endblock %} {% block extra_css %}
 <style>
   .stats-grid {
     display: grid;
@@ -315,7 +315,6 @@
     color: #888;
   }
 
-  /* 新增分页控件样式 */
   .activity-pagination {
     display: flex;
     justify-content: space-between;
@@ -413,7 +412,6 @@
     border-color: var(--primary-color);
   }
 
-  /* 响应式设计 */
   @media (max-width: 768px) {
     .charts-grid {
       grid-template-columns: 1fr;
@@ -460,14 +458,12 @@
     }
   }
 
-  /* 桌面端横向排列优化 */
   @media (min-width: 769px) {
     .stats-grid {
       grid-template-columns: repeat(4, 1fr);
     }
   }
 
-  /* 图表容器 */
   .chart-canvas-container {
     width: 100%;
     height: 100%;
@@ -497,7 +493,7 @@
       <i class="fas fa-users"></i>
     </div>
     <div class="stat-info">
-      <h3>{{bot_connected}}</h3>
+      <h3>{{ bot_connected }}</h3>
       <p>Bot已连接</p>
     </div>
   </div>
@@ -506,7 +502,7 @@
       <i class="fas fa-comments"></i>
     </div>
     <div class="stat-info">
-      <h3>{{total_message}}</h3>
+      <h3>{{ total_message }}</h3>
       <p>今日消息</p>
     </div>
   </div>
@@ -515,19 +511,22 @@
       <i class="fas fa-microchip"></i>
     </div>
     <div class="stat-info">
-      <h3>{{health}}</h3>
+      <h3>{{ health }}</h3>
       <p>系统健康</p>
     </div>
   </div>
 </div>
-
 <div class="charts-grid">
   <div class="chart-card">
     <div class="chart-header">
       <div class="chart-title">消息统计</div>
       <div class="chart-actions">
-        <button><i class="fas fa-sync"></i></button>
-        <button><i class="fas fa-cog"></i></button>
+        <button>
+          <i class="fas fa-sync"></i>
+        </button>
+        <button>
+          <i class="fas fa-cog"></i>
+        </button>
       </div>
     </div>
     <div class="chart-container">
@@ -540,7 +539,9 @@
     <div class="chart-header">
       <div class="chart-title">收发图表</div>
       <div class="chart-actions">
-        <button><i class="fas fa-sync"></i></button>
+        <button>
+          <i class="fas fa-sync"></i>
+        </button>
       </div>
     </div>
     <div class="chart-container">
@@ -550,39 +551,32 @@
     </div>
   </div>
 </div>
-
 <div class="recent-activity">
   <div class="chart-header">
     <div class="chart-title">最近活动</div>
   </div>
-
-  <!-- 隐藏原始活动列表，用于存储数据 -->
   <ul class="activity-list" id="activity-data" style="display: none">
     {% for activity in recent_activity %}
     <li
       class="activity-item"
-      data-icon="{{activity.icon}}"
-      data-icon-color="{{activity.icon_color}}"
-      data-title="{{activity.title}}"
-      data-desc="{{activity.desc}}"
-      data-time="{{activity.time}}"
+      data-icon="{{ activity.icon }}"
+      data-icon-color="{{ activity.icon_color }}"
+      data-title="{{ activity.title }}"
+      data-desc="{{ activity.desc }}"
+      data-time="{{ activity.time }}"
     >
-      <div class="activity-icon {{activity.icon_color}}">
-        <i class="fas fa-{{activity.icon}}"></i>
+      <div class="activity-icon {{ activity.icon_color }}">
+        <i class="fas fa-{{ activity.icon }}"></i>
       </div>
       <div class="activity-content">
-        <div class="activity-title">{{activity.title}}</div>
-        <div class="activity-desc">{{activity.desc}}</div>
-        <div class="activity-time">{{activity.time}}</div>
+        <div class="activity-title">{{ activity.title }}</div>
+        <div class="activity-desc">{{ activity.desc }}</div>
+        <div class="activity-time">{{ activity.time }}</div>
       </div>
     </li>
     {% endfor %}
   </ul>
-
-  <!-- 实际显示的活动列表 -->
   <ul class="activity-list" id="activity-display"></ul>
-
-  <!-- 分页控件 -->
   <div
     class="activity-pagination"
     id="activity-pagination"
@@ -609,9 +603,7 @@
         <button class="pagination-btn" id="prev-page" disabled>
           <i class="fas fa-angle-left"></i>
         </button>
-
         <div id="page-numbers"></div>
-
         <button class="pagination-btn" id="next-page">
           <i class="fas fa-angle-right"></i>
         </button>
@@ -633,31 +625,31 @@
                   });
               }
 
-  // 全局变量存储图表实例
+
   let messagesChart;
   let botMsgStatusChart;
 
-  // 分页相关变量
+
   let currentPage = 1;
   let itemsPerPage = 10;
   let totalActivities = 0;
   let totalPages = 1;
 
-  // 页面加载完成后初始化
+
   document.addEventListener('DOMContentLoaded', function() {
-      // 初始化图表
+
       initCharts();
 
-      // 绑定按钮事件
+
       bindButtonEvents();
 
-      // 初始化分页
+
       initPagination();
   });
 
-  // 初始化图表函数
+
   function initCharts() {
-      // 消息统计图表
+
       const messagesCtx = document.getElementById('messagesChart').getContext('2d');
       messagesChart = new Chart(messagesCtx, {
           type: 'line',
@@ -682,7 +674,7 @@
           }
       });
 
-      // 系统状态图表
+
       const msgIOStatusCtx = document.getElementById('botMsgStatusChart').getContext('2d');
       botMsgStatusChart = new Chart(msgIOStatusCtx, {
           type: 'doughnut',
@@ -705,15 +697,15 @@
       });
   }
 
-  // 绑定按钮事件
+
   function bindButtonEvents() {
-      // 为所有刷新按钮绑定事件
+
       document.querySelectorAll('.fa-sync').forEach(button => {
           button.addEventListener('click', function() {
               const chartCard = this.closest('.chart-card');
               const chartTitle = chartCard.querySelector('.chart-title').textContent;
 
-              // 显示刷新提示
+
               Swal.fire({
                   title: '刷新中...',
                   text: `正在刷新${chartTitle}数据`,
@@ -723,7 +715,7 @@
                   }
               });
 
-              // 获取真实数据并更新图表
+
               refreshChartData(chartTitle)
                   .then(() => {
                       Swal.close();
@@ -748,13 +740,13 @@
           });
       });
 
-      // 为所有设置按钮绑定事件
+
       document.querySelectorAll('.fa-cog').forEach(button => {
           button.addEventListener('click', function() {
               const chartCard = this.closest('.chart-card');
               const chartTitle = chartCard.querySelector('.chart-title').textContent;
 
-              // 显示设置对话框
+
               Swal.fire({
                   title: `${chartTitle}设置`,
                   html: `
@@ -797,11 +789,11 @@
       });
   }
 
-  // 刷新图表数据函数 - 使用API获取真实数据
+
   async function refreshChartData(chartTitle) {
       try {
           if (chartTitle === '消息统计') {
-              // 从API获取消息统计数据
+
               const response = await fetch('/api/chart/messages',{
           headers: {
             "Authorization": "Bearer " + await getOnetimeToken(),
@@ -809,16 +801,16 @@
         });
               const data = await response.json();
 
-              // 更新图表数据
+
               messagesChart.data.labels = data.labels;
               messagesChart.data.datasets[0].data = data.data;
               messagesChart.update();
           } else if (chartTitle === '收发图表') {
-              // 从API获取系统状态数据
+
               const response = await fetch('/api/chart/today-usage');
               const data = await response.json();
 
-              // 更新图表数据
+
               botMsgStatusChart.data.labels = data.labels;
               botMsgStatusChart.data.datasets[0].data = data.data;
               botMsgStatusChart.update();
@@ -829,21 +821,21 @@
       }
   }
 
-  // 初始化分页功能
+
   function initPagination() {
-      // 获取所有活动项
+
       const activityItems = document.querySelectorAll('#activity-data .activity-item');
       totalActivities = activityItems.length;
 
-      // 如果没有活动项，隐藏分页控件
+
       if (totalActivities === 0) {
           return;
       }
 
-      // 显示分页控件
+
       document.getElementById('activity-pagination').style.display = 'flex';
 
-      // 设置每页显示数量选择器事件
+
       document.getElementById('page-size').addEventListener('change', function() {
           itemsPerPage = parseInt(this.value);
           currentPage = 1;
@@ -851,7 +843,7 @@
           updatePaginationControls();
       });
 
-      // 设置分页按钮事件
+
       document.getElementById('first-page').addEventListener('click', function() {
           if (currentPage > 1) {
               currentPage = 1;
@@ -884,30 +876,30 @@
           }
       });
 
-      // 初始渲染
+
       renderActivities();
       updatePaginationControls();
   }
 
-  // 渲染当前页的活动项
+
   function renderActivities() {
       const activityItems = document.querySelectorAll('#activity-data .activity-item');
       const displayList = document.getElementById('activity-display');
       displayList.innerHTML = '';
 
-      // 计算总页数
+
       totalPages = Math.ceil(totalActivities / itemsPerPage);
 
-      // 计算当前页的起始和结束索引
+
       const startIndex = (currentPage - 1) * itemsPerPage;
       const endIndex = Math.min(startIndex + itemsPerPage, totalActivities);
 
-      // 更新分页信息
+
       document.getElementById('start-index').textContent = startIndex + 1;
       document.getElementById('end-index').textContent = endIndex;
       document.getElementById('total-activities').textContent = totalActivities;
 
-      // 渲染当前页的活动项
+
       for (let i = startIndex; i < endIndex; i++) {
           const item = activityItems[i];
           const icon = item.getAttribute('data-icon');
@@ -933,23 +925,23 @@
       }
   }
 
-  // 更新分页控件状态
+
   function updatePaginationControls() {
-      // 更新按钮状态
+
       document.getElementById('first-page').disabled = currentPage === 1;
       document.getElementById('prev-page').disabled = currentPage === 1;
       document.getElementById('next-page').disabled = currentPage === totalPages;
       document.getElementById('last-page').disabled = currentPage === totalPages;
 
-      // 生成页码按钮
+
       const pageNumbersContainer = document.getElementById('page-numbers');
       pageNumbersContainer.innerHTML = '';
 
-      // 显示最多5个页码按钮
+
       let startPage = Math.max(1, currentPage - 2);
       let endPage = Math.min(totalPages, startPage + 4);
 
-      // 调整起始页码，确保显示5个页码
+
       if (endPage - startPage < 4) {
           startPage = Math.max(1, endPage - 4);
       }

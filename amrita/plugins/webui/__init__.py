@@ -2,6 +2,7 @@ import nonebot
 from nonebot.plugin import PluginMetadata, require
 
 require("amrita.plugins.manager")
+require("amrita.plugins.perm")
 
 from .service import config, models
 from .service.config import get_webui_config

@@ -16,7 +16,7 @@
         --card-bg: #ffffff;
         --border-color: #e0d6ff;
         --input-bg: rgba(255, 255, 255, 0.8);
-        /* 深色模式变量 */
+
         --dark-bg-color: #1a1a1a;
         --dark-text-color: #f0f0f0;
         --dark-card-bg: #252525;
@@ -42,13 +42,11 @@
         overflow: hidden;
       }
 
-      /* 深色模式 */
       body.dark-mode {
         background: linear-gradient(-45deg, #2c1a2c, #2a1f2a, #251a25, #1a1a2c);
         background-size: 400% 400%;
       }
 
-      /* 动态背景动画 */
       @keyframes gradientBG {
         0% {
           background-position: 0% 50%;
@@ -61,7 +59,6 @@
         }
       }
 
-      /* 登录窗口弹出动画 */
       @keyframes popup {
         0% {
           transform: scale(0.1) translateY(100px);
@@ -135,13 +132,12 @@
         z-index: 1;
         backdrop-filter: blur(5px);
         border: 1px solid rgba(255, 255, 255, 0.5);
-        /* 添加动画相关样式 */
+
         animation: popup 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
         opacity: 0;
         transform: scale(0.1) translateY(100px);
       }
 
-      /* 深色模式下的登录容器 */
       body.dark-mode .login-container {
         background-color: rgba(37, 37, 37, 0.9);
         box-shadow: 0 10px 30px rgba(100, 50, 120, 0.3);
@@ -373,7 +369,6 @@
         color: #888;
       }
 
-      /* 响应式设计 */
       @media (max-width: 480px) {
         .login-container {
           padding: 25px;
@@ -393,11 +388,9 @@
     </style>
   </head>
   <body>
-    <!-- ACGN风格装饰元素 -->
     <div class="acgn-decoration decoration-1"></div>
     <div class="acgn-decoration decoration-2"></div>
     <div class="acgn-decoration decoration-3"></div>
-
     <div class="login-container">
       <div class="logo-section">
         {% if logo_url %}
@@ -414,7 +407,6 @@
         <h1>Amrita Dashboard</h1>
         <div class="subtitle">Hello from Amrita</div>
       </div>
-
       <form action="/login" method="post">
         <div class="form-group">
           <label for="username">用户名</label>
@@ -426,7 +418,6 @@
             required
           />
         </div>
-
         <div class="form-group">
           <label for="password">密码</label>
           <input
@@ -437,23 +428,17 @@
             required
           />
         </div>
-
         <button type="submit" class="login-btn">登录</button>
-
         <div class="button-extensions">
           <a href="/password-help" class="extension-btn">忘记密码?</a>
         </div>
       </form>
-
       <div class="footer">
         &copy; 2023-2025 Amrita Dashboard. 使用GPL-3.0许可证。
       </div>
     </div>
-
     <script>
-      // 添加一些交互效果
       document.addEventListener("DOMContentLoaded", function () {
-        // 触发登录窗口弹出动画
         const loginContainer = document.querySelector(".login-container");
         setTimeout(() => {
           loginContainer.style.opacity = "1";
@@ -471,7 +456,6 @@
           });
         });
 
-        // 检查是否有登录错误信息
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.get("error") === "invalid_credentials") {
           Swal.fire({
@@ -482,49 +466,45 @@
           });
         }
 
-        // 深色模式功能
         function setTheme(theme) {
-          if (theme === 'dark') {
-            document.body.classList.add('dark-mode');
-            localStorage.setItem('theme', 'dark');
+          if (theme === "dark") {
+            document.body.classList.add("dark-mode");
+            localStorage.setItem("theme", "dark");
           } else {
-            document.body.classList.remove('dark-mode');
-            localStorage.setItem('theme', 'light');
+            document.body.classList.remove("dark-mode");
+            localStorage.setItem("theme", "light");
           }
         }
 
-        // 自动检测系统主题偏好
         function detectSystemTheme() {
-          if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-            return 'dark';
+          if (
+            window.matchMedia &&
+            window.matchMedia("(prefers-color-scheme: dark)").matches
+          ) {
+            return "dark";
           }
-          return 'light';
+          return "light";
         }
 
-        // 初始化主题
         function initTheme() {
-          // 检查本地存储的主题设置
-          const savedTheme = localStorage.getItem('theme');
-          
+          const savedTheme = localStorage.getItem("theme");
+
           if (savedTheme) {
-            // 使用保存的主题设置
             setTheme(savedTheme);
           } else {
-            // 根据系统偏好设置主题
             const systemTheme = detectSystemTheme();
             setTheme(systemTheme);
           }
-          
-          // 监听系统主题变化
-          window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
-            // 只有在没有手动设置主题时才跟随系统变化
-            if (!localStorage.getItem('theme')) {
-              setTheme(e.matches ? 'dark' : 'light');
-            }
-          });
+
+          window
+            .matchMedia("(prefers-color-scheme: dark)")
+            .addEventListener("change", (e) => {
+              if (!localStorage.getItem("theme")) {
+                setTheme(e.matches ? "dark" : "light");
+              }
+            });
         }
 
-        // 初始化主题
         initTheme();
       });
     </script>

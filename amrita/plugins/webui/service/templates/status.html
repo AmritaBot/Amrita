@@ -1,4 +1,4 @@
-{% extends "base.html" %} {% block title %}机器人详情 - Amrita Dashboard{%
+{% extends "base.html" %} {% block title %} 机器人详情 - Amrita Dashboard{%
 endblock %} {% block extra_css %}
 <style>
   .info-grid {
@@ -317,7 +317,6 @@ endblock %} {% block extra_css %}
     color: #e74c3c;
   }
 
-  /* 响应式设计 */
   @media (max-width: 768px) {
     .info-grid {
       grid-template-columns: 1fr;
@@ -339,7 +338,6 @@ endblock %} {% block extra_css %}
 </style>
 {% endblock %} {% block content %}
 <div class="info-grid">
-  <!-- 机器人静态信息卡片 -->
   <div class="info-card">
     <div class="card-header">
       <div class="card-title">机器人信息</div>
@@ -358,8 +356,6 @@ endblock %} {% block extra_css %}
       >
     </div>
   </div>
-
-  <!-- 系统信息卡片 -->
   <div class="info-card">
     <div class="card-header">
       <div class="card-title">系统信息</div>
@@ -398,9 +394,7 @@ endblock %} {% block extra_css %}
     </div>
   </div>
 </div>
-
 <div class="charts-grid">
-  <!-- CPU使用率仪表盘 -->
   <div class="chart-card">
     <div class="card-header">
       <div class="card-title">CPU使用率</div>
@@ -413,8 +407,6 @@ endblock %} {% block extra_css %}
       </div>
     </div>
   </div>
-
-  <!-- 内存使用率仪表盘 -->
   <div class="chart-card">
     <div class="card-header">
       <div class="card-title">内存使用率</div>
@@ -427,8 +419,6 @@ endblock %} {% block extra_css %}
       </div>
     </div>
   </div>
-
-  <!-- 磁盘使用率仪表盘 -->
   <div class="chart-card">
     <div class="card-header">
       <div class="card-title">磁盘使用率</div>
@@ -441,8 +431,6 @@ endblock %} {% block extra_css %}
       </div>
     </div>
   </div>
-
-  <!-- 网络IO信息卡片 -->
   <div class="info-card">
     <div class="card-header">
       <div class="card-title">网络流量</div>
@@ -462,28 +450,21 @@ endblock %} {% block extra_css %}
   </div>
   {% endblock %} {% block scripts %}
   <script>
-    // 全局变量
     let refreshInterval;
-    const REFRESH_INTERVAL_MS = 3000; // 3秒刷新一次
+    const REFRESH_INTERVAL_MS = 3000;
     let cpuGauge, memoryGauge, diskGauge;
 
-    // 页面加载完成后初始化
     document.addEventListener("DOMContentLoaded", function () {
-      // 初始化仪表盘
       initGauges();
 
-      // 开始定时刷新
       startAutoRefresh();
 
-      // 绑定手动刷新按钮事件
       document
         .getElementById("manual-refresh")
         .addEventListener("click", refreshData);
     });
 
-    // 初始化仪表盘
     function initGauges() {
-      // CPU使用率仪表盘
       const cpuCtx = document.getElementById("cpuGauge").getContext("2d");
       cpuGauge = new Chart(cpuCtx, {
         type: "doughnut",
@@ -514,7 +495,6 @@ endblock %} {% block extra_css %}
         },
       });
 
-      // 内存使用率仪表盘
       const memoryCtx = document.getElementById("memoryGauge").getContext("2d");
       memoryGauge = new Chart(memoryCtx, {
         type: "doughnut",
@@ -545,7 +525,6 @@ endblock %} {% block extra_css %}
         },
       });
 
-      // 磁盘使用率仪表盘
       const diskCtx = document.getElementById("diskGauge").getContext("2d");
       diskGauge = new Chart(diskCtx, {
         type: "doughnut",
@@ -577,39 +556,31 @@ endblock %} {% block extra_css %}
       });
     }
 
-    // 开始自动刷新
     function startAutoRefresh() {
-      // 先立即获取一次数据
       refreshData();
 
-      // 然后设置定时器
       refreshInterval = setInterval(refreshData, REFRESH_INTERVAL_MS);
     }
 
-    // 停止自动刷新
     function stopAutoRefresh() {
       if (refreshInterval) {
         clearInterval(refreshInterval);
       }
     }
 
-    // 刷新数据函数
     async function refreshData() {
       try {
-        // 显示加载状态
         document.querySelectorAll(".refresh-btn i").forEach((icon) => {
           icon.classList.add("fa-spin");
         });
 
-        // 从API获取实时数据
         const response = await fetch("/api/bot/status");
         const data = await response.json();
 
-        // 更新仪表盘数据
         updateGauge(cpuGauge, data.cpu_usage);
         updateGauge(memoryGauge, data.memory_usage);
         updateGauge(diskGauge, data.disk_usage);
-        // 更新数值显示
+
         document.getElementById("cpu-value").textContent = `${data.cpu_usage}%`;
         document.getElementById(
           "memory-value"
@@ -618,7 +589,6 @@ endblock %} {% block extra_css %}
           "disk-value"
         ).textContent = `${data.disk_usage}%`;
 
-        // 更新网络IO
         document.getElementById("network-sent").textContent = formatBytes(
           data.network_io.sent
         );
@@ -626,7 +596,6 @@ endblock %} {% block extra_css %}
           data.network_io.received
         );
 
-        // 更新状态
         const statusElement = document.getElementById("bot-status");
         statusElement.textContent = data.status === "online" ? "在线" : "离线";
         statusElement.className = `info-value status-${data.status}`;
@@ -639,20 +608,17 @@ endblock %} {% block extra_css %}
           timer: 2000,
         });
       } finally {
-        // 移除加载状态
         document.querySelectorAll(".refresh-btn i").forEach((icon) => {
           icon.classList.remove("fa-spin");
         });
       }
     }
 
-    // 更新仪表盘数据
     function updateGauge(gauge, value) {
       gauge.data.datasets[0].data = [value, 100 - value];
       gauge.update();
     }
 
-    // 格式化字节大小为易读格式
     function formatBytes(bytes, decimals = 2) {
       if (bytes === 0) return "0 Bytes";
 
@@ -665,7 +631,6 @@ endblock %} {% block extra_css %}
       return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + " " + sizes[i];
     }
 
-    // 页面卸载时停止定时器
     window.addEventListener("beforeunload", function () {
       stopAutoRefresh();
     });

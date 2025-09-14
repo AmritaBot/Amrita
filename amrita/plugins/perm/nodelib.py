@@ -106,6 +106,13 @@ class Permissions:
             self.permissions_data = json.load(f)
         self.__dump_to_str(overwrite=True)
 
+    def from_perm_str(self, perm_str: str):
+        for line in perm_str.split("\n"):
+            if line.strip() == "":
+                continue
+            node, permission = line.split(" ")
+            self.set_permission(node.strip(), permission.strip().lower() == "true")
+
     def dump_data(self) -> dict[str, Any]:
         return self.permissions_data.copy()
 

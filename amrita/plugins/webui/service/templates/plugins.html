@@ -1,4 +1,4 @@
-{% extends "base.html" %} {% block title %}插件管理 - Amrita Dashboard{%
+{% extends "base.html" %} {% block title %} 插件管理 - Amrita Dashboard{%
 endblock %} {% block extra_css %}
 <style>
   * {
@@ -14,7 +14,6 @@ endblock %} {% block extra_css %}
     overflow-x: hidden;
   }
 
-  /* 深色模式 */
   body.dark-mode {
     background-color: var(--dark-bg-color);
     color: var(--dark-text-color);
@@ -117,13 +116,11 @@ endblock %} {% block extra_css %}
     color: var(--dark-text-color);
   }
 
-  /* 布局 */
   .dashboard-container {
     display: flex;
     min-height: 100vh;
   }
 
-  /* 侧边栏 */
   .sidebar {
     width: 250px;
     background: var(--sidebar-bg);
@@ -269,7 +266,6 @@ endblock %} {% block extra_css %}
     display: none;
   }
 
-  /* 主内容区域 */
   .main-content {
     flex: 1;
     margin-left: 250px;
@@ -280,7 +276,6 @@ endblock %} {% block extra_css %}
     margin-left: 60px;
   }
 
-  /* 顶部导航栏 */
   .topbar {
     height: var(--header-height);
     background: #fff;
@@ -395,7 +390,6 @@ endblock %} {% block extra_css %}
     background: #f0f0f0;
   }
 
-  /* 页面加载指示条 */
   .loading-bar {
     position: fixed;
     top: 0;
@@ -417,12 +411,10 @@ endblock %} {% block extra_css %}
     transition: opacity 0.3s ease;
   }
 
-  /* 内容区域 */
   .content {
     padding: 20px;
   }
 
-  /* 卡片样式 */
   .card {
     background: #fff;
     border-radius: 8px;
@@ -449,7 +441,6 @@ endblock %} {% block extra_css %}
     color: var(--primary-color);
   }
 
-  /* 表格样式 */
   table {
     width: 100%;
     border-collapse: collapse;
@@ -480,7 +471,6 @@ endblock %} {% block extra_css %}
     background-color: #f8f9fa;
   }
 
-  /* 按钮样式 */
   button {
     padding: 8px 16px;
     border-radius: 4px;
@@ -523,7 +513,6 @@ endblock %} {% block extra_css %}
     border-color: #219653;
   }
 
-  /* 表单样式 */
   input,
   select,
   textarea {
@@ -552,7 +541,6 @@ endblock %} {% block extra_css %}
     font-weight: 500;
   }
 
-  /* 警告框样式 */
   .alert {
     padding: 12px 15px;
     border-radius: 4px;
@@ -577,7 +565,6 @@ endblock %} {% block extra_css %}
     color: #856404;
   }
 
-  /* 响应式设计 */
   @media (max-width: 768px) {
     .sidebar {
       width: 60px;
@@ -603,8 +590,6 @@ endblock %} {% block extra_css %}
       display: none;
     }
   }
-
-  /* 额外的样式块 */
 
   <style > .plugins-header {
     display: flex;
@@ -961,7 +946,6 @@ endblock %} {% block extra_css %}
     margin-bottom: 20px;
   }
 
-  /* 响应式设计 */
   @media (max-width: 768px) {
     .plugins-header {
       flex-direction: column;
@@ -1008,7 +992,6 @@ endblock %} {% block extra_css %}
     </button>
   </div>
 </div>
-
 <div class="filter-container">
   <div class="filter-group">
     <span class="filter-label">类型:</span>
@@ -1019,7 +1002,6 @@ endblock %} {% block extra_css %}
       {% endfor %}
     </select>
   </div>
-
   <div class="filter-group">
     <span class="filter-label">来源:</span>
     <select class="filter-select" id="source-filter" onchange="filterPlugins()">
@@ -1028,7 +1010,6 @@ endblock %} {% block extra_css %}
       <option value="remote">Pypi插件</option>
     </select>
   </div>
-
   <div class="search-box">
     <i class="fas fa-search search-icon"></i>
     <input
@@ -1040,7 +1021,6 @@ endblock %} {% block extra_css %}
     />
   </div>
 </div>
-
 <div class="plugins-grid" id="plugins-container">
   {% for plugin in plugins %}
   <div
@@ -1063,9 +1043,7 @@ endblock %} {% block extra_css %}
       </div>
       <span class="plugin-type">{{ plugin.type }}</span>
     </div>
-
     <p class="plugin-description">{{ plugin.description }}</p>
-
     {% if plugin.homepage %}
     <div class="plugin-homepage">
       <a href="{{ plugin.homepage }}" class="homepage-link" target="_blank">
@@ -1085,7 +1063,6 @@ endblock %} {% block extra_css %}
 </div>
 {% endblock %} {% block scripts %}
 <script>
-  // 插件过滤功能
   function filterPlugins() {
     const typeFilter = document.getElementById("type-filter").value;
     const sourceFilter = document.getElementById("source-filter").value;
@@ -1117,7 +1094,6 @@ endblock %} {% block extra_css %}
       }
     });
 
-    // 如果没有可见的插件卡片，显示空状态
     const visibleCards = Array.from(pluginCards).filter(
       (card) => card.style.display !== "none"
     );
@@ -1130,10 +1106,8 @@ endblock %} {% block extra_css %}
     }
   }
 
-  // 刷新插件列表
   async function refreshPlugins() {
     try {
-      // 显示加载状态
       Swal.fire({
         title: "刷新中...",
         text: "正在获取最新插件信息",
@@ -1143,11 +1117,9 @@ endblock %} {% block extra_css %}
         },
       });
 
-      // 请求服务器刷新插件列表
       const response = await fetch("/api/plugins/list");
 
       if (response.ok) {
-        // 直接重新加载页面以获取更新后的插件列表
         location.reload();
       } else {
         throw new Error("服务器返回错误状态");
@@ -1164,9 +1136,6 @@ endblock %} {% block extra_css %}
     }
   }
 
-  // 页面加载完成后初始化
-  document.addEventListener("DOMContentLoaded", function () {
-    // 可以添加一些初始化逻辑
-  });
+  document.addEventListener("DOMContentLoaded", function () {});
 </script>
 {% endblock %}

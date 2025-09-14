@@ -1,4 +1,4 @@
-{% extends "base.html" %} {% block title %}黑名单管理 - Amrita Dashboard{%
+{% extends "base.html" %} {% block title %} 黑名单管理 - Amrita Dashboard{%
 endblock %} {% block extra_css %}
 <style>
   .blacklist-header {
@@ -548,7 +548,6 @@ endblock %} {% block extra_css %}
     margin-bottom: 20px;
   }
 
-  /* 响应式设计 */
   @media (max-width: 768px) {
     .blacklist-header {
       flex-direction: column;
@@ -608,7 +607,6 @@ endblock %} {% block extra_css %}
     }
   }
 
-  /* 对齐修复：确保表单元素在横屏时对齐 */
   @media (min-width: 769px) {
     .form-grid {
       align-items: end;
@@ -634,8 +632,6 @@ endblock %} {% block extra_css %}
     </button>
   </div>
 </div>
-
-<!-- 添加黑名单表单 -->
 <div class="add-form">
   <h3 class="form-title">添加黑名单</h3>
   <form id="add-blacklist-form">
@@ -671,8 +667,6 @@ endblock %} {% block extra_css %}
     <button type="submit" class="form-submit">添加</button>
   </form>
 </div>
-
-<!-- 选项卡 -->
 <div class="tabs-container">
   <div class="tab active" data-tab="user-blacklist">
     用户黑名单 ({{ user_blacklist|length }})
@@ -681,8 +675,6 @@ endblock %} {% block extra_css %}
     群组黑名单 ({{ group_blacklist|length }})
   </div>
 </div>
-
-<!-- 用户黑名单内容 -->
 <div class="tab-content active" id="user-blacklist">
   <div class="table-container">
     <div class="table-header">
@@ -701,7 +693,6 @@ endblock %} {% block extra_css %}
         </button>
       </div>
     </div>
-
     {% if user_blacklist %}
     <table class="table">
       <thead>
@@ -748,8 +739,6 @@ endblock %} {% block extra_css %}
     {% endif %}
   </div>
 </div>
-
-<!-- 群组黑名单内容 -->
 <div class="tab-content" id="group-blacklist">
   <div class="table-container">
     <div class="table-header">
@@ -768,7 +757,6 @@ endblock %} {% block extra_css %}
         </button>
       </div>
     </div>
-
     {% if group_blacklist %}
     <table class="table">
       <thead>
@@ -817,10 +805,8 @@ endblock %} {% block extra_css %}
 </div>
 {% endblock %} {% block scripts %}
 <script>
-  // 选项卡切换功能
   document.querySelectorAll(".tab").forEach((tab) => {
     tab.addEventListener("click", function () {
-      // 移除所有激活状态
       document
         .querySelectorAll(".tab")
         .forEach((t) => t.classList.remove("active"));
@@ -828,7 +814,6 @@ endblock %} {% block extra_css %}
         .querySelectorAll(".tab-content")
         .forEach((c) => c.classList.remove("active"));
 
-      // 添加当前激活状态
       this.classList.add("active");
       document
         .getElementById(this.getAttribute("data-tab"))
@@ -836,7 +821,6 @@ endblock %} {% block extra_css %}
     });
   });
 
-  // 添加黑名单表单提交
   document
     .getElementById("add-blacklist-form")
     .addEventListener("submit", async function (e) {
@@ -848,7 +832,6 @@ endblock %} {% block extra_css %}
       const reason = formData.get("reason");
 
       try {
-        // 显示加载状态
         Swal.fire({
           title: "添加中...",
           text: "正在添加黑名单",
@@ -858,7 +841,6 @@ endblock %} {% block extra_css %}
           },
         });
 
-        // 调用API添加黑名单
         const response = await fetch("/api/blacklist/add", {
           method: "POST",
           headers: {
@@ -881,7 +863,6 @@ endblock %} {% block extra_css %}
             timer: 1500,
             showConfirmButton: false,
           }).then(() => {
-            // 刷新页面
             location.reload();
           });
         } else {
@@ -900,7 +881,6 @@ endblock %} {% block extra_css %}
       }
     });
 
-  // 全选/取消全选
   function toggleSelectAll(type) {
     const checkboxes = document.querySelectorAll(`.${type}-checkbox`);
     const selectAll = document.getElementById(`select-all-${type}s`);
@@ -911,14 +891,13 @@ endblock %} {% block extra_css %}
     });
   }
 
-  // 切换行选中状态
   function toggleRowSelection(checkbox) {
     const row = checkbox.closest("tr");
     if (checkbox.checked) {
       row.classList.add("selected");
     } else {
       row.classList.remove("selected");
-      // 取消全选
+
       const type = checkbox.classList.contains("user-checkbox")
         ? "user"
         : "group";
@@ -926,7 +905,6 @@ endblock %} {% block extra_css %}
     }
   }
 
-  // 移除单个黑名单
   async function removeFromBlacklist(type, id) {
     try {
       Swal.fire({
@@ -940,7 +918,6 @@ endblock %} {% block extra_css %}
         cancelButtonText: "取消",
       }).then(async (result) => {
         if (result.isConfirmed) {
-          // 显示加载状态
           Swal.fire({
             title: "移除中...",
             text: "正在从黑名单中移除",
@@ -950,7 +927,6 @@ endblock %} {% block extra_css %}
             },
           });
 
-          // 调用API移除黑名单
           const response = await fetch(`/api/blacklist/remove/${type}/${id}`, {
             method: "POST",
             headers: { Authorization: "Bearer " + (await getOnetimeToken()) },
@@ -965,7 +941,6 @@ endblock %} {% block extra_css %}
               timer: 1500,
               showConfirmButton: false,
             }).then(() => {
-              // 刷新页面
               location.reload();
             });
           } else {
@@ -985,7 +960,6 @@ endblock %} {% block extra_css %}
     }
   }
 
-  // 批量移除选中的黑名单
   async function removeSelected(type) {
     const checkboxes = document.querySelectorAll(`.${type}-checkbox:checked`);
 
@@ -1014,7 +988,6 @@ endblock %} {% block extra_css %}
         cancelButtonText: "取消",
       }).then(async (result) => {
         if (result.isConfirmed) {
-          // 显示加载状态
           Swal.fire({
             title: "移除中...",
             text: `正在批量移除 ${ids.length} 个${
@@ -1026,7 +999,6 @@ endblock %} {% block extra_css %}
             },
           });
 
-          // 调用API批量移除黑名单
           const response = await fetch(`/api/blacklist/remove-batch/${type}`, {
             method: "POST",
             headers: {
@@ -1047,7 +1019,6 @@ endblock %} {% block extra_css %}
               timer: 1500,
               showConfirmButton: false,
             }).then(() => {
-              // 刷新页面
               location.reload();
             });
           } else {
@@ -1067,9 +1038,7 @@ endblock %} {% block extra_css %}
     }
   }
 
-  // 刷新黑名单列表
   function refreshBlacklist() {
-    // 显示加载状态
     Swal.fire({
       title: "刷新中...",
       text: "正在获取最新黑名单信息",
@@ -1079,13 +1048,10 @@ endblock %} {% block extra_css %}
       },
     });
 
-    // 刷新页面
     location.reload();
   }
 
-  // 页面加载完成后初始化
   document.addEventListener("DOMContentLoaded", function () {
-    // 绑定复选框点击事件
     document
       .querySelectorAll(".user-checkbox, .group-checkbox")
       .forEach((checkbox) => {
