@@ -5,6 +5,7 @@ from typing import Any
 
 from fastapi import Request
 from fastapi.responses import HTMLResponse
+from nonebot import logger
 
 from .service.authlib import AuthManager, OnetimeTokenData, TokenData, TokenManager
 from .service.main import app
@@ -59,6 +60,8 @@ def on_page(
                             item.active = True
                             break
                     break
+            else:
+                logger.warning(f"Invalid page category `{category}` for page {path}")
 
             # 构造页面上下文并调用实际的处理函数
             ctx = PageContext(request, side_bar, AuthManager(), TokenManager())
