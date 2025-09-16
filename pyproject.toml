@@ -1,6 +1,6 @@
 [project]
 name = "amrita"
-version = "0.2.5"
+version = "0.2.5.1.dev1"
 description = "A powerful bot framework powered by NoneBot2"
 readme = "README.md"
 license = "GPL-3.0-or-later"
@@ -17,6 +17,7 @@ dependencies = [
     "requests>=2.32.5",
     "python-multipart>=0.0.20",
     "bcrypt>=4.3.0",
+    "aiofiles>=24.1.0",
 ]
 
 [project.optional-dependencies]
@@ -29,7 +30,6 @@ full = [
     "tomli-w>=1.0.0",
     "stubs>=1.0.0",
     "dotenv>=0.9.9",
-    "aiofiles>=24.1.0",
     "importlib>=1.0.4",
     "watchfiles<1.0.0",
     "openai>=1.66.3, <=1.99.0",
