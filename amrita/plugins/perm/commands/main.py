@@ -3,7 +3,6 @@ from typing import Any, Protocol
 from nonebot.adapters.onebot.v11 import Message, MessageEvent
 from nonebot.matcher import Matcher
 from nonebot.params import CommandArg
-from nonebot.rule import to_me
 
 from amrita.plugins.menu.models import MatcherData
 
@@ -19,7 +18,6 @@ class PermissionHandler(Protocol):
 
 @command.command(
     (),
-    rule=to_me(),
     state=MatcherData(
         name="lp主命令",
         description="lp 主命令",

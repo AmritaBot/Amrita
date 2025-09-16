@@ -20,7 +20,7 @@ from ..sidebar import SideBarManager
 
 
 @app.get("/robots.txt", response_class=PlainTextResponse)
-async def robots_txt():  # noqa: RUF029
+async def robots_txt():
     return """User-agent: *
 Disallow: /
 
@@ -30,7 +30,7 @@ Disallow: /
 
 
 @app.get("/sitemap.xml", response_class=Response)
-async def sitemap_xml():  # noqa: RUF029
+async def sitemap_xml():
     return Response(
         content="""<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
@@ -40,7 +40,7 @@ async def sitemap_xml():  # noqa: RUF029
 
 
 @app.get("/password-help", response_class=HTMLResponse)
-async def _(request: Request):  # noqa: RUF029
+async def _(request: Request):
     return templates.TemplateResponse(
         "password-help.html",
         context={
