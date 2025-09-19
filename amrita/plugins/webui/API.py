@@ -1,6 +1,7 @@
 from collections.abc import Awaitable, Callable
 from copy import deepcopy
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 from fastapi import Request
@@ -8,7 +9,7 @@ from fastapi.responses import HTMLResponse
 from nonebot import logger
 
 from .service.authlib import AuthManager, OnetimeTokenData, TokenData, TokenManager
-from .service.main import app
+from .service.main import app, templates
 from .service.sidebar import SideBarCategory, SideBarItem, SideBarManager
 
 
@@ -73,10 +74,16 @@ def on_page(
     return decorator
 
 
+def get_templates_dir() -> Path:
+    return Path(__file__).resolve().parent / "service" / "templates"
+
+
 __all__ = [
     "AuthManager",
     "OnetimeTokenData",
     "SideBarManager",
     "TokenData",
     "TokenManager",
+    "app",
+    "templates",
 ]
