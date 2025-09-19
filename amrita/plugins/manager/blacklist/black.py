@@ -1,12 +1,13 @@
 from dataclasses import dataclass
 from datetime import datetime
-from functools import lru_cache
+from typing import Literal
 
 from nonebot import logger, require
 from sqlalchemy import delete, insert, select
 from sqlalchemy.exc import IntegrityError
 
 require("nonebot_plugin_orm")
+from async_lru import alru_cache as lru_cache
 from nonebot_plugin_orm import get_session
 
 from .models import GroupBlacklist, PrivateBlacklist
@@ -19,17 +20,23 @@ class BL_Data:
 
 
 class BL_Manager:
+    """
+    黑名单管理器
+    """
+
     @staticmethod
-    def del_cache():
+    def del_cache(which: Literal["private", "group", "all"] = "all"):
+        if which != "private":
+            BL_Manager.get_group_blacklist.cache_clear()
+            BL_Manager.is_group_black.cache_clear()
+        if which != "group":
+            BL_Manager.get_private_blacklist.cache_clear()
+            BL_Manager.is_private_black.cache_clear()
         BL_Manager.get_full_blacklist.cache_clear()
-        BL_Manager.get_group_blacklist.cache_clear()
-        BL_Manager.get_private_blacklist.cache_clear()
-        BL_Manager.is_group_black.cache_clear()
-        BL_Manager.is_private_black.cache_clear()
 
     @staticmethod
     async def private_append(user_id: str, reason: str = "违反使用规则！"):
-        BL_Manager.del_cache()
+        BL_Manager.del_cache("private")
         async with get_session() as session:
             stmt = insert(PrivateBlacklist).values(user_id=user_id, reason=reason)
             await session.execute(stmt)
@@ -38,7 +45,7 @@ class BL_Manager:
 
     @staticmethod
     async def group_append(group_id: str, reason: str = "违反使用规则！"):
-        BL_Manager.del_cache()
+        BL_Manager.del_cache("group")
         async with get_session() as session:
             try:
                 stmt = insert(GroupBlacklist).values(group_id=group_id, reason=reason)
@@ -50,7 +57,7 @@ class BL_Manager:
 
     @staticmethod
     async def private_remove(user_id: str):
-        BL_Manager.del_cache()
+        BL_Manager.del_cache("private")
         async with get_session() as session:
             stmt = delete(PrivateBlacklist).where(PrivateBlacklist.user_id == user_id)
             result = await session.execute(stmt)
@@ -63,7 +70,7 @@ class BL_Manager:
 
     @staticmethod
     async def group_remove(group_id: str):
-        BL_Manager.del_cache()
+        BL_Manager.del_cache("group")
         async with get_session() as session:
             stmt = delete(GroupBlacklist).where(GroupBlacklist.group_id == group_id)
             result = await session.execute(stmt)

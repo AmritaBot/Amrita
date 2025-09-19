@@ -1,6 +1,6 @@
 [project]
 name = "amrita"
-version = "0.2.5.1.dev1"
+version = "0.2.6"
 description = "A powerful bot framework powered by NoneBot2"
 readme = "README.md"
 license = "GPL-3.0-or-later"
@@ -16,12 +16,13 @@ dependencies = [
     "uv>=0.8.12",
     "requests>=2.32.5",
     "python-multipart>=0.0.20",
-    "bcrypt>=4.3.0",
     "aiofiles>=24.1.0",
 ]
 
 [project.optional-dependencies]
 full = [
+    "bcrypt>=4.3.0",
+    "async-lru>=2.0.5",
     "jinja2>=3.1.6",
     "uvicorn>=0.35.0",
     "psutil>=7.0.0",
@@ -100,4 +101,9 @@ ignore = [
 typeCheckingMode = "standard"
 
 [tool.nonebot]
-plugins=["nonebot_plugin_orm","amrita.plugins.chat","amrita.plugins.manager","amrita.plugins.webui"]
+plugins = [
+    "nonebot_plugin_orm",
+    "amrita.plugins.chat",
+    "amrita.plugins.manager",
+    "amrita.plugins.webui",
+]

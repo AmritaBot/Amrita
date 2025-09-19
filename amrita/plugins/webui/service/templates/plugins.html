@@ -791,6 +791,9 @@ endblock %} {% block extra_css %}
   }
 
   .plugin-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
     margin-bottom: 15px;
   }
 
@@ -798,14 +801,7 @@ endblock %} {% block extra_css %}
     font-size: 18px;
     font-weight: 600;
     color: var(--text-color);
-    margin-bottom: 8px;
-  }
-
-  .plugin-badges {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-    margin-bottom: 10px;
+    margin-bottom: 5px;
   }
 
   .plugin-badge {
@@ -814,6 +810,7 @@ endblock %} {% block extra_css %}
     border-radius: 12px;
     font-size: 12px;
     font-weight: 500;
+    margin-left: 8px;
   }
 
   .badge-local {
@@ -826,20 +823,19 @@ endblock %} {% block extra_css %}
     color: #3498db;
   }
 
+  .plugin-version {
+    color: #777;
+    font-size: 14px;
+  }
+
   .plugin-type {
     display: inline-block;
     padding: 3px 8px;
     border-radius: 12px;
     font-size: 12px;
     font-weight: 500;
-    background: rgba(138, 43, 226, 0.1);
+    background: rgba(43, 76, 226, 0.1);
     color: var(--primary-color);
-  }
-
-  .plugin-version {
-    color: #777;
-    font-size: 14px;
-    margin-bottom: 10px;
   }
 
   .plugin-description {
@@ -1034,16 +1030,18 @@ endblock %} {% block extra_css %}
     data-name="{{ plugin.name|lower }}"
   >
     <div class="plugin-header">
-      <h3 class="plugin-name">{{ plugin.name }}</h3>
-      <div class="plugin-badges">
-        <span
-          class="plugin-badge {{ 'badge-local' if plugin.is_local else 'badge-remote' }}"
-        >
-          {{ '本地' if plugin.is_local else 'Pypi' }}
-        </span>
-        <span class="plugin-type">{{ plugin.type }}</span>
+      <div>
+        <h3 class="plugin-name">
+          {{ plugin.name }}
+          <span
+            class="plugin-badge {{ 'badge-local' if plugin.is_local else 'badge-remote' }}"
+          >
+            {{ '本地' if plugin.is_local else 'Pypi' }}
+          </span>
+        </h3>
+        <div class="plugin-version">版本: {{ plugin.version }}</div>
       </div>
-      <div class="plugin-version">版本: {{ plugin.version }}</div>
+      <span class="plugin-type">{{ plugin.type }}</span>
     </div>
     <p class="plugin-description">{{ plugin.description }}</p>
     {% if plugin.homepage %}
