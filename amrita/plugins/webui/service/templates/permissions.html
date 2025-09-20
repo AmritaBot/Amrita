@@ -22,9 +22,7 @@ endblock %} {% block topbar_title %}权限管理{% endblock %} {% block content 
                 placeholder="请输入用户ID"
               />
             </div>
-            <button type="submit" class="btn btn-primary">
-              查看用户权限
-            </button>
+            <button type="submit" class="btn btn-primary">查看用户权限</button>
           </form>
         </div>
       </div>
@@ -44,9 +42,7 @@ endblock %} {% block topbar_title %}权限管理{% endblock %} {% block content 
                 placeholder="请输入群组ID"
               />
             </div>
-            <button type="submit" class="btn btn-primary">
-              查看群组权限
-            </button>
+            <button type="submit" class="btn btn-primary">查看群组权限</button>
           </form>
         </div>
       </div>
@@ -72,6 +68,7 @@ endblock %} {% block topbar_title %}权限管理{% endblock %} {% block content 
               <tr>
                 <th>权限组名称</th>
                 <th>权限数量</th>
+                <th>权限操作</th>
                 <th>操作</th>
               </tr>
             </thead>
@@ -80,6 +77,7 @@ endblock %} {% block topbar_title %}权限管理{% endblock %} {% block content 
               <tr>
                 <td>{{ group.name }}</td>
                 <td>{{ group.permissions.strip().split('\n') | length }}</td>
+
                 <td>
                   <button
                     class="btn btn-sm btn-primary"
@@ -87,6 +85,15 @@ endblock %} {% block topbar_title %}权限管理{% endblock %} {% block content 
                     data-group-name="{{ group.name }}"
                   >
                     查看权限
+                  </button>
+                </td>
+                <td>
+                  <button
+                    class="btn btn-sm btn-danger"
+                    id="delete_perm_group_button"
+                    data-group-name="{{ group.name }}"
+                  >
+                    删除权限组
                   </button>
                 </td>
               </tr>
@@ -133,6 +140,33 @@ endblock %} {% block topbar_title %}权限管理{% endblock %} {% block content 
       if (groupId) {
         window.location.href = `/users/permissions/group/${groupId}`;
       }
+    });
+  document
+    .getElementById("delete_perm_group_button")
+    .addEventListener("click", function () {
+      Swal.fire({
+        title: "确定要删除此权限组吗？",
+        text: "此操作将删除此权限组，请谨慎操作！",
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonColor: "#3085d6",
+        cancelButtonColor: "#d33",
+        confirmButtonText: "确定",
+        cancelButtonText: "取消",
+      }).then((result) => {
+        if (result.isConfirmed) {
+          const groupName = this.getAttribute("data-group-name");
+          fetch(`/api/users/permissions/perm_group/delete`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              group_name: groupName,
+            }),
+          });
+        }
+      });
     });
 </script>
 {% endblock %}

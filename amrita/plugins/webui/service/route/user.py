@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from fastapi import Form, HTTPException, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 
 from amrita.plugins.manager.blacklist.black import BL_Manager
 from amrita.plugins.perm.config import data_manager
@@ -84,6 +84,15 @@ async def permissions_page(request: Request):
             "permission_groups": permission_groups,
         },
     )
+
+
+@app.post("/api/users/permissions/perm_group/delete", response_class=JSONResponse)
+async def delete_perm_group(request: Request):
+    group_name = (await request.json()).get("group_name")
+    if not group_name:
+        return {"code": 400, "error": "请选择要删除的权限组"}
+    data_manager.remove_permission_group(group_name)
+    return JSONResponse({"code": 200, "error": None})
 
 
 @app.get("/users/permissions/create_perm_group", response_class=HTMLResponse)
