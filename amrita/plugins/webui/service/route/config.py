@@ -8,7 +8,7 @@ import aiofiles
 from fastapi import Request
 from fastapi.responses import HTMLResponse, JSONResponse
 
-from ..main import app, templates
+from ..main import TemplatesManager, app
 from ..sidebar import SideBarManager
 
 # 获取项目根目录
@@ -47,7 +47,7 @@ async def config_editor(request: Request):
                     break
             break
 
-    return templates.TemplateResponse(
+    return TemplatesManager().TemplateResponse(
         "config.html",
         {
             "request": request,

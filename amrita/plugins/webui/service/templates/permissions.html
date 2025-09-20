@@ -5,53 +5,49 @@ endblock %} {% block topbar_title %}权限管理{% endblock %} {% block content 
     <h2 class="card-title">权限管理</h2>
   </div>
   <div class="card-body">
-    <div class="row">
-      <div class="col-md-6">
-        <div class="card">
-          <div class="card-header">
-            <h3 class="card-title">用户权限</h3>
-          </div>
-          <div class="card-body">
-            <form id="user-perm-form">
-              <div class="form-group">
-                <label for="user_id" class="form-label">用户ID</label>
-                <input
-                  type="text"
-                  class="form-control"
-                  id="user_id"
-                  name="user_id"
-                  placeholder="请输入用户ID"
-                />
-              </div>
-              <button type="submit" class="btn btn-primary">
-                查看用户权限
-              </button>
-            </form>
-          </div>
+    <div class="permissions-container">
+      <div class="card permission-card">
+        <div class="card-header">
+          <h3 class="card-title">用户权限</h3>
+        </div>
+        <div class="card-body">
+          <form id="user-perm-form">
+            <div class="form-group">
+              <label for="user_id" class="form-label">用户ID</label>
+              <input
+                type="text"
+                class="form-control"
+                id="user_id"
+                name="user_id"
+                placeholder="请输入用户ID"
+              />
+            </div>
+            <button type="submit" class="btn btn-primary">
+              查看用户权限
+            </button>
+          </form>
         </div>
       </div>
-      <div class="col-md-6">
-        <div class="card">
-          <div class="card-header">
-            <h3 class="card-title">群组权限</h3>
-          </div>
-          <div class="card-body">
-            <form id="group-perm-form">
-              <div class="form-group">
-                <label for="group_id" class="form-label">群组ID</label>
-                <input
-                  type="text"
-                  class="form-control"
-                  id="group_id"
-                  name="group_id"
-                  placeholder="请输入群组ID"
-                />
-              </div>
-              <button type="submit" class="btn btn-primary">
-                查看群组权限
-              </button>
-            </form>
-          </div>
+      <div class="card permission-card">
+        <div class="card-header">
+          <h3 class="card-title">群组权限</h3>
+        </div>
+        <div class="card-body">
+          <form id="group-perm-form">
+            <div class="form-group">
+              <label for="group_id" class="form-label">群组ID</label>
+              <input
+                type="text"
+                class="form-control"
+                id="group_id"
+                name="group_id"
+                placeholder="请输入群组ID"
+              />
+            </div>
+            <button type="submit" class="btn btn-primary">
+              查看群组权限
+            </button>
+          </form>
         </div>
       </div>
     </div>

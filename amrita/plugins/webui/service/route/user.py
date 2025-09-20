@@ -7,7 +7,7 @@ from amrita.plugins.manager.blacklist.black import BL_Manager
 from amrita.plugins.perm.config import data_manager
 from amrita.plugins.perm.nodelib import Permissions
 
-from ..main import app, templates
+from ..main import TemplatesManager, app
 from ..sidebar import SideBarManager
 
 
@@ -23,7 +23,7 @@ async def _(request: Request):
                     child["active"] = True
             break
     data = await BL_Manager.get_full_blacklist()
-    response = templates.TemplateResponse(
+    response = TemplatesManager().TemplateResponse(
         "blacklist.html",
         {
             "request": request,
@@ -76,7 +76,7 @@ async def permissions_page(request: Request):
                 }
             )
 
-    return templates.TemplateResponse(
+    return TemplatesManager().TemplateResponse(
         "permissions.html",
         {
             "request": request,
@@ -98,7 +98,7 @@ async def create_perm_group_page(request: Request):
                     child["active"] = True
             break
 
-    return templates.TemplateResponse(
+    return TemplatesManager().TemplateResponse(
         "create_perm_group.html",
         {
             "request": request,
@@ -124,7 +124,7 @@ async def user_permissions_page(request: Request, user_id: str):
     perm = Permissions(user_data.permissions)
     permissions_str = perm.permissions_str
 
-    return templates.TemplateResponse(
+    return TemplatesManager().TemplateResponse(
         "user_permissions.html",
         {
             "request": request,
@@ -155,7 +155,7 @@ async def group_permissions_page(request: Request, group_id: str):
     perm = Permissions(group_data.permissions)
     permissions_str = perm.permissions_str
 
-    return templates.TemplateResponse(
+    return TemplatesManager().TemplateResponse(
         "group_permissions.html",
         {
             "request": request,
@@ -194,7 +194,7 @@ async def perm_group_permissions_page(request: Request, group_name: str):
 
     permissions_str = perm.permissions_str
 
-    return templates.TemplateResponse(
+    return TemplatesManager().TemplateResponse(
         "perm_group_permissions.html",
         {
             "request": request,

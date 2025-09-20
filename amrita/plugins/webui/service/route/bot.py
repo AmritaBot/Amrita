@@ -15,7 +15,7 @@ from amrita.config import get_amrita_config
 from amrita.utils.system_health import calculate_system_usage
 from amrita.utils.utils import get_amrita_version
 
-from ..main import app, templates, try_get_bot
+from ..main import TemplatesManager, app, try_get_bot
 from ..sidebar import SideBarManager
 
 
@@ -32,7 +32,7 @@ async def _(request: Request):
                     child["active"] = True
                     break
             break
-    return templates.TemplateResponse(
+    return TemplatesManager().TemplateResponse(
         "status.html",
         {
             "request": request,
@@ -98,7 +98,7 @@ async def _(request: Request):
         }
         for plugin in plugins
     ]
-    return templates.TemplateResponse(
+    return TemplatesManager().TemplateResponse(
         "plugins.html",
         context={
             "plugins": plugin_list,

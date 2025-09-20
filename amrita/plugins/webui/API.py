@@ -1,27 +1,40 @@
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Mapping
 from copy import deepcopy
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 from fastapi import Request
-from fastapi.responses import HTMLResponse
 from nonebot import logger
+from starlette.templating import _TemplateResponse
 
 from .service.authlib import AuthManager, OnetimeTokenData, TokenData, TokenManager
-from .service.main import app, templates
-from .service.sidebar import SideBarCategory, SideBarItem, SideBarManager
+from .service.main import TEMPLATES_PATH, TemplatesManager, app, templates
+from .service.sidebar import SideBarItem, SideBarManager
+
+
+@dataclass
+class PageResponse:
+    """
+    自定义的响应类，用于处理页面渲染结果
+    """
+
+    name: str
+    context: dict[str, Any] = field(default_factory=dict)
+    status_code: int = field(default=200)
+    headers: Mapping[str, str] | None = None
+    media_type: str | None = None
 
 
 @dataclass
 class PageContext:
+    """Page context
+    A class that holds the context for a page
+    """
+
     request: Request
-    sidebar: list[SideBarCategory]
     auth: AuthManager
     token_manager: TokenManager
-
-    def get_sidebar(self) -> list[dict[str, Any]]:
-        return [item.model_dump() for item in self.sidebar]
 
 
 def on_page(
@@ -43,13 +56,13 @@ def on_page(
         Callable: 返回一个装饰器函数
     """
 
-    def decorator(func: Callable[[PageContext], Awaitable[HTMLResponse]]):
+    def decorator(func: Callable[[PageContext], Awaitable[PageResponse]]):
         # 将当前页面添加到侧边栏对应分类中
         SideBarManager().add_sidebar_item(
             category, SideBarItem(name=page_name, url=path, icon=icon)
         )
 
-        async def route(request: Request) -> HTMLResponse:
+        async def route(request: Request) -> _TemplateResponse:
             # 深拷贝侧边栏数据，避免修改原始数据
             side_bar = deepcopy(SideBarManager().get_sidebar().items)
             # 设置当前分类和页面为激活状态
@@ -65,8 +78,21 @@ def on_page(
                 logger.warning(f"Invalid page category `{category}` for page {path}")
 
             # 构造页面上下文并调用实际的处理函数
-            ctx = PageContext(request, side_bar, AuthManager(), TokenManager())
-            return await func(ctx)
+            ctx = PageContext(request, AuthManager(), TokenManager())
+            page = await func(ctx)
+            return TemplatesManager().TemplateResponse(
+                request,
+                page.name,
+                {
+                    "request": request,
+                    "side_bar": side_bar,
+                    "debug": app.debug,
+                    "base_html": str(TemplatesManager().get_base_html_path()),
+                }.update(page.context),
+                status_code=page.status_code,
+                headers=page.headers,
+                media_type=page.media_type,
+            )
 
         # 将路由添加到FastAPI应用中
         app.add_route(path, route, methods=["GET"], name=page_name)
@@ -75,15 +101,19 @@ def on_page(
 
 
 def get_templates_dir() -> Path:
-    return Path(__file__).resolve().parent / "service" / "templates"
+    return TEMPLATES_PATH
 
 
 __all__ = [
+    "TEMPLATES_PATH",
     "AuthManager",
     "OnetimeTokenData",
+    "PageContext",
     "SideBarManager",
     "TokenData",
     "TokenManager",
     "app",
+    "get_templates_dir",
+    "on_page",
     "templates",
 ]

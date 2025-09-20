@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from copy import deepcopy
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -9,8 +10,11 @@ from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from nonebot import logger
+from typing_extensions import Self
 
 from .authlib import AuthManager, TokenManager
+
+TEMPLATES_PATH = Path(__file__).resolve().parent / "templates"
 
 app: FastAPI = nonebot.get_app()
 app.mount(
@@ -18,7 +22,7 @@ app.mount(
     StaticFiles(directory=Path(__file__).resolve().parent / "static"),
     name="static",
 )
-templates = Jinja2Templates(directory=Path(__file__).resolve().parent / "templates")
+templates = Jinja2Templates(directory=TEMPLATES_PATH)
 
 
 def try_get_bot():
@@ -29,9 +33,42 @@ def try_get_bot():
     return bot
 
 
+class TemplatesManager:
+    __instance: Self | None = None
+    _templates_dir: list[Path]
+
+    def __new__(cls) -> Self:
+        if cls.__instance is None:
+            cls.__instance = super().__new__(cls)
+            cls._templates_dir = [TEMPLATES_PATH]
+        return cls.__instance
+
+    def get_templates_dir(self) -> list[Path]:
+        return deepcopy(self._templates_dir)
+
+    def add_templates_dir(self, path: Path):
+        if path in self._templates_dir:
+            return
+        self._templates_dir.append(path)
+
+    def get_templates(self) -> Jinja2Templates:
+        return Jinja2Templates(self.get_templates_dir())
+
+    def get_base_html_path(self) -> Path:
+        return TEMPLATES_PATH / "base.html"
+
+    @property
+    def templates(self) -> Jinja2Templates:
+        return self.get_templates()
+
+    @property
+    def TemplateResponse(self):
+        return self.templates.TemplateResponse
+
+
 @app.exception_handler(404)
 async def _(request: Request, exc: HTTPException):
-    return templates.TemplateResponse(
+    return TemplatesManager().TemplateResponse(
         "error.html",
         {
             "request": request,
@@ -49,7 +86,7 @@ async def _(request: Request, exc: HTTPException):
 @app.exception_handler(500)
 async def _(request: Request, exc: Exception):
     if isinstance(exc, HTTPException):
-        response = templates.TemplateResponse(
+        response = TemplatesManager().TemplateResponse(
             "error.html",
             {
                 "request": request,
@@ -60,7 +97,7 @@ async def _(request: Request, exc: Exception):
             status_code=exc.status_code,
         )
     else:
-        response = templates.TemplateResponse(
+        response = TemplatesManager().TemplateResponse(
             "error.html",
             {
                 "request": request,
@@ -77,7 +114,7 @@ async def _(request: Request, exc: HTTPException):
     if exc.status_code == 401:
         logger.warning("401!" + str(request))
         return RedirectResponse(url="/", status_code=303)
-    return templates.TemplateResponse(
+    return TemplatesManager().TemplateResponse(
         "error.html",
         {
             "request": request,
