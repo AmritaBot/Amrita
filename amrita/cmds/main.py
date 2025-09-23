@@ -225,7 +225,9 @@ def entry():
         click.echo(error("bot.py already exists."))
         return
     with open("bot.py", "w") as f:
-        f.write(open(str(Path(__file__).parent.parent / "bot.py"), encoding="utf-8").read())
+        f.write(
+            open(str(Path(__file__).parent.parent / "bot.py"), encoding="utf-8").read()
+        )
 
 
 @cli.command()

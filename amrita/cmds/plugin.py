@@ -62,9 +62,7 @@ def pypi_install(name: str):
         click.echo(error(f"Failed to install {name}"))
         return
     click.echo(info("Installing..."))
-    with open(
-        "pyproject.toml", encoding="utf-8"
-    ) as f:
+    with open("pyproject.toml", encoding="utf-8") as f:
         data = toml.load(f)
         if "nonebot" not in data["tool"]:
             data["tool"]["nonebot"] = {}
