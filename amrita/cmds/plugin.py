@@ -63,7 +63,7 @@ def pypi_install(name: str):
         return
     click.echo(info("Installing..."))
     with open(
-        "pyproject.toml",
+        "pyproject.toml", encoding="utf-8"
     ) as f:
         data = toml.load(f)
         if "nonebot" not in data["tool"]:
@@ -71,7 +71,7 @@ def pypi_install(name: str):
             data["tool"]["nonebot"]["plugins"] = []
         if name.replace("-", "_") not in data["tool"]["nonebot"]["plugins"]:
             data["tool"]["nonebot"]["plugins"].append(name.replace("-", "_"))
-    with open("pyproject.toml", "w") as f:
+    with open("pyproject.toml", "w", encoding="utf-8") as f:
         toml.dump(data, f)
     click.echo(
         success(f"Plugin {name} added to pyproject.toml and installed successfully.")
@@ -140,16 +140,16 @@ def new(name: str):
     os.makedirs(plugin_dir, exist_ok=True)
 
     # 创建插件文件
-    with open(plugin_dir / "__init__.py", "w") as f:
+    with open(plugin_dir / "__init__.py", "w", encoding="utf-8") as f:
         f.write(
             f"from . import {name.replace('-', '_')}\n\n__all__ = ['{name.replace('-', '_')}']\n"
         )
 
-    with open(plugin_dir / f"{name.replace('-', '_')}.py", "w") as f:
+    with open(plugin_dir / f"{name.replace('-', '_')}.py", "w", encoding="utf-8") as f:
         f.write(EXAMPLE_PLUGIN.format(name=name.replace("-", "_")))
 
     # 创建配置文件
-    with open(plugin_dir / "config.py", "w") as f:
+    with open(plugin_dir / "config.py", "w", encoding="utf-8") as f:
         f.write(EXAMPLE_PLUGIN_CONFIG.format(name=name.replace("-", "_")))
 
     click.echo(success(f"Plugin {name} created successfully!"))
