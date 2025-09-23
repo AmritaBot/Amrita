@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import importlib
 import importlib.metadata
-import os
+import platform
 import sys
 import typing
 
@@ -55,7 +55,7 @@ async def _(request: Request):
             "system_info": {  # 系统信息
                 "os": sys_info["system_version"],
                 "python_version": sys.version,
-                "hostname": os.uname().nodename,
+                "hostname": platform.node(),
             },
         },
     )
