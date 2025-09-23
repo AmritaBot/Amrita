@@ -22,7 +22,7 @@ class SideBarCategory(BaseModel):
 class SideBar(BaseModel):
     items: list[SideBarCategory] = [
         SideBarCategory(
-            name="控制台", icon="fa fa-dashboard", url="/dashboard", active=False
+            name="仪表盘", icon="fa fa-dashboard", url="/dashboard", active=False
         ),
         SideBarCategory(
             name="机器人管理",

@@ -113,7 +113,7 @@ async def dashboard(request: Request):
         }
     side_bar = SideBarManager().get_sidebar_dump()
     for bar in side_bar:
-        if bar.get("name") == "控制台":
+        if bar.get("name") == "仪表盘":
             bar["active"] = True
             break
     events = (await LoggingData.get()).data[-20:]

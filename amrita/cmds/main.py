@@ -176,24 +176,24 @@ def create(project_name, description, python_version, this_dir):
         )
     ).model_dump()
 
-    with open(project_dir / "pyproject.toml", "w") as f:
+    with open(project_dir / "pyproject.toml", "w", encoding="utf-8") as f:
         f.write(toml.dumps(data))
 
     # 创建其他项目文件
     if not (project_dir / ".env").exists():
-        with open(project_dir / ".env", "w") as f:
+        with open(project_dir / ".env", "w", encoding="utf-8") as f:
             f.write(DOTENV)
     if not (project_dir / ".env.prod").exists():
-        with open(project_dir / ".env.prod", "w") as f:
+        with open(project_dir / ".env.prod", "w", encoding="utf-8") as f:
             f.write(DOTENV_PROD)
     if not (project_dir / ".env.dev").exists():
-        with open(project_dir / ".env.dev", "w") as f:
+        with open(project_dir / ".env.dev", "w", encoding="utf-8") as f:
             f.write(DOTENV_DEV)
-    with open(project_dir / ".gitignore", "w") as f:
+    with open(project_dir / ".gitignore", "w", encoding="utf-8") as f:
         f.write(GITIGNORE)
-    with open(project_dir / "README.md", "w") as f:
+    with open(project_dir / "README.md", "w", encoding="utf-8") as f:
         f.write(README.format(project_name=project_name))
-    with open(project_dir / ".python-version", "w") as f:
+    with open(project_dir / ".python-version", "w", encoding="utf-8") as f:
         f.write("3.10\n")
     # 安装依赖
     if click.confirm(
@@ -225,7 +225,9 @@ def entry():
         click.echo(error("bot.py already exists."))
         return
     with open("bot.py", "w") as f:
-        f.write(open(str(Path(__file__).parent.parent / "bot.py")).read())
+        f.write(
+            open(str(Path(__file__).parent.parent / "bot.py"), encoding="utf-8").read()
+        )
 
 
 @cli.command()
@@ -323,21 +325,21 @@ def init(description):
         )
     ).model_dump()
     if not (cwd / ".env").exists():
-        with open(cwd / ".env", "w") as f:
+        with open(cwd / ".env", "w", encoding="utf-8") as f:
             f.write(DOTENV)
     if not (cwd / ".env.prod").exists():
-        with open(cwd / ".env.prod", "w") as f:
+        with open(cwd / ".env.prod", "w", encoding="utf-8") as f:
             f.write(DOTENV_PROD)
     if not (cwd / ".env.dev").exists():
-        with open(cwd / ".env.dev", "w") as f:
+        with open(cwd / ".env.dev", "w", encoding="utf-8") as f:
             f.write(DOTENV_DEV)
-    with open(cwd / "pyproject.toml", "w") as f:
+    with open(cwd / "pyproject.toml", "w", encoding="utf-8") as f:
         f.write(toml.dumps(data))
-    with open(cwd / ".gitignore", "w") as f:
+    with open(cwd / ".gitignore", "w", encoding="utf-8") as f:
         f.write(GITIGNORE)
-    with open(cwd / "README.md", "w") as f:
+    with open(cwd / "README.md", "w", encoding="utf-8") as f:
         f.write(README.format(project_name=project_name))
-    with open(cwd / ".python-version", "w") as f:
+    with open(cwd / ".python-version", "w", encoding="utf-8") as f:
         f.write("3.10\n")
 
     # 安装依赖
@@ -361,7 +363,7 @@ def proj_info():
         return
 
     try:
-        with open("pyproject.toml") as f:
+        with open("pyproject.toml", encoding="utf-8") as f:
             data = toml.load(f)
 
         project_info = data.get("project", {})
