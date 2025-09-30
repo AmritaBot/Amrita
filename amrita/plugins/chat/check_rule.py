@@ -80,7 +80,7 @@ async def should_respond_to_message(event: MessageEvent, bot: Bot) -> bool:
     if "at" in config_manager.config.autoreply.keywords:  # 如果配置为 at 开头
         if event.is_tome():  # 判断是否 @ 了机器人
             return True
-    elif any(
+    if any(
         message_text.startswith(kw)
         for kw in config_manager.config.autoreply.keywords
         if kw != "at"

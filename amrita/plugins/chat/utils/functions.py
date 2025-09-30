@@ -74,7 +74,7 @@ def format_datetime_timestamp(time: int) -> str:
 
 # 在文件顶部预编译正则表达式
 SENTENCE_DELIMITER_PATTERN = re.compile(
-    r'([。！？!?~\.;；:：\n]+)[""\'\'"\s]*', re.UNICODE
+    r'([。！？!?;；\n]+)[""\'\'"\s]*', re.UNICODE
 )
 
 
