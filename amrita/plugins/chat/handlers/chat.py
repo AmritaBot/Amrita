@@ -247,7 +247,7 @@ async def chat(event: MessageEvent, matcher: Matcher, bot: Bot):
                 + [
                     ImageContent(image_url=ImageUrl(url=seg.data["url"]))
                     for seg in event.message
-                    if seg.data.get("type") == "image" and seg.data.get("url")
+                    if seg.type == "image" and seg.data.get("url")
                 ]
                 if is_multimodal
                 else f"[{role}][{Date}][{user_name}（{user_id}）]说:{content}"
@@ -328,7 +328,7 @@ async def chat(event: MessageEvent, matcher: Matcher, bot: Bot):
                 + [
                     ImageContent(image_url=ImageUrl(url=seg.data["url"]))
                     for seg in event.message
-                    if seg.data.get("type") == "image" and seg.data.get("url")
+                    if seg.type == "image" and "url" in seg.data
                 ]
                 if is_multimodal
                 else f"{Date}{await get_friend_name(event.user_id, bot=bot)}（{event.user_id}）： {content!s}"
