@@ -38,8 +38,10 @@ jobs:
           pylance-version: latest-release
       - name: Run Load Test
         run: |
+          echo "ADMIN_GROUP=1" > .env
           source ./.venv/bin/activate
           uv run amrita test
+          
       - name: Check code format
         uses: astral-sh/ruff-action@v3
         with:
