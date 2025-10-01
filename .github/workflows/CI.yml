@@ -43,7 +43,8 @@ jobs:
           uv run nb orm upgrade
       - name: Run Load Test
         run: |
-          echo "ADMIN_GROUP=1" > .env
+          echo "ADMIN_GROUP=1" >> .env
+          echo "LOG_LEVEL=DEBUG" >> .env
           source ./.venv/bin/activate
           uv run amrita test
 
