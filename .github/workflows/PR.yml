@@ -2,9 +2,9 @@ name: Pull Requests CI/CD Pipeline
 
 on:
   pull_request:
-     branches:
+    branches:
       - "**"
-     paths:
+    paths:
       - "**"
 
 jobs:
@@ -36,9 +36,14 @@ jobs:
         with:
           python-path: ${{ env.PYTHON_BIN }}
           pylance-version: latest-release
+      - name: Setup database
+        run: |
+          source ./.venv/bin/activate
+          echo "DATABASE_URL=aiosqlite+:///db.sqlite3" > .env
+          uv run nb orm upgrade
       - name: Run Load Test
         run: |
-          echo "ADMIN_GROUP=1" > .env
+          echo "ADMIN_GROUP=1" >> .env
           source ./.venv/bin/activate
           uv run amrita test
 
@@ -46,6 +51,6 @@ jobs:
         uses: astral-sh/ruff-action@v3
         with:
           args: check . --exit-non-zero-on-fix
-        
+
       - name: Build package
         run: uv build # 生成构建产物到dist目录
