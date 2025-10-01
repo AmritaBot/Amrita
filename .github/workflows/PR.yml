@@ -8,7 +8,7 @@ on:
       - "**"
 
 jobs:
-  build:
+  check:
     runs-on: ubuntu-latest
 
     steps:
@@ -41,7 +41,7 @@ jobs:
           echo "ADMIN_GROUP=1" > .env
           source ./.venv/bin/activate
           uv run amrita test
-          
+
       - name: Check code format
         uses: astral-sh/ruff-action@v3
         with:
