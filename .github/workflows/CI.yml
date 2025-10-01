@@ -36,6 +36,10 @@ jobs:
         with:
           python-path: ${{ env.PYTHON_BIN }}
           pylance-version: latest-release
+      - name: Run Load Test
+        run: |
+          source ./.venv/bin/activate
+          uv run amrita test
 
       - name: Check code format
         uses: astral-sh/ruff-action@v3

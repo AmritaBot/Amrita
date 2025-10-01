@@ -28,6 +28,7 @@ from nonebot.exception import NoneBotException
 from nonebot.matcher import Matcher
 
 from ..chatmanager import SessionTemp, chat_manager
+from ..check_rule import FakeEvent
 from ..config import config_manager
 from ..event import BeforeChatEvent, ChatEvent
 from ..exception import CancelException
@@ -41,7 +42,7 @@ from ..utils.functions import (
     split_message_into_chats,
     synthesize_message,
 )
-from ..utils.libchat import FakeEvent, get_chat
+from ..utils.libchat import get_chat
 from ..utils.lock import get_group_lock, get_private_lock
 from ..utils.memory import (
     Memory,

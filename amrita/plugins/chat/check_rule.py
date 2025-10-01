@@ -10,9 +10,9 @@ from nonebot.adapters.onebot.v11.event import (
     GroupMessageEvent,
     MessageEvent,
 )
-from nonebot.matcher import Matcher
+from typing_extensions import override
 
-from amrita.plugins.chat.utils.libchat import FakeEvent, usage_enough
+from amrita.plugins.chat.utils.libchat import usage_enough
 
 from .config import config_manager
 from .utils.functions import (
@@ -22,6 +22,16 @@ from .utils.functions import (
 from .utils.memory import Message, get_memory_data
 
 nb_config = get_driver().config
+
+
+class FakeEvent(Event):
+    """伪造事件类，用于模拟用户事件"""
+
+    user_id: int
+
+    @override
+    def get_user_id(self) -> str:
+        return str(self.user_id)
 
 
 async def is_bot_enabled(event: Event) -> bool:
@@ -166,9 +176,7 @@ async def should_respond_to_message(event: MessageEvent, bot: Bot) -> bool:
     return False
 
 
-async def should_respond_with_usage_check(
-    event: MessageEvent, bot: Bot, matcher: Matcher
-) -> bool:
+async def should_respond_with_usage_check(event: MessageEvent, bot: Bot) -> bool:
     if await should_respond_to_message(event, bot):
         if not await usage_enough(event) or not (
             await usage_enough(
@@ -179,7 +187,8 @@ async def should_respond_with_usage_check(
         ):
             if event.is_tome():
                 with contextlib.suppress(Exception):
-                    await matcher.send("今天的聊天额度已经用完了～")
+                    await bot.send(event, "今天的聊天额度已经用完了～")
+                    return False
             return False
         return True
     return False
