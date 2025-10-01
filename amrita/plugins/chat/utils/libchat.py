@@ -22,7 +22,6 @@ from openai.types.chat.chat_completion_tool_choice_option_param import (
 from typing_extensions import override
 
 from ..chatmanager import chat_manager
-from ..check_rule import is_bot_admin
 from ..config import config_manager
 from ..utils.llm_tools.models import ToolFunctionSchema
 from ..utils.models import InsightsModel
@@ -41,6 +40,8 @@ from .protocol import (
 
 
 async def usage_enough(event: Event) -> bool:
+    from ..check_rule import is_bot_admin
+
     config = config_manager.config
     if not config.usage_limit.enable_usage_limit:
         return True

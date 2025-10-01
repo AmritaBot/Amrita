@@ -1,4 +1,5 @@
 import re
+from functools import lru_cache
 from typing import Literal
 
 import jieba
@@ -6,6 +7,7 @@ import jieba
 jieba.initialize()
 
 
+@lru_cache(maxsize=2048)
 def hybrid_token_count(
     text: str,
     mode: Literal["word", "bpe", "char"] = "word",

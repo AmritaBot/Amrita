@@ -12,7 +12,7 @@ from .check_rule import (
     is_bot_enabled,
     is_group_admin,
     is_group_admin_if_is_in_group,
-    should_respond_to_message,
+    should_respond_with_usage_check,
 )
 from .handlers.add_notices import add_notices
 from .handlers.chat import chat
@@ -53,7 +53,7 @@ base_matcher.on_notice(
 base_matcher.on_message(
     block=False,
     priority=11,
-    rule=Rule(should_respond_to_message, is_bot_enabled),
+    rule=Rule(should_respond_with_usage_check, is_bot_enabled),
 ).append_handler(chat)
 
 # 添加各种命令处理器

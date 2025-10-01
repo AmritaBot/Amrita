@@ -19,7 +19,6 @@ from nonebot.adapters.onebot.v11 import (
     MessageSegment,
 )
 from nonebot.adapters.onebot.v11.event import (
-    Event,
     GroupMessageEvent,
     MessageEvent,
     PrivateMessageEvent,
@@ -27,9 +26,9 @@ from nonebot.adapters.onebot.v11.event import (
 )
 from nonebot.exception import NoneBotException
 from nonebot.matcher import Matcher
-from typing_extensions import override
 
 from ..chatmanager import SessionTemp, chat_manager
+from ..check_rule import FakeEvent
 from ..config import config_manager
 from ..event import BeforeChatEvent, ChatEvent
 from ..exception import CancelException
@@ -43,7 +42,7 @@ from ..utils.functions import (
     split_message_into_chats,
     synthesize_message,
 )
-from ..utils.libchat import get_chat, usage_enough
+from ..utils.libchat import get_chat
 from ..utils.lock import get_group_lock, get_private_lock
 from ..utils.memory import (
     Memory,
@@ -63,16 +62,6 @@ from ..utils.protocol import UniResponse
 from ..utils.tokenizer import hybrid_token_count
 
 command_prefix = get_driver().config.command_start or "/"
-
-
-class FakeEvent(Event):
-    """伪造事件类，用于模拟用户事件"""
-
-    user_id: int
-
-    @override
-    def get_user_id(self) -> str:
-        return str(self.user_id)
 
 
 async def get_tokens(
@@ -656,10 +645,6 @@ async def chat(event: MessageEvent, matcher: Matcher, bot: Bot):
 
     try:
         data = await get_memory_data(event)
-        if not await usage_enough(event) or not await usage_enough(
-            FakeEvent(time=0, self_id=0, post_type="", user_id=event.user_id)
-        ):
-            await matcher.finish("今天的聊天额度已经用完了～")
         if isinstance(event, GroupMessageEvent):
             async with get_group_lock(event.group_id):
                 await handle_group_message(
