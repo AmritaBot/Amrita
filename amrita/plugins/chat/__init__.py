@@ -2,6 +2,7 @@ from nonebot.plugin import PluginMetadata, require
 
 require("amrita.plugins.perm")
 require("amrita.plugins.menu")
+# require("amrita.plugins.webui")
 require("nonebot_plugin_orm")
 require("nonebot_plugin_localstore")
 
