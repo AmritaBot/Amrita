@@ -40,6 +40,16 @@ from .protocol import (
 )
 
 
+class FakeEvent(Event):
+    """伪造事件类，用于模拟用户事件"""
+
+    user_id: int
+
+    @override
+    def get_user_id(self) -> str:
+        return str(self.user_id)
+
+
 async def usage_enough(event: Event) -> bool:
     config = config_manager.config
     if not config.usage_limit.enable_usage_limit:

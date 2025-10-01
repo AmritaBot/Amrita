@@ -10,6 +10,9 @@ from nonebot.adapters.onebot.v11.event import (
     GroupMessageEvent,
     MessageEvent,
 )
+from nonebot.matcher import Matcher
+
+from amrita.plugins.chat.utils.libchat import FakeEvent, usage_enough
 
 from .config import config_manager
 from .utils.functions import (
@@ -71,8 +74,6 @@ async def should_respond_to_message(event: MessageEvent, bot: Bot) -> bool:
 
     message = event.get_message()
     message_text = message.extract_plain_text().strip()
-
-    # 如果不是群聊消息，直接返回 True
     if not isinstance(event, GroupMessageEvent):
         return True
 
@@ -162,4 +163,23 @@ async def should_respond_to_message(event: MessageEvent, bot: Bot) -> bool:
         await memory_data.save(event)
 
     # 默认返回 False
+    return False
+
+
+async def should_respond_with_usage_check(
+    event: MessageEvent, bot: Bot, matcher: Matcher
+) -> bool:
+    if await should_respond_to_message(event, bot):
+        if not await usage_enough(event) or not (
+            await usage_enough(
+                FakeEvent(time=0, self_id=0, post_type="", user_id=event.user_id)
+            )
+            if isinstance(event, GroupMessageEvent)
+            else True
+        ):
+            if event.is_tome():
+                with contextlib.suppress(Exception):
+                    await matcher.send("今天的聊天额度已经用完了～")
+            return False
+        return True
     return False
