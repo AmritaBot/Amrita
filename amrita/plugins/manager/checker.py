@@ -1,3 +1,4 @@
+import asyncio
 import contextlib
 from collections import defaultdict
 from typing import Any
@@ -77,11 +78,14 @@ async def _(event: MessageEvent, matcher: Matcher, args: Message = CommandArg())
 
 @on_message(priority=1, block=False).handle()
 async def _(bot: Bot):
-    try:
-        logger.debug("Received message.")
-        await add_usage(bot.self_id, 1, 0)
-    except Exception as e:
-        logger.warning(e)
+    async def _add():
+        try:
+            logger.debug("Received message.")
+            await add_usage(bot.self_id, 1, 0)
+        except Exception as e:
+            logger.warning(e)
+
+    asyncio.create_task(_add())  # noqa: RUF006
 
 
 @run_preprocessor
@@ -117,11 +121,14 @@ async def run(matcher: Matcher, event: MessageEvent):
 
 @Bot.on_calling_api
 async def handle_api_call(bot: Bot, api: str, data: dict[str, Any]):
-    if "send" in api and "msg" in api:
-        try:
-            await add_usage(bot.self_id, 0, 1)
-        except Exception as e:
-            logger.warning(e)
+    async def _add():
+        if "send" in api and "msg" in api:
+            try:
+                await add_usage(bot.self_id, 0, 1)
+            except Exception as e:
+                logger.warning(e)
+
+    asyncio.create_task(_add())  # noqa: RUF006
 
 
 class Status(BaseModel):

@@ -1,11 +1,11 @@
 from nonebot import logger
-from nonebot.adapters.onebot.v11 import Bot, GroupMessageEvent
+from nonebot.adapters.onebot.v11 import GroupMessageEvent
 from nonebot.matcher import Matcher
 
 from ..utils.memory import get_memory_data
 
 
-async def enable(bot: Bot, event: GroupMessageEvent, matcher: Matcher):
+async def enable(event: GroupMessageEvent, matcher: Matcher):
     """处理启用聊天功能的命令"""
 
     # 记录日志
