@@ -143,6 +143,7 @@ async def write_memory_data(
     raise_err: bool,
 ) -> None:
     """将记忆数据写入对应的文件"""
+
     async with session:
         try:
             if chat_manager.debug:

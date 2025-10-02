@@ -77,7 +77,6 @@ async def get_tokens(
         包含token使用情况的对象
     """
     memory_l = [i.model_dump() for i in memory]
-    full_string = ""
     if (
         response.usage is not None
         and response.usage.total_tokens is not None
@@ -85,16 +84,15 @@ async def get_tokens(
         and response.usage.prompt_tokens is not None
     ):
         return response.usage
-    full_string = ""
+    it = 0
     for st in memory_l:
-        if isinstance(st["content"], str):
-            full_string += st["content"]
-        else:
-            temp_string = "".join(
-                s["text"] for s in st["content"] if s["type"] == "text"
-            )
-            full_string += temp_string
-    it = hybrid_token_count(full_string)
+        temp_string = (
+            st["content"]
+            if isinstance(st["content"], str)
+            else "".join(s["text"] for s in st["content"] if s["type"] == "text")
+        )
+        it += hybrid_token_count(temp_string)
+
     ot = hybrid_token_count(response.content)
     return UniResponseUsage(
         prompt_tokens=it, total_tokens=it + ot, completion_tokens=ot
