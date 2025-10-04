@@ -88,7 +88,7 @@ async def test_presets() -> typing.AsyncGenerator[PresetReport, None]:
                 token_prompt=prompt_tokens,
                 token_completion=0,
                 status=False,
-                message="未定义的协议适配器: " + preset.protocol,
+                message=f"未定义的协议适配器: {preset.protocol}",
                 time_used=0,
             )
 
