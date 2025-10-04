@@ -91,7 +91,7 @@ async def test_presets() -> typing.AsyncGenerator[PresetReport, None]:
                 message=f"未定义的协议适配器: {preset.protocol}",
                 time_used=0,
             )
-            return
+            continue
         try:
             time_start = time.time()
             logger.debug(f"正在调用预设：{preset.name}...")
