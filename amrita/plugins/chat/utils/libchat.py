@@ -199,6 +199,8 @@ async def tools_caller(
 ):
     has_multimodal_content = False
     for msg in messages:
+        if isinstance(msg.content, str):
+            continue
         for content in msg.content:
             if not isinstance(content, TextContent):
                 has_multimodal_content = True
