@@ -8,14 +8,14 @@ class SideBarItem(BaseModel):
     name: str
     icon: str | None = None
     url: str | None = None
-    active: bool = True
+    active: bool = False
 
 
 class SideBarCategory(BaseModel):
     name: str
     icon: str | None = None
     url: str | None = None
-    active: bool = True
+    active: bool = False
     children: list[SideBarItem] = []
 
 
@@ -44,9 +44,6 @@ class SideBar(BaseModel):
                 SideBarItem(name="权限管理", url="/users/permissions", active=False),
                 SideBarItem(name="黑名单管理", url="/user/blacklist", active=False),
             ],
-        ),
-        SideBarCategory(
-            name="其他功能", icon="fas fa-cog", url="#", active=False, children=[]
         ),
     ]
 

@@ -1,0 +1,36 @@
+{%extends base_html%} {% block title %}Chat模块信息仪表盘{% endblock %} {% block
+topbar_title %}Chat信息仪表盘{% endblock %} {% block content %}
+<div class="container">
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-icon green">
+        <i class="fas fa-arrow-down"></i>
+      </div>
+      <div class="stat-info">
+        <h3>{{ token_prompt }}</h3>
+        <p>今日Tokens输入</p>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon orange">
+        <i class="fas fa-rocket"></i>
+      </div>
+      <div class="stat-info">
+        <h3>{{ token_prompt }}</h3>
+        <p>今日Tokens输出</p>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon blue">
+        <i class="fas fa-calculator"></i>
+      </div>
+      <div class="stat-info">
+        <h3>{{ usage_count }}</h3>
+        <p>今日Tokens总消耗</p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %} {%block scripts%}
+<script></script>
+{%endblock%}

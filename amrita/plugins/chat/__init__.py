@@ -2,7 +2,7 @@ from nonebot.plugin import PluginMetadata, require
 
 require("amrita.plugins.perm")
 require("amrita.plugins.menu")
-# require("amrita.plugins.webui")
+require("amrita.plugins.webui")
 require("nonebot_plugin_orm")
 require("nonebot_plugin_localstore")
 
@@ -12,6 +12,7 @@ from . import (
     builtin_hook,
     config,
     matcher_manager,
+    page,
     preprocess,
 )
 
@@ -20,6 +21,7 @@ __all__ = [
     "builtin_hook",
     "config",
     "matcher_manager",
+    "page",
     "preprocess",
 ]
 

@@ -5,12 +5,13 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import Request
+from fastapi.responses import HTMLResponse, JSONResponse
 from nonebot import logger
 from starlette.templating import _TemplateResponse
 
 from .service.authlib import AuthManager, OnetimeTokenData, TokenData, TokenManager
 from .service.main import TEMPLATES_PATH, TemplatesManager, app, templates
-from .service.sidebar import SideBarItem, SideBarManager
+from .service.sidebar import SideBarCategory, SideBarItem, SideBarManager
 
 
 @dataclass
@@ -49,7 +50,7 @@ def on_page(
     Args:
         path (str): 页面的URL路径
         page_name (str): 页面名称，将显示在侧边栏中
-        category (str, optional): 页面所属的分类，默认为"其他功能"
+        category (str, optional): 页面所属的分类，分类不存在时将创建一个分类
         icon (str | None, optional): 页面图标，用于在侧边栏中显示
 
     Returns:
@@ -58,37 +59,54 @@ def on_page(
 
     def decorator(func: Callable[[PageContext], Awaitable[PageResponse]]):
         # 将当前页面添加到侧边栏对应分类中
+        if not any(
+            cate.name == category for cate in SideBarManager().get_sidebar().items
+        ):
+            SideBarManager().add_sidebar_category(
+                SideBarCategory(name=category, icon="fa fa-question", url="#")
+            )
         SideBarManager().add_sidebar_item(
             category, SideBarItem(name=page_name, url=path, icon=icon)
         )
-
+        page_path = path
         async def route(request: Request) -> _TemplateResponse:
             # 深拷贝侧边栏数据，避免修改原始数据
             side_bar = deepcopy(SideBarManager().get_sidebar().items)
+            logger.debug(page_path)
             # 设置当前分类和页面为激活状态
-            for bar in side_bar:
-                if bar.name == category:
-                    bar.active = True
-                    for item in bar.children:
-                        if item.name == page_name:
-                            item.active = True
-                            break
-                    break
-            else:
-                logger.warning(f"Invalid page category `{category}` for page {path}")
+            if request.url.path == page_path:
+                for bar in side_bar:
+                    if bar.name == category:
+                        bar.active = True
+                        for item in bar.children:
+                            if item.name == page_name:
+                                item.active = True
+                                break
+                        break
+                else:
+                    logger.warning(
+                        f"Invalid page category `{category}` for page {path}"
+                    )
 
             # 构造页面上下文并调用实际的处理函数
             ctx = PageContext(request, AuthManager(), TokenManager())
             page = await func(ctx)
+
+            # 构建模板上下文
+            context = page.context
+            # 更新页面特定的上下文
+            context.update(
+                {
+                    "sidebar_items": [a.model_dump() for a in side_bar],
+                    "debug": app.debug,
+                    "base_html": "base.html",
+                }
+            )
+
             return TemplatesManager().TemplateResponse(
                 request,
                 page.name,
-                {
-                    "request": request,
-                    "side_bar": side_bar,
-                    "debug": app.debug,
-                    "base_html": str(TemplatesManager().get_base_html_path()),
-                }.update(page.context),
+                context,
                 status_code=page.status_code,
                 headers=page.headers,
                 media_type=page.media_type,
@@ -107,6 +125,8 @@ def get_templates_dir() -> Path:
 __all__ = [
     "TEMPLATES_PATH",
     "AuthManager",
+    "HTMLResponse",
+    "JSONResponse",
     "OnetimeTokenData",
     "PageContext",
     "SideBarManager",
