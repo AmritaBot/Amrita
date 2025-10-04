@@ -115,6 +115,7 @@ class AutoReplyConfig(BaseModel):
     global_enable: bool = False
     probability: float = 1e-2
     keywords: list[str] = ["at"]
+    keywords_mode: Literal["starts_with", "contains"] = "starts_with"
 
 
 class FunctionConfig(BaseModel):
@@ -129,6 +130,7 @@ class FunctionConfig(BaseModel):
 
 class PresetSwitch(BaseModel):
     backup_preset_list: list[str] = []
+    multi_modal_preset_list: list[str] = []  # 多模态场景预设调用顺序
 
 
 class CookieModel(BaseModel):

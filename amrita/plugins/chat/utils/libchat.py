@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import time
 import typing
 from collections.abc import Iterable
 from copy import deepcopy
@@ -21,8 +22,10 @@ from openai.types.chat.chat_completion_tool_choice_option_param import (
 )
 from typing_extensions import override
 
+from amrita.plugins.chat.utils.tokenizer import hybrid_token_count
+
 from ..chatmanager import chat_manager
-from ..config import config_manager
+from ..config import ModelPreset, config_manager
 from ..utils.llm_tools.models import ToolFunctionSchema
 from ..utils.models import InsightsModel
 from ..utils.protocol import ToolCall
@@ -30,6 +33,7 @@ from .functions import remove_think_tag
 from .llm_tools.models import ToolChoice
 from .memory import BaseModel, Message, ToolResult, get_memory_data
 from .models import (
+    TextContent,
     UniResponse,
     UniResponseUsage,
 )
@@ -37,6 +41,91 @@ from .protocol import (
     AdapterManager,
     ModelAdapter,
 )
+
+TEST_MSG_PROMPT: Message[list[TextContent]] = Message(
+    role="system", content=[TextContent(text="You are a helpful assistant.")]
+)
+TEST_MSG_USER: Message[list[TextContent]] = Message(
+    role="user", content=[TextContent(text="你好，请简要介绍你自己。")]
+)
+
+TEST_MSG_LIST = [
+    TEST_MSG_PROMPT,
+    TEST_MSG_USER,
+]
+
+
+class PresetReport(BaseModel):
+    preset_name: str  # 预设名称
+    preset_data: ModelPreset  # 预设数据
+    test_input: tuple[Message, Message]  # 测试输入
+    test_output: Message | None  # 测试输出
+    token_prompt: int  # 提示词的token数
+    token_completion: int  # 回复的token数
+    status: bool  # 测试结果
+    message: str  # 测试结果信息
+    time_used: float
+
+
+async def test_presets() -> typing.AsyncGenerator[PresetReport, None]:
+    presets = await config_manager.get_all_presets(True)
+    logger.debug(f"开始测试所有(共计{len(presets)}个)预设...")
+    prompt_tokens = hybrid_token_count(
+        "".join(
+            [typing.cast(TextContent, msg.content[0]).text for msg in TEST_MSG_LIST]
+        )
+    )
+    for preset in presets:
+        logger.debug(f"正在测试预设：{preset.name}...")
+        adapter = AdapterManager().safe_get_adapter(preset.protocol)
+        if not adapter:
+            logger.warning(f"未定义的协议适配器：{preset.protocol}")
+            yield PresetReport(
+                preset_name=preset.name,
+                preset_data=preset,
+                test_input=(TEST_MSG_PROMPT, TEST_MSG_USER),
+                test_output=None,
+                token_prompt=prompt_tokens,
+                token_completion=0,
+                status=False,
+                message="未定义的协议适配器: " + preset.protocol,
+                time_used=0,
+            )
+
+        assert adapter
+        try:
+            time_start = time.time()
+            logger.debug(f"正在调用预设：{preset.name}...")
+            data = await adapter(preset, config_manager.config).call_api(TEST_MSG_LIST)
+            time_end = time.time()
+            time_delta = time_end - time_start
+            logger.debug(f"调用预设 {preset.name} 成功，耗时 {time_delta:.2f} 秒")
+            yield PresetReport(
+                preset_name=preset.name,
+                preset_data=preset,
+                test_input=(TEST_MSG_PROMPT, TEST_MSG_USER),
+                test_output=Message(
+                    content=[TextContent(type="text", text=data.content)]
+                ),
+                token_prompt=prompt_tokens,
+                token_completion=hybrid_token_count(data.content),
+                status=True,
+                message="",
+                time_used=time_delta,
+            )
+        except Exception as e:
+            logger.error(f"测试预设 {preset.name} 时发生错误：{e}")
+            yield PresetReport(
+                preset_name=preset.name,
+                preset_data=preset,
+                test_input=(TEST_MSG_PROMPT, TEST_MSG_USER),
+                test_output=None,
+                token_prompt=prompt_tokens,
+                token_completion=0,
+                status=False,
+                message=str(e),
+                time_used=0,
+            )
 
 
 async def usage_enough(event: Event) -> bool:
@@ -105,14 +194,31 @@ async def usage_enough(event: Event) -> bool:
 
 
 async def tools_caller(
-    messages: Iterable,
+    messages: Iterable[Message | ToolResult],
     tools: list,
     tool_choice: ToolChoice | None = None,
 ):
-    presets = [
-        config_manager.config.preset,
-        *config_manager.config.preset_extension.backup_preset_list,
-    ]
+    has_multimodal_content = False
+    for msg in messages:
+        for content in msg.content:
+            if not isinstance(content, TextContent):
+                has_multimodal_content = True
+                break
+        if has_multimodal_content:
+            break
+    if has_multimodal_content:
+        presets = config_manager.config.preset_extension.multi_modal_preset_list or [
+            config_manager.config.preset,
+        ] + [
+            preset
+            for preset in config_manager.config.preset_extension.backup_preset_list
+            if (await config_manager.get_preset(preset)).multimodal
+        ]
+    else:
+        presets = [
+            config_manager.config.preset,
+            *config_manager.config.preset_extension.backup_preset_list,
+        ]
     if not presets:
         raise ValueError("预设列表为空，无法继续处理。")
     err: Exception | None = None
@@ -139,18 +245,37 @@ async def tools_caller(
             err = e
             continue
     else:
-        raise err or RuntimeError("所有适配器调用失败")
+        raise RuntimeError("所有适配器调用失败") from err
 
 
 async def get_chat(
     messages: list[Message | ToolResult],
 ) -> UniResponse[str, None]:
     """获取聊天响应"""
-    presets = [
-        config_manager.config.preset,
-        *config_manager.config.preset_extension.backup_preset_list,
-    ]
-    assert presets
+    # 检查消息中是否包含非文本内容（如图片等）
+    has_multimodal_content = False
+    for msg in messages:
+        for content in msg.content:
+            if not isinstance(content, TextContent):
+                has_multimodal_content = True
+                break
+        if has_multimodal_content:
+            break
+    if has_multimodal_content:
+        presets = config_manager.config.preset_extension.multi_modal_preset_list or [
+            config_manager.config.preset,
+        ] + [
+            preset
+            for preset in config_manager.config.preset_extension.backup_preset_list
+            if (await config_manager.get_preset(preset)).multimodal
+        ]
+    else:
+        presets = [
+            config_manager.config.preset,
+            *config_manager.config.preset_extension.backup_preset_list,
+        ]
+    if not presets:
+        raise ValueError("预设列表为空，无法继续处理。")
     err: Exception | None = None
     for pname in presets:
         preset = await config_manager.get_preset(pname)
@@ -199,7 +324,7 @@ async def get_chat(
             continue
     else:
         logger.warning("所有适配器调用失败")
-        raise err or Exception("所有适配器调用失败")
+        raise Exception("所有适配器调用失败") from err
 
 
 class OpenAIAdapter(ModelAdapter):
