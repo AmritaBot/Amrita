@@ -261,8 +261,7 @@ async def _call_with_presets(
 
         try:
             adapter = adapter_class(preset, config_manager.config)
-            response = await call_func(adapter, *args, **kwargs)
-            return response
+            return await call_func(adapter, *args, **kwargs)
         except NotImplementedError:
             continue
         except Exception as e:
