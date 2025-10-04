@@ -5,6 +5,7 @@ from nonebot.adapters.onebot.v11 import Bot, Message, MessageEvent, MessageSegme
 from nonebot.matcher import Matcher
 from nonebot.params import CommandArg
 
+from amrita.plugins.chat.check_rule import is_bot_admin
 from amrita.plugins.chat.config import config_manager
 from amrita.plugins.chat.utils.libchat import PresetReport, test_presets
 from amrita.utils.send import send_forward_msg
@@ -15,6 +16,8 @@ TEST_LOCK = Lock()
 async def t_preset(
     event: MessageEvent, matcher: Matcher, bot: Bot, args: Message = CommandArg()
 ):
+    if not await is_bot_admin(event):
+        await matcher.finish("仅允许Bot管理员使用此命令。")
     if TEST_LOCK.locked():
         await matcher.finish("当前仍然有1个测试任务正在执行，请稍后再试。")
     async with TEST_LOCK:
