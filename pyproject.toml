@@ -1,6 +1,6 @@
 [project]
 name = "amrita"
-version = "0.3.1.1"
+version = "0.3.2"
 description = "A powerful bot framework powered by NoneBot2"
 readme = "README.md"
 license = "GPL-3.0-or-later"
