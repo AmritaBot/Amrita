@@ -27,7 +27,7 @@ async def t_preset(
         async for result in test_presets():
             results.append(result)
             await asyncio.sleep(0)
-        if "--detail" or "-d" in arg_list:
+        if "--detail" in arg_list or "-d" in arg_list:
             msg = [
                 MessageSegment.text(
                     f"测试结果：\n"
