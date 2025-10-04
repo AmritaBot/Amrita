@@ -10,6 +10,7 @@ import random
 import sys
 import time
 import traceback
+from collections.abc import AsyncGenerator
 from datetime import datetime
 from typing import Any
 
@@ -62,6 +63,11 @@ from ..utils.protocol import UniResponse
 from ..utils.tokenizer import hybrid_token_count
 
 command_prefix = get_driver().config.command_start or "/"
+
+
+# =============================================================================
+# TOKEN 相关函数
+# =============================================================================
 
 
 async def get_tokens(
@@ -152,6 +158,58 @@ async def enforce_token_limit(
     return tokens
 
 
+# =============================================================================
+# 消息处理相关函数
+# =============================================================================
+
+
+async def synthesize_message_to_msg(
+    event: MessageEvent,
+    role: str,
+    Date: str,
+    user_name: str,
+    user_id: str,
+    content: str,
+):
+    """将消息转换为Message"""
+    is_multimodal: bool = (
+        any(
+            [
+                (await config_manager.get_preset(preset=preset)).multimodal
+                for preset in [
+                    config_manager.config.preset,
+                    *config_manager.config.preset_extension.backup_preset_list,
+                ]
+            ]
+        )
+        or len(config_manager.config.preset_extension.multi_modal_preset_list) > 0
+    )
+
+    if config_manager.config.parse_segments:
+        text = (
+            [
+                TextContent(
+                    text=f"[{role}][{Date}][{user_name}（{user_id}）]说:{content}"
+                )
+            ]
+            + [
+                ImageContent(image_url=ImageUrl(url=seg.data["url"]))
+                for seg in event.message
+                if seg.type == "image" and seg.data.get("url")
+            ]
+            if is_multimodal
+            else f"[{role}][{Date}][{user_name}（{user_id}）]说:{content}"
+        )
+    else:
+        text = event.message.extract_plain_text()
+    return text
+
+
+# =============================================================================
+# 主聊天处理函数
+# =============================================================================
+
+
 async def chat(event: MessageEvent, matcher: Matcher, bot: Bot):
     """聊天处理主函数，根据消息类型（群聊或私聊）调用对应的处理逻辑。
 
@@ -160,6 +218,27 @@ async def chat(event: MessageEvent, matcher: Matcher, bot: Bot):
         matcher: 匹配器
         bot: Bot实例
     """
+
+    # -------------------------------------------------------------------------
+    # 内部辅助函数 - 图片处理
+    # -------------------------------------------------------------------------
+
+    async def handle_reply_pics(
+        reply: Reply | None,
+    ) -> AsyncGenerator[ImageContent, None]:
+        if not reply:
+            return
+        msg = reply.message
+        for seg in msg:
+            if seg.type == "image":
+                url = seg.data.get("url")
+                if url:
+                    yield ImageContent(image_url=ImageUrl(url=url))
+        return
+
+    # -------------------------------------------------------------------------
+    # 内部辅助函数 - 群聊消息处理
+    # -------------------------------------------------------------------------
 
     async def handle_group_message(
         event: GroupMessageEvent,
@@ -212,36 +291,13 @@ async def chat(event: MessageEvent, matcher: Matcher, bot: Bot):
         # 处理引用消息
         if event.reply:
             content = await handle_reply(event.reply, bot, group_id, content)
-
+        reply_pics = [pic async for pic in handle_reply_pics(event.reply)]
         # 记录用户消息
-        is_multimodal: bool = all(
-            [
-                (await config_manager.get_preset(preset=preset)).multimodal
-                for preset in [
-                    config_manager.config.preset,
-                    *config_manager.config.preset_extension.backup_preset_list,
-                ]
-            ]
+        text = await synthesize_message_to_msg(
+            event, role, Date, str(user_name), str(user_id), content
         )
-
-        if config_manager.config.parse_segments:
-            text = (
-                [
-                    TextContent(
-                        text=f"[{role}][{Date}][{user_name}（{user_id}）]说:{content}"
-                    )
-                ]
-                + [
-                    ImageContent(image_url=ImageUrl(url=seg.data["url"]))
-                    for seg in event.message
-                    if seg.type == "image" and seg.data.get("url")
-                ]
-                if is_multimodal
-                else f"[{role}][{Date}][{user_name}（{user_id}）]说:{content}"
-            )
-        else:
-            text = event.message.extract_plain_text()
-
+        if isinstance(text, list):
+            text += reply_pics
         data.memory.messages.append(Message(role="user", content=text))
         if chat_manager.debug:
             logger.debug(f"当前群组提示词：\n{config_manager.group_train}")
@@ -255,6 +311,10 @@ async def chat(event: MessageEvent, matcher: Matcher, bot: Bot):
         response = await process_chat(event, send_messages)
 
         await send_response(event, response.content)
+
+    # -------------------------------------------------------------------------
+    # 内部辅助函数 - 私聊消息处理
+    # -------------------------------------------------------------------------
 
     async def handle_private_message(
         event: PrivateMessageEvent,
@@ -293,35 +353,14 @@ async def chat(event: MessageEvent, matcher: Matcher, bot: Bot):
         # 处理引用消息
         if event.reply:
             content = await handle_reply(event.reply, bot, None, content)
-
-        # 记录用户消息
-        is_multimodal: bool = all(
-            [
-                (await config_manager.get_preset(preset=preset)).multimodal
-                for preset in [
-                    config_manager.config.preset,
-                    *config_manager.config.preset_extension.backup_preset_list,
-                ]
-            ]
+        user_name = await get_friend_name(event.user_id, bot=bot)
+        text = await synthesize_message_to_msg(
+            event, "", Date, str(user_name), str(event.user_id), content
         )
-
-        if config_manager.config.parse_segments:
-            text = (
-                [
-                    TextContent(
-                        text=f"{Date}{await get_friend_name(event.user_id, bot=bot)}（{event.user_id}）： {content!s}"
-                    )
-                ]
-                + [
-                    ImageContent(image_url=ImageUrl(url=seg.data["url"]))
-                    for seg in event.message
-                    if seg.type == "image" and "url" in seg.data
-                ]
-                if is_multimodal
-                else f"{Date}{await get_friend_name(event.user_id, bot=bot)}（{event.user_id}）： {content!s}"
-            )
-        else:
-            text = event.message.extract_plain_text()
+        reply_pics = [pic async for pic in handle_reply_pics(event.reply)]
+        if isinstance(text, list):
+            text += reply_pics
+        # 记录用户消息
         data.memory.messages.append(Message(role="user", content=text))
         if chat_manager.debug:
             logger.debug(f"当前私聊提示词：\n{config_manager.private_train}")
@@ -334,6 +373,10 @@ async def chat(event: MessageEvent, matcher: Matcher, bot: Bot):
         )
         response = await process_chat(event, send_messages)
         await send_response(event, response.content)
+
+    # -------------------------------------------------------------------------
+    # 内部辅助函数 - 会话管理
+    # -------------------------------------------------------------------------
 
     async def manage_sessions(
         event: GroupMessageEvent | PrivateMessageEvent,
@@ -410,6 +453,10 @@ async def chat(event: MessageEvent, matcher: Matcher, bot: Bot):
             finally:
                 data.timestamp = time.time()
 
+    # -------------------------------------------------------------------------
+    # 内部辅助函数 - 引用消息处理
+    # -------------------------------------------------------------------------
+
     async def handle_reply(
         reply: Reply, bot: Bot, group_id: int | None, content: str
     ) -> str:
@@ -434,8 +481,13 @@ async def chat(event: MessageEvent, matcher: Matcher, bot: Bot):
         role = (
             await get_user_role(bot, group_id, reply.sender.user_id) if group_id else ""
         )
+
         reply_content = await synthesize_message(reply.message, bot)
         return f"{content}\n（（（引用的消息）））：\n{formatted_time} {weekday} [{role}]{reply.sender.nickname}（QQ:{reply.sender.user_id}）说：{reply_content}"
+
+    # -------------------------------------------------------------------------
+    # 内部辅助函数 - 用户角色获取
+    # -------------------------------------------------------------------------
 
     async def get_user_role(bot: Bot, group_id: int, user_id: int) -> str:
         """获取用户在群聊中的身份（群主、管理员或普通成员）。
@@ -454,6 +506,10 @@ async def chat(event: MessageEvent, matcher: Matcher, bot: Bot):
         return {"admin": "群管理员", "owner": "群主", "member": "普通成员"}.get(
             role, "[获取身份失败]"
         )
+
+    # -------------------------------------------------------------------------
+    # 内部辅助函数 - 记忆长度限制
+    # -------------------------------------------------------------------------
 
     async def enforce_memory_limit(data: MemoryModel, memory_length_limit: int):
         """控制记忆长度，删除超出限制的旧消息，移除不支持的消息。
@@ -488,6 +544,10 @@ async def chat(event: MessageEvent, matcher: Matcher, bot: Bot):
             else:
                 break
 
+    # -------------------------------------------------------------------------
+    # 内部辅助函数 - 准备发送消息
+    # -------------------------------------------------------------------------
+
     def prepare_send_messages(data: MemoryModel, train: dict[str, str]) -> list:
         """准备发送给聊天模型的消息列表，包括系统提示词数据和上下文。
 
@@ -516,6 +576,10 @@ async def chat(event: MessageEvent, matcher: Matcher, bot: Bot):
         send_messages = copy.deepcopy(data.memory.messages)
         send_messages.insert(0, Message.model_validate(train))
         return send_messages
+
+    # -------------------------------------------------------------------------
+    # 内部辅助函数 - 处理聊天
+    # -------------------------------------------------------------------------
 
     async def process_chat(
         event: MessageEvent, send_messages: list[Message | ToolResult]
@@ -593,6 +657,10 @@ async def chat(event: MessageEvent, matcher: Matcher, bot: Bot):
 
         return response
 
+    # -------------------------------------------------------------------------
+    # 内部辅助函数 - 发送响应
+    # -------------------------------------------------------------------------
+
     async def send_response(event: MessageEvent, response: str):
         """发送聊天模型的回复，根据配置选择不同的发送方式。
 
@@ -610,6 +678,10 @@ async def chat(event: MessageEvent, matcher: Matcher, bot: Bot):
                 await asyncio.sleep(
                     random.randint(1, 3) + (len(message) // random.randint(80, 100))
                 )
+
+    # -------------------------------------------------------------------------
+    # 内部辅助函数 - 异常处理
+    # -------------------------------------------------------------------------
 
     async def handle_exception(e: BaseException):
         """处理异常：

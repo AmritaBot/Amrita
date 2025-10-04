@@ -26,8 +26,7 @@ class ModelAdapter:
             AdapterManager().register_adapter(cls)
 
     @abstractmethod
-    async def call_api(self, messages: Iterable[Any]) -> UniResponse[str, None]:
-        raise NotImplementedError
+    async def call_api(self, messages: Iterable[Any]) -> UniResponse[str, None]: ...
 
     async def call_tools(
         self,
@@ -39,8 +38,7 @@ class ModelAdapter:
 
     @staticmethod
     @abstractmethod
-    def get_adapter_protocol() -> str | tuple[str, ...]:
-        raise NotImplementedError
+    def get_adapter_protocol() -> str | tuple[str, ...]: ...
 
     @property
     def protocol(self):

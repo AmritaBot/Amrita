@@ -33,8 +33,6 @@ from ..config import config_manager
 from .lock import database_lock
 
 # Pydantic 模型
-
-_T = typing.TypeVar("_T", str, None, str | None)
 T = typing.TypeVar("T", None, str, None | typing.Literal[""])
 T_INT = typing.TypeVar("T_INT", int, None)
 
@@ -99,14 +97,20 @@ class ImageUrl(BaseModel):
     url: str = Field(..., description="图片URL")
 
 
-class ImageContent(BaseModel):
+class Content(BaseModel): ...
+
+
+class ImageContent(Content):
     type: Literal["image_url"] = "image_url"
     image_url: ImageUrl = Field(..., description="图片URL")
 
 
-class TextContent(BaseModel):
+class TextContent(Content):
     type: Literal["text"] = "text"
     text: str = Field(..., description="文本内容")
+
+
+_T = typing.TypeVar("_T", str, None, str | None, list)
 
 
 class Message(BaseModel, Generic[_T]):

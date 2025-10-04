@@ -24,6 +24,7 @@ from .handlers.enable import enable
 from .handlers.fakepeople_switch import switch
 from .handlers.insights import insights
 from .handlers.poke_event import poke_event
+from .handlers.preset_test import t_preset
 from .handlers.presets import presets
 from .handlers.prompt import prompt
 from .handlers.recall import recall
@@ -193,3 +194,15 @@ base_matcher.on_command(
         usage="/insights [global]",
     ).model_dump(),
 ).append_handler(insights)
+
+base_matcher.on_command(
+    "test_preset",
+    aliases={"测试预设"},
+    block=True,
+    priority=10,
+    state=MatcherData(
+        name="测试预设",
+        description="测试所有预设,--details查看详细结果",
+        usage="/test_preset [-d|--details]",
+    ).model_dump(),
+).append_handler(t_preset)

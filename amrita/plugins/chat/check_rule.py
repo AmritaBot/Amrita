@@ -91,12 +91,18 @@ async def should_respond_to_message(event: MessageEvent, bot: Bot) -> bool:
     if "at" in config_manager.config.autoreply.keywords:  # 如果配置为 at 开头
         if event.is_tome():  # 判断是否 @ 了机器人
             return True
-    if any(
-        message_text.startswith(kw)
-        for kw in config_manager.config.autoreply.keywords
-        if kw != "at"
-    ):  # 如果消息以关键字开头
-        return True
+    if config_manager.config.autoreply.keywords_mode == "starts_with":
+        if message_text.startswith(
+            tuple(i for i in config_manager.config.autoreply.keywords if i != "at")
+        ):
+            return True
+    elif config_manager.config.autoreply.keywords_mode == "contains":
+        if any(
+            keyword in message_text
+            for keyword in config_manager.config.autoreply.keywords
+            if keyword != "at"
+        ):
+            return True
 
     # 判断是否启用了AutoReply模式
     if config_manager.config.autoreply.enable:
