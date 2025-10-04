@@ -20,6 +20,7 @@ from openai.types.chat.chat_completion_named_tool_choice_param import (
 from openai.types.chat.chat_completion_tool_choice_option_param import (
     ChatCompletionToolChoiceOptionParam,
 )
+from pydantic import ValidationError
 from typing_extensions import override
 
 from amrita.plugins.chat.utils.tokenizer import hybrid_token_count
@@ -193,13 +194,20 @@ async def usage_enough(event: Event) -> bool:
     return True
 
 
-async def tools_caller(
-    messages: Iterable[Message | ToolResult],
-    tools: list,
-    tool_choice: ToolChoice | None = None,
-):
+async def _determine_presets(messages: Iterable[Message | ToolResult]) -> list[str]:
+    """根据消息内容确定使用的预设列表"""
+    # 检查消息中是否包含非文本内容（如图片等）
     has_multimodal_content = False
     for msg in messages:
+        if isinstance(msg, dict):
+            try:
+                msg = (
+                    Message.model_validate(msg)
+                    if msg.get("role") != "tool"
+                    else ToolResult.model_validate(msg)
+                )
+            except ValidationError:
+                continue
         if isinstance(msg.content, str):
             continue
         for content in msg.content:
@@ -208,38 +216,52 @@ async def tools_caller(
                 break
         if has_multimodal_content:
             break
+
+    config = config_manager.config
     if has_multimodal_content:
-        presets = config_manager.config.preset_extension.multi_modal_preset_list or [
-            config_manager.config.preset,
+        multimodal_presets = config.preset_extension.multi_modal_preset_list or [
+            config.preset,
         ] + [
             preset
-            for preset in config_manager.config.preset_extension.backup_preset_list
+            for preset in config.preset_extension.backup_preset_list
             if (await config_manager.get_preset(preset)).multimodal
         ]
+        return multimodal_presets
     else:
-        presets = [
-            config_manager.config.preset,
-            *config_manager.config.preset_extension.backup_preset_list,
+        return [
+            config.preset,
+            *config.preset_extension.backup_preset_list,
         ]
+
+
+async def _call_with_presets(
+    presets: list[str], call_func: typing.Callable, *args, **kwargs
+) -> UniResponse:
+    """使用预设列表调用指定函数"""
     if not presets:
         raise ValueError("预设列表为空，无法继续处理。")
+
     err: Exception | None = None
     for pname in presets:
         preset = await config_manager.get_preset(pname)
-        if adapter := AdapterManager().safe_get_adapter(preset.protocol):
-            logger.debug(f"使用适配器 {adapter.__name__} 处理协议 {preset.protocol}")
+        adapter_class = AdapterManager().safe_get_adapter(preset.protocol)
+        if adapter_class:
+            logger.debug(
+                f"使用适配器 {adapter_class.__name__} 处理协议 {preset.protocol}"
+            )
         else:
             raise ValueError(f"未定义的协议适配器：{preset.protocol}")
-        logger.debug(f"开始获取 {preset.model} 的带有工具的对话")
+
+        logger.debug(f"开始获取 {preset.model} 的对话")
         logger.debug(f"预设：{pname}")
         logger.debug(f"密钥：{preset.api_key[:7]}...")
         logger.debug(f"协议：{preset.protocol}")
         logger.debug(f"API地址：{preset.base_url}")
         logger.debug(f"模型：{preset.model}")
+
         try:
-            processer = adapter(preset, config_manager.config)
-            response = await processer.call_tools(messages, tools, tool_choice)
-            return response
+            adapter = adapter_class(preset, config_manager.config)
+            return await call_func(adapter, *args, **kwargs)
         except NotImplementedError:
             continue
         except Exception as e:
@@ -250,85 +272,45 @@ async def tools_caller(
         raise err or RuntimeError("所有适配器调用失败")
 
 
+async def tools_caller(
+    messages: Iterable[Message | ToolResult],
+    tools: list,
+    tool_choice: ToolChoice | None = None,
+) -> UniResponse[None, list[ToolCall] | None]:
+    presets = await _determine_presets(messages)
+
+    async def _call_tools(
+        adapter: ModelAdapter,
+        messages: Iterable[Message | ToolResult],
+        tools,
+        tool_choice,
+    ):
+        return await adapter.call_tools(messages, tools, tool_choice)
+
+    return await _call_with_presets(presets, _call_tools, messages, tools, tool_choice)
+
+
 async def get_chat(
     messages: list[Message | ToolResult],
 ) -> UniResponse[str, None]:
     """获取聊天响应"""
-    # 检查消息中是否包含非文本内容（如图片等）
-    has_multimodal_content = False
-    for msg in messages:
-        if isinstance(msg.content, str):
-            continue
-        for content in msg.content:
-            if not isinstance(content, TextContent):
-                has_multimodal_content = True
-                break
-        if has_multimodal_content:
-            break
-    if has_multimodal_content:
-        presets = config_manager.config.preset_extension.multi_modal_preset_list or [
-            config_manager.config.preset,
-        ] + [
-            preset
-            for preset in config_manager.config.preset_extension.backup_preset_list
-            if (await config_manager.get_preset(preset)).multimodal
-        ]
-    else:
-        presets = [
-            config_manager.config.preset,
-            *config_manager.config.preset_extension.backup_preset_list,
-        ]
-    if not presets:
-        raise ValueError("预设列表为空，无法继续处理。")
-    err: Exception | None = None
-    for pname in presets:
-        preset = await config_manager.get_preset(pname)
-        # 根据预设选择API密钥和基础URL
-        is_thought_chain_model = preset.thought_chain_model
-        if adapter := AdapterManager().safe_get_adapter(preset.protocol):
-            # 如果适配器存在，使用它
-            logger.debug(f"使用适配器 {adapter.__name__} 处理协议 {preset.protocol}")
-        else:
-            raise ValueError(f"未定义的协议适配器：{preset.protocol}")
-        # 记录日志
-        logger.debug(f"开始获取 {preset.model} 的对话")
-        logger.debug(f"预设：{config_manager.config.preset}")
-        logger.debug(f"密钥：{preset.api_key[:7]}...")
-        logger.debug(f"协议：{preset.protocol}")
-        logger.debug(f"API地址：{preset.base_url}")
-        response = ""
-        # 调用适配器获取聊天响应
-        try:
-            processer = adapter(preset, config_manager.config)
-            response = await processer.call_api(
-                [
-                    (
-                        i.model_dump()
-                        if isinstance(i, BaseModel)
-                        else (
-                            Message.model_validate(i)
-                            if i["role"] != "tool"
-                            else (ToolResult.model_validate(i))
-                        ).model_dump()
-                    )
-                    for i in messages
-                ]
-            )
-            response.content = (
-                remove_think_tag(response.content)
-                if is_thought_chain_model
-                else response.content
-            )
-            if chat_manager.debug:
-                logger.debug(response)
-            return response
-        except Exception as e:
-            logger.warning(f"调用适配器失败{e}，正在尝试下一个Adapter")
-            err = e
-            continue
-    else:
-        logger.warning("所有适配器调用失败")
-        raise err or Exception("所有适配器调用失败")
+    presets = await _determine_presets(messages)
+
+    async def _call_api(
+        adapter: ModelAdapter, messages: Iterable[Message | ToolResult]
+    ):
+        response = await adapter.call_api([(i.model_dump()) for i in messages])
+        preset = adapter.preset
+        if preset.thought_chain_model:
+            response.content = remove_think_tag(response.content)
+        return response
+
+    # 调用适配器获取聊天响应
+    response = await _call_with_presets(presets, _call_api, messages)
+
+    if chat_manager.debug:
+        logger.debug(response)
+    return response
 
 
 class OpenAIAdapter(ModelAdapter):
