@@ -69,6 +69,7 @@ def on_page(
             category, SideBarItem(name=page_name, url=path, icon=icon)
         )
         page_path = path
+
         async def route(request: Request) -> _TemplateResponse:
             # 深拷贝侧边栏数据，避免修改原始数据
             side_bar = deepcopy(SideBarManager().get_sidebar().items)
