@@ -78,7 +78,7 @@ async def test_presets() -> typing.AsyncGenerator[PresetReport, None]:
     for preset in presets:
         logger.debug(f"正在测试预设：{preset.name}...")
         adapter = AdapterManager().safe_get_adapter(preset.protocol)
-        if not adapter:
+        if adapter is None:
             logger.warning(f"未定义的协议适配器：{preset.protocol}")
             yield PresetReport(
                 preset_name=preset.name,
@@ -91,8 +91,7 @@ async def test_presets() -> typing.AsyncGenerator[PresetReport, None]:
                 message=f"未定义的协议适配器: {preset.protocol}",
                 time_used=0,
             )
-
-        assert adapter
+            continue
         try:
             time_start = time.time()
             logger.debug(f"正在调用预设：{preset.name}...")
@@ -245,7 +244,7 @@ async def tools_caller(
             err = e
             continue
     else:
-        raise RuntimeError("所有适配器调用失败") from err
+        raise err or RuntimeError("所有适配器调用失败")
 
 
 async def get_chat(
@@ -255,6 +254,8 @@ async def get_chat(
     # 检查消息中是否包含非文本内容（如图片等）
     has_multimodal_content = False
     for msg in messages:
+        if isinstance(msg.content, str):
+            continue
         for content in msg.content:
             if not isinstance(content, TextContent):
                 has_multimodal_content = True
@@ -324,7 +325,7 @@ async def get_chat(
             continue
     else:
         logger.warning("所有适配器调用失败")
-        raise Exception("所有适配器调用失败") from err
+        raise err or Exception("所有适配器调用失败")
 
 
 class OpenAIAdapter(ModelAdapter):
