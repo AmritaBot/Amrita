@@ -236,7 +236,7 @@ async def _determine_presets(messages: Iterable[Message | ToolResult]) -> list[s
 
 async def _call_with_presets(
     presets: list[str], call_func: typing.Callable, *args, **kwargs
-) -> typing.Any:
+) -> UniResponse:
     """使用预设列表调用指定函数"""
     if not presets:
         raise ValueError("预设列表为空，无法继续处理。")
@@ -296,20 +296,17 @@ async def get_chat(
     """获取聊天响应"""
     presets = await _determine_presets(messages)
 
-    async def _call_api(adapter: ModelAdapter, messages):
-        return await adapter.call_api([(i.model_dump()) for i in messages])
+    async def _call_api(
+        adapter: ModelAdapter, messages: Iterable[Message | ToolResult]
+    ):
+        response = await adapter.call_api([(i.model_dump()) for i in messages])
+        preset = adapter.preset
+        if preset.thought_chain_model:
+            response.content = remove_think_tag(response.content)
+        return response
 
     # 调用适配器获取聊天响应
     response = await _call_with_presets(presets, _call_api, messages)
-
-    # 处理思维链模型的响应
-    first_preset = await config_manager.get_preset(presets[0])
-    is_thought_chain_model = first_preset.thought_chain_model
-    response.content = (
-        remove_think_tag(response.content)
-        if is_thought_chain_model
-        else response.content
-    )
 
     if chat_manager.debug:
         logger.debug(response)
