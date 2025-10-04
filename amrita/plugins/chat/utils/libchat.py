@@ -43,10 +43,11 @@ from .protocol import (
 )
 
 TEST_MSG_PROMPT: Message[list[TextContent]] = Message(
-    role="system", content=[TextContent(text="You are a helpful assistant.")]
+    role="system",
+    content=[TextContent(text="You are a helpful assistant.", type="text")],
 )
 TEST_MSG_USER: Message[list[TextContent]] = Message(
-    role="user", content=[TextContent(text="你好，请简要介绍你自己。")]
+    role="user", content=[TextContent(text="你好，请简要介绍你自己。", type="text")]
 )
 
 TEST_MSG_LIST = [
@@ -199,6 +200,8 @@ async def tools_caller(
 ):
     has_multimodal_content = False
     for msg in messages:
+        if isinstance(msg.content, str):
+            continue
         for content in msg.content:
             if not isinstance(content, TextContent):
                 has_multimodal_content = True
