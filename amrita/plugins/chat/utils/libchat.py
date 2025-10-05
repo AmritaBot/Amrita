@@ -20,7 +20,6 @@ from openai.types.chat.chat_completion_named_tool_choice_param import (
 from openai.types.chat.chat_completion_tool_choice_option_param import (
     ChatCompletionToolChoiceOptionParam,
 )
-from pydantic import ValidationError
 from typing_extensions import override
 
 from amrita.plugins.chat.utils.tokenizer import hybrid_token_count
@@ -193,21 +192,31 @@ async def usage_enough(event: Event) -> bool:
 
     return True
 
+def _validate_msg_list(
+    messages: Iterable[Message | ToolResult | dict[str, typing.Any]],
+) -> list[Message | ToolResult]:
+    return [
+        (
+            (
+                Message.model_validate(msg)
+                if msg["role"] != "tool"
+                else ToolResult.model_validate(msg)
+            )
+            if isinstance(msg, dict)
+            else msg
+        )
+        for msg in messages
+    ]
 
-async def _determine_presets(messages: Iterable[Message | ToolResult]) -> list[str]:
+
+async def _determine_presets(
+    messages: Iterable[Message | ToolResult | dict[str, typing.Any]],
+) -> list[str]:
     """根据消息内容确定使用的预设列表"""
     # 检查消息中是否包含非文本内容（如图片等）
     has_multimodal_content = False
-    for msg in messages:
-        if isinstance(msg, dict):
-            try:
-                msg = (
-                    Message.model_validate(msg)
-                    if msg.get("role") != "tool"
-                    else ToolResult.model_validate(msg)
-                )
-            except ValidationError:
-                continue
+    msg_list = _validate_msg_list(messages)
+    for msg in msg_list:
         if isinstance(msg.content, str):
             continue
         for content in msg.content:

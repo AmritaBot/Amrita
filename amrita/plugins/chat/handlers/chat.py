@@ -10,6 +10,7 @@ import random
 import sys
 import time
 import traceback
+import typing
 from collections.abc import AsyncGenerator
 from datetime import datetime
 from typing import Any
@@ -306,7 +307,7 @@ async def chat(event: MessageEvent, matcher: Matcher, bot: Bot):
 
         # 准备发送给模型的消息
         send_messages = prepare_send_messages(
-            data, copy.deepcopy(config_manager.group_train)
+            data, copy.deepcopy(Message.model_validate(config_manager.group_train))
         )
         response = await process_chat(event, send_messages)
 
@@ -369,7 +370,7 @@ async def chat(event: MessageEvent, matcher: Matcher, bot: Bot):
 
         # 准备发送给模型的消息
         send_messages = prepare_send_messages(
-            data, copy.deepcopy(config_manager.private_train)
+            data, copy.deepcopy(Message.model_validate(config_manager.private_train))
         )
         response = await process_chat(event, send_messages)
         await send_response(event, response.content)
@@ -548,7 +549,7 @@ async def chat(event: MessageEvent, matcher: Matcher, bot: Bot):
     # 内部辅助函数 - 准备发送消息
     # -------------------------------------------------------------------------
 
-    def prepare_send_messages(data: MemoryModel, train: dict[str, str]) -> list:
+    def prepare_send_messages(data: MemoryModel, train: Message[str]) -> list:
         """准备发送给聊天模型的消息列表，包括系统提示词数据和上下文。
 
         Args:
@@ -559,20 +560,20 @@ async def chat(event: MessageEvent, matcher: Matcher, bot: Bot):
             准备发送的消息列表
         """
         train = copy.deepcopy(train)
+        train.content = typing.cast(str, train.content)
         if config_manager.config.llm_config.use_base_prompt:
-            train["content"] = (
+            train.content = (
                 "你在纯文本环境工作，不允许使用MarkDown回复，我会提供聊天记录，你可以从这里面获取一些关键信息，比如时间与用户身份（e.g.: [管理员/群主/自己/群员][YYYY-MM-DD weekday hh:mm:ss AM/PM][昵称（QQ号）]说:<内容>），但是请不要以这个格式回复。对于消息上报我给你的有几个类型，除了文本还有,\\（戳一戳消息）\\：就是QQ的戳一戳消息是戳一戳了你，而不是我，请参与讨论。交流时不同话题尽量不使用相似句式回复，用户与你交谈的信息在<内容>。\n"
                 + (
-                    train["content"]
-                    .replace("{cookie}", config_manager.config.cookies.cookie)
+                    train.content.replace(
+                        "{cookie}", config_manager.config.cookies.cookie
+                    )
                     .replace("{self_id}", str(event.self_id))
                     .replace("{user_id}", str(event.user_id))
                     .replace("{user_name}", str(event.sender.nickname))
                 )
             )
-        train["content"] += (
-            f"\n以下是一些补充内容，如果与上面任何一条有冲突请忽略。\n{data.prompt if data.prompt != '' else '无'}"
-        )
+        train.content += f"\n以下是一些补充内容，如果与上面任何一条有冲突请忽略。\n{data.prompt if data.prompt != '' else '无'}"
         send_messages = copy.deepcopy(data.memory.messages)
         send_messages.insert(0, Message.model_validate(train))
         return send_messages
