@@ -59,10 +59,7 @@ def on_page(
 
     def decorator(func: Callable[[PageContext], Awaitable[PageResponse]]):
         # 将当前页面添加到侧边栏对应分类中
-        if all(
-            cate.name != category
-            for cate in SideBarManager().get_sidebar().items
-        ):
+        if all(cate.name != category for cate in SideBarManager().get_sidebar().items):
             SideBarManager().add_sidebar_category(
                 SideBarCategory(name=category, icon="fa fa-question", url="#")
             )

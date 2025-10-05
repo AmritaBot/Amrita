@@ -1,5 +1,7 @@
 {%extends base_html%} {% block title %}Chat模块信息仪表盘{% endblock %} {% block
-topbar_title %}Chat信息仪表盘{% endblock %} {% block content %}
+topbar_title %}Chat信息仪表盘{% endblock %} {% block extra_css %} .stat-card {
+align-items: center; justify-content: left; margin-bottom: 5px; } {%endblock%}
+{% block content %}
 <div class="container">
   <div class="stats-grid">
     <div class="stat-card">

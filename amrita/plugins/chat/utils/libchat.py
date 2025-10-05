@@ -192,6 +192,7 @@ async def usage_enough(event: Event) -> bool:
 
     return True
 
+
 def _validate_msg_list(
     messages: Iterable[Message | ToolResult | dict[str, typing.Any]],
 ) -> list[Message | ToolResult]:
@@ -286,6 +287,7 @@ async def tools_caller(
     tools: list,
     tool_choice: ToolChoice | None = None,
 ) -> UniResponse[None, list[ToolCall] | None]:
+    messages = _validate_msg_list(messages)
     presets = await _determine_presets(messages)
 
     async def _call_tools(
@@ -303,6 +305,7 @@ async def get_chat(
     messages: list[Message | ToolResult],
 ) -> UniResponse[str, None]:
     """获取聊天响应"""
+    messages = _validate_msg_list(messages)
     presets = await _determine_presets(messages)
 
     async def _call_api(
