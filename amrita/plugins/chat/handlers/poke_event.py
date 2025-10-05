@@ -60,11 +60,11 @@ async def poke_event(event: PokeNotifyEvent, bot: Bot, matcher: Matcher):
 
         # 构造发送的消息
         send_messages = [
-            {"role": "system", "content": f"{config_manager.group_train}"},
-            {
-                "role": "user",
-                "content": f"\\（戳一戳消息\\){user_name} (QQ:{event.user_id}) 戳了戳你",
-            },
+            Message(role="system", content=f"{config_manager.group_train}"),
+            Message(
+                role="user",
+                content=f"\\（戳一戳消息\\){user_name} (QQ:{event.user_id}) 戳了戳你",
+            ),
         ]
 
         # 处理戳一戳事件并获取回复
@@ -92,11 +92,11 @@ async def poke_event(event: PokeNotifyEvent, bot: Bot, matcher: Matcher):
 
         name = await get_friend_name(event.user_id, bot)  # 获取好友信息
         send_messages = [
-            {"role": "system", "content": f"{config_manager.private_train}"},
-            {
-                "role": "user",
-                "content": f" \\（戳一戳消息\\) {name}(QQ:{event.user_id}) 戳了戳你",
-            },
+            Message(role="system", content=f"{config_manager.group_train}"),
+            Message(
+                role="user",
+                content=f"\\（戳一戳消息\\){name} (QQ:{event.user_id}) 戳了戳你",
+            ),
         ]
 
         # 处理戳一戳事件并获取回复
