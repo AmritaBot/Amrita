@@ -56,13 +56,13 @@ async def run_tools(event: BeforeChatEvent) -> None:
         tools.extend(ToolsManager().tools_meta_dict(exclude_none=True).values())
         response_msg = await tools_caller(
             [
-                *deepcopy([i.model_dump() for i in msg_list if i.role == "system"]),
-                deepcopy(msg_list)[-1].model_dump(),
+                *deepcopy([i for i in msg_list if i["role"] == "system"]),
+                deepcopy(msg_list)[-1],
             ],
             tools,
         )
         if tool_calls := response_msg.tool_calls:
-            msg_list.append(Message.model_validate(dict(response_msg)))
+            msg_list.append(Message.model_validate(response_msg, from_attributes=True))
             for tool_call in tool_calls:
                 call_count += 1
                 function_name = tool_call.function.name
@@ -137,6 +137,10 @@ async def run_tools(event: BeforeChatEvent) -> None:
                 )
                 msg_list.append(msg)
             if config_manager.config.llm_config.tools.agent_mode_enable:
+                await bot.send(
+                    nonebot_event,
+                    f"调用了函数{''.join([f'`{i.function.name}`,' for i in tool_calls])}",
+                )
                 msg_list.append(
                     Message(
                         role="user",

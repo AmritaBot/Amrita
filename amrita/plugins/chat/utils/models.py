@@ -84,7 +84,7 @@ class UniResponseUsage(BaseModel, Generic[T_INT]):
     total_tokens: T_INT
 
 
-class UniResponse(BaseModel, Generic[T, T_TOOL]):
+class UniResponse(BaseModel, Generic[T, T_TOOL],):
     """统一响应格式"""
 
     role: Literal["assistant", "function"] = "assistant"
