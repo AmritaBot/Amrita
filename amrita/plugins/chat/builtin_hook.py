@@ -63,6 +63,7 @@ async def run_tools(event: BeforeChatEvent) -> None:
         )
         if tool_calls := response_msg.tool_calls:
             msg_list.append(Message.model_validate(response_msg, from_attributes=True))
+            result_msg_list: list[ToolResult] = []
             for tool_call in tool_calls:
                 call_count += 1
                 function_name = tool_call.function.name
@@ -130,24 +131,32 @@ async def run_tools(event: BeforeChatEvent) -> None:
                             continue
                 logger.debug(f"函数{function_name}返回：{func_response}")
 
-                msg = ToolResult(
+                msg: ToolResult = ToolResult(
                     content=func_response,
                     name=function_name,
                     tool_call_id=tool_call.id,
                 )
                 msg_list.append(msg)
+                result_msg_list.append(msg)
             if config_manager.config.llm_config.tools.agent_mode_enable:
+                # 发送工具调用信息给用户
                 await bot.send(
                     nonebot_event,
                     f"调用了函数{''.join([f'`{i.function.name}`,' for i in tool_calls])}",
                 )
+                observation_msg = "\n".join(
+                    [
+                        f"工具 {result.name} 的执行结果: {result.content}\n"
+                        for result in result_msg_list
+                    ]
+                )
                 msg_list.append(
                     Message(
                         role="user",
-                        content=f"Please continue the conversation if the job hasn't been completed, or use tool '{STOP_TOOL.function.name}' to mark the end of the job.",
+                        content=f"观察结果:\n{observation_msg}\n请基于以上工具执行结果继续完成任务，如果任务已完成请使用工具 '{STOP_TOOL.function.name}' 结束。",
                     )
                 )
-                await run_tools(msg_list, nonebot_event, call_count)
+                await run_tools(msg_list, nonebot_event, call_count, original_msg)
 
     config = config_manager.config
     if not config.llm_config.tools.enable_tools:
@@ -160,7 +169,9 @@ async def run_tools(event: BeforeChatEvent) -> None:
     chat_list_backup = deepcopy(event.message.copy())
 
     try:
-        await run_tools(msg_list, nonebot_event)
+        await run_tools(
+            msg_list, nonebot_event, original_msg=nonebot_event.get_plaintext()
+        )
 
     except Exception as e:
         if isinstance(e, ChatException):

@@ -7,7 +7,7 @@ from sqlalchemy import delete, insert, select
 from sqlalchemy.exc import IntegrityError
 
 require("nonebot_plugin_orm")
-from async_lru import alru_cache as lru_cache
+from async_lru import alru_cache
 from nonebot_plugin_orm import get_session
 
 from .models import GroupBlacklist, PrivateBlacklist
@@ -32,17 +32,24 @@ class BL_Manager:
             BL_Manager.is_private_black,
             BL_Manager.get_private_blacklist,
         )
-        to_cache_group = (BL_Manager.get_group_blacklist, BL_Manager.is_group_black)
-        if which != "private":
+        to_cache_group = (
+            BL_Manager.get_group_blacklist,
+            BL_Manager.is_group_black,
+        )
+        if which in ["all", "private"]:
             for func in to_cache_private:
-                func.cache_clear() if which == "all" or (
-                    where == "all" and which != "group"
-                ) else func.cache_invalidate(where)
-        if which != "group":
+                if which == "all" or where == "all":
+                    func.cache_clear()
+                else:
+                    func.cache_invalidate(where)
+
+        if which in ["all", "group"]:
             for func in to_cache_group:
-                func.cache_clear() if which == "all" or (
-                    where == "all" and which != "private"
-                ) else func.cache_invalidate(where)
+                if which == "all" or where == "all":
+                    func.cache_clear()
+                else:
+                    func.cache_invalidate(where)
+
         BL_Manager.get_full_blacklist.cache_clear()
 
     @staticmethod
@@ -93,7 +100,7 @@ class BL_Manager:
                 logger.warning(f"群组{group_id}不在黑名单中")
 
     @staticmethod
-    @lru_cache(1024)
+    @alru_cache(1024)
     async def is_private_black(user_id: str) -> bool:
         async with get_session() as session:
             stmt = (
@@ -105,7 +112,7 @@ class BL_Manager:
             return result.scalar_one_or_none() is not None
 
     @staticmethod
-    @lru_cache(1024)
+    @alru_cache(1024)
     async def is_group_black(group_id: str) -> bool:
         async with get_session() as session:
             stmt = (
@@ -117,7 +124,7 @@ class BL_Manager:
             return result.scalar_one_or_none() is not None
 
     @staticmethod
-    @lru_cache(1024)
+    @alru_cache(1024)
     async def get_private_blacklist() -> dict[str, str]:
         async with get_session() as session:
             stmt = select(PrivateBlacklist).with_for_update()
@@ -126,7 +133,7 @@ class BL_Manager:
             return {record.user_id: record.reason for record in records}
 
     @staticmethod
-    @lru_cache(1024)
+    @alru_cache(1024)
     async def get_group_blacklist() -> dict[str, str]:
         async with get_session() as session:
             stmt = select(GroupBlacklist).with_for_update()
@@ -135,7 +142,7 @@ class BL_Manager:
             return {record.group_id: record.reason for record in records}
 
     @staticmethod
-    @lru_cache(1024)
+    @alru_cache(1024)
     async def get_full_blacklist() -> dict[str, dict[str, BL_Data]]:
         async with get_session() as session:
             private_blacklist = (

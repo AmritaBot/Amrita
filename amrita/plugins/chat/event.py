@@ -33,95 +33,10 @@ class EventTypeEnum(str, Enum):
         return name in self
 
 
-class EventType:
-    """
-    EventType类用于定义和管理不同的事件类型。
-    它封装了事件类型的字符串标识，提供了一种结构化的方式 来处理和获取事件类型。
-
-    属性:
-    __CHAT (str): 表示聊天事件的字符串标识。
-    __None (str): 表示空事件或未定义事件的字符串标识。
-    __POKE (str): 表示戳一戳事件的字符串标识。
-    """
-
-    __CHAT = "chat"
-    __None = ""
-    __POKE = "poke"
-    __BEFORE_CHAT = "before_chat"
-    __BEFORE_POKE = "before_poke"
-
-    def __init__(self):
-        """
-        初始化EventType类的实例。
-        目前初始化方法内没有实现具体操作。
-        """
-        return
-
-    def chat(self):
-        """
-        获取聊天事件的字符串标识。
-
-        返回:
-        str: 聊天事件的字符串标识。
-        """
-        return self.__CHAT
-
-    def before_chat(self):
-        """
-        获取聊天调用LLM前的的事件类型的字符串标识。
-
-        返回:
-        str: 聊天前的事件类型的字符串标识。
-        """
-        return self.__BEFORE_CHAT
-
-    def before_poke(self):
-        """
-        获取戳一戳事件调用LLM前的类型的字符串标识。
-
-        返回:
-        str: 戳一戳前的事件类型的字符串标识。
-        """
-        return self.__BEFORE_POKE
-
-    def none(self):
-        """
-        获取空事件或未定义事件的字符串标识。
-
-        返回:
-        str: 空事件或未定义事件的字符串标识。
-        """
-        return self.__None
-
-    def poke(self):
-        """
-        获取戳一戳事件的字符串标识。
-
-        返回:
-        str: 戳一戳事件的字符串标识。
-        """
-        return self.__POKE
-
-    def get_event_types(self):
-        """
-        获取所有事件类型的字符串标识列表。
-
-        返回:
-        list of str: 包含所有事件类型字符串标识的列表。
-        """
-        return [self.__CHAT, self.__None, self.__POKE]
-
-    def validate(self, name: str) -> bool:
-        return name in self.get_event_types()
-
-
 class BasicEvent:
     """
     所有事件的基类
     """
-
-    def __init__(self):
-        pass
 
 
 class SuggarEvent(BasicEvent):
