@@ -218,7 +218,7 @@ async def _determine_presets(
     has_multimodal_content = False
     msg_list = _validate_msg_list(messages)
     for msg in msg_list:
-        if isinstance(msg.content, str):
+        if isinstance(msg.content, str) or not msg.content:
             continue
         for content in msg.content:
             if not isinstance(content, TextContent):

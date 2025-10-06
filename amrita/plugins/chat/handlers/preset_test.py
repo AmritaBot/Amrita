@@ -1,4 +1,5 @@
 import asyncio
+import json
 from asyncio import Lock
 
 from nonebot.adapters.onebot.v11 import Bot, Message, MessageEvent, MessageSegment
@@ -36,8 +37,8 @@ async def t_preset(
                     f"测试结果：\n"
                     f"测试完成，共测试{len(results)}个预设，成功{len([result for result in results if result.status])}个，失败{len([result for result in results if not result.status])}个。\n"
                     f"预设：{result.preset_name}\n"
-                    f"测试输入：{result.test_input}\n"
-                    f"测试输出：{result.test_output}\n"
+                    f"测试输入：{json.dumps(result.test_input[0].model_dump(), ensure_ascii=False), json.dumps(result.test_input[1].model_dump(), ensure_ascii=False)}\n"
+                    f"测试输出：{json.dumps(result.test_output.model_dump(), ensure_ascii=False) if result.test_output else None}\n"
                     f"输入token消耗：{result.token_prompt}\n"
                     f"输出token消耗：{result.token_completion}\n"
                     f"时间消耗：{result.time_used:.4f}s\n"
