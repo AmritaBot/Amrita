@@ -18,11 +18,11 @@ from ..utils.functions import (
     get_friend_name,
     split_message_into_chats,
 )
-from ..utils.libchat import get_chat, usage_enough
+from ..utils.libchat import get_chat, get_tokens, usage_enough
 from ..utils.lock import get_group_lock, get_private_lock
 from ..utils.memory import Message, get_memory_data
 from ..utils.models import InsightsModel
-from .chat import FakeEvent, get_tokens
+from .chat import FakeEvent
 
 
 async def poke_event(event: PokeNotifyEvent, bot: Bot, matcher: Matcher):

@@ -7,9 +7,7 @@ import asyncio
 import contextlib
 import copy
 import random
-import sys
 import time
-import traceback
 import typing
 from collections.abc import AsyncGenerator
 from datetime import datetime
@@ -35,16 +33,13 @@ from ..config import config_manager
 from ..event import BeforeChatEvent, ChatEvent
 from ..exception import CancelException
 from ..matcher import MatcherManager
-from ..utils.admin import (
-    send_to_admin,
-)
 from ..utils.functions import (
     get_current_datetime_timestamp,
     get_friend_name,
     split_message_into_chats,
     synthesize_message,
 )
-from ..utils.libchat import get_chat
+from ..utils.libchat import get_chat, get_tokens
 from ..utils.lock import get_group_lock, get_private_lock
 from ..utils.memory import (
     Memory,
@@ -69,41 +64,6 @@ command_prefix = get_driver().config.command_start or "/"
 # =============================================================================
 # TOKEN 相关函数
 # =============================================================================
-
-
-async def get_tokens(
-    memory: list[Message | ToolResult], response: UniResponse[str, None]
-) -> UniResponseUsage[int]:
-    """计算消息和响应的token数量
-
-    Args:
-        memory: 消息历史列表
-        response: 模型响应
-
-    Returns:
-        包含token使用情况的对象
-    """
-    memory_l = [i.model_dump() for i in memory]
-    if (
-        response.usage is not None
-        and response.usage.total_tokens is not None
-        and response.usage.completion_tokens is not None
-        and response.usage.prompt_tokens is not None
-    ):
-        return response.usage
-    it = 0
-    for st in memory_l:
-        temp_string = (
-            st["content"]
-            if isinstance(st["content"], str)
-            else "".join(s["text"] for s in st["content"] if s["type"] == "text")
-        )
-        it += hybrid_token_count(temp_string)
-
-    ot = hybrid_token_count(response.content)
-    return UniResponseUsage(
-        prompt_tokens=it, total_tokens=it + ot, completion_tokens=ot
-    )
 
 
 async def enforce_token_limit(
@@ -137,9 +97,7 @@ async def enforce_token_limit(
                 )
                 break
         except Exception as e:
-            await send_to_admin(f"上下文限制清理出现异常！{e!s}")
-            logger.opt(exception=e, colors=True).exception(str(e))
-
+            logger.opt(exception=e, colors=True).exception(f"上下文限制清理出现异常！{e!s}")
             break
         string_parts = []
         for st in memory_l:
@@ -693,14 +651,7 @@ async def chat(event: MessageEvent, matcher: Matcher, bot: Bot):
             e: 异常对象
         """
         await matcher.send("出错了稍后试试吧（错误已反馈）")
-
-        exc_type, exc_value, _ = sys.exc_info()
-
         logger.opt(exception=e, colors=True).exception("程序发生了未捕获的异常")
-
-        # 通知管理员
-        await send_to_admin(f"出错了！{exc_value},\n{exc_type!s}")
-        await send_to_admin(traceback.format_exc())
 
     # 函数进入运行点
 

@@ -128,6 +128,43 @@ async def test_presets() -> typing.AsyncGenerator[PresetReport, None]:
             )
 
 
+async def get_tokens(
+    memory: list[Message | ToolResult], response: UniResponse[str, None]
+) -> UniResponseUsage[int]:
+    """计算消息和响应的token数量
+
+    Args:
+        memory: 消息历史列表
+        response: 模型响应
+
+    Returns:
+        包含token使用情况的对象
+    """
+    memory_l = [i.model_dump() for i in memory]
+    if (
+        response.usage is not None
+        and response.usage.total_tokens is not None
+        and response.usage.completion_tokens is not None
+        and response.usage.prompt_tokens is not None
+    ):
+        return response.usage
+    it = 0
+    for st in memory_l:
+        if st["content"] is None:
+            continue
+        temp_string = (
+            st["content"]
+            if isinstance(st["content"], str)
+            else "".join(s["text"] for s in st["content"] if s["type"] == "text")
+        )
+        it += hybrid_token_count(temp_string)
+
+    ot = hybrid_token_count(response.content)
+    return UniResponseUsage(
+        prompt_tokens=it, total_tokens=it + ot, completion_tokens=ot
+    )
+
+
 async def usage_enough(event: Event) -> bool:
     from ..check_rule import is_bot_admin
 
