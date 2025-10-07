@@ -55,6 +55,3 @@ class BucketRepoitory:
 def get_bukkit(namespace: str, rate: int, key: Any) -> TokenBucket:
     return BucketRepoitory(namespace, rate).get_bucket(key)
 
-
-if __name__ == "__main__":
-    BucketRepoitory("test", 1).get_bucket("test")
