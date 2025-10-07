@@ -51,12 +51,14 @@ async def t_preset(
             )
         else:
             msg = MessageSegment.text(
-                f"测试完成，共测试{len(results)}个预设，成功{len([result for result in results if result.status])}个，失败{len([result for result in results if not result.status])}个。"
-                f"\n".join(
+                f"测试完成，共测试{len(results)}个预设，成功{len([result for result in results if result.status])}个，失败{len([result for result in results if not result.status])}个。\n"
+                + "".join(
                     [
-                        f"预设：{result.preset_name}"
-                        f"  时间消耗：{result.time_used:.4f}s"
-                        f"  测试成功：{result.status}"
+                        (
+                            f"预设：{result.preset_name}"
+                            f"  时间消耗：{result.time_used:.4f}s"
+                            f"  测试成功：{result.status}"
+                        )
                         for result in results
                     ]
                 )

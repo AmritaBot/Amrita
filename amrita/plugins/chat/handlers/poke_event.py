@@ -114,7 +114,7 @@ async def poke_event(event: PokeNotifyEvent, bot: Bot, matcher: Matcher):
             poke_event = BeforePokeEvent(
                 nbevent=event,
                 send_message=send_messages,
-                model_response=[""],
+                model_response="",
                 user_id=event.user_id,
             )
             await MatcherManager.trigger_event(poke_event, event, bot)
@@ -159,7 +159,7 @@ async def poke_event(event: PokeNotifyEvent, bot: Bot, matcher: Matcher):
             poke_event = PokeEvent(
                 nbevent=event,
                 send_message=send_messages,
-                model_response=[response.content],
+                model_response=response.content,
                 user_id=event.user_id,
             )
             await MatcherManager.trigger_event(poke_event, event, bot)

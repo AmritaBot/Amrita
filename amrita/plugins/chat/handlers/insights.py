@@ -15,9 +15,9 @@ from ..utils.models import InsightsModel
 
 async def insights(event: MessageEvent, matcher: Matcher, args: Message = CommandArg()):
     msg = "未知参数。"
+    config = config_manager.config
     if not (arg := args.extract_plain_text().strip()):
         data = await get_memory_data(user_id=event.user_id)
-        config = config_manager.config
         user_limit = config.usage_limit.user_daily_limit
         user_token_limit = config.usage_limit.user_daily_token_limit
         group_limit = config.usage_limit.group_daily_limit
@@ -39,13 +39,15 @@ async def insights(event: MessageEvent, matcher: Matcher, args: Message = Comman
                 + f"\n\n{msg}"
             )
     elif arg == "global":
+        total_token_limit = config.usage_limit.total_daily_token_limit
+        total_limit = config.usage_limit.total_daily_limit
         if not await is_bot_admin(event):
             await matcher.finish("你没有权限查看全局数据")
         data = await InsightsModel.get()
         msg = (
-            f"今日全局数据：\n输入token使用量：{data.token_input}token"
+            f"\n今日全局数据：\n输入token使用量：{data.token_input}/{total_token_limit}(您的限制：♾)token"
             + f"\n输出token使用量：{data.token_output}token"
-            + f"\n总使用次数：{data.usage_count}次"
+            + f"\n总使用次数：{data.usage_count}/{total_limit}(您的限制：♾)次"
             + f"\n总使用token为：{data.token_input + data.token_output}tokens"
         )
 

@@ -1,7 +1,9 @@
 # Todo: 重构Event类实现
 from __future__ import annotations
 
+import typing
 from enum import Enum
+from typing import Literal
 
 from nonebot.adapters.onebot.v11 import (
     Event,
@@ -46,7 +48,7 @@ class SuggarEvent(BasicEvent):
 
     def __init__(
         self,
-        model_response: list[str],
+        model_response: str,
         nbevent: Event,
         user_id: int,
         send_message: SEND_MESSAGES,
@@ -64,14 +66,11 @@ class SuggarEvent(BasicEvent):
         # 保存NoneBot事件对象
         self._nbevent = nbevent
         # 初始化模型响应文本
-        self._modelResponse: list[str] = model_response
+        self._modelResponse: list[str] = [model_response]
         # 初始化用户ID
         self._user_id: int = user_id
         # 初始化要发送的消息内容
         self._send_message: SEND_MESSAGES = send_message
-
-    def __bool__(self):
-        return True
 
     def __str__(self):
         """
@@ -97,7 +96,7 @@ class SuggarEvent(BasicEvent):
         return self._nbevent
 
     @property
-    def message(self) -> list:
+    def message(self) -> SEND_MESSAGES:
         """
         获取传入到模型的上下文
 
@@ -130,7 +129,7 @@ class SuggarEvent(BasicEvent):
         """
         self._modelResponse[0] = value
 
-    def get_send_message(self) -> list:
+    def get_send_message(self) -> SEND_MESSAGES:
         """
         获取传入到模型的上下文
 
@@ -162,7 +161,7 @@ class SuggarEvent(BasicEvent):
         """
         return self._user_id
 
-    def get_event_on_location(self):
+    def get_event_on_location(self) -> Literal["group", "private"]:
         """
         获取事件发生的位置，此方法在基类中未实现，应在子类中重写
 
@@ -188,7 +187,7 @@ class ChatEvent(SuggarEvent):
         self,
         nbevent: MessageEvent,
         send_message: SEND_MESSAGES,
-        model_response: list[str],
+        model_response: str,
         user_id: int,
     ):
         """
@@ -233,7 +232,7 @@ class ChatEvent(SuggarEvent):
         return EventTypeEnum.CHAT
 
     @override
-    def get_event_on_location(self):
+    def get_event_on_location(self) -> Literal["group", "private"]:
         """
         获取事件发生的位置。
 
@@ -241,6 +240,10 @@ class ChatEvent(SuggarEvent):
         字符串，如果是群聊消息事件，则返回"group"，否则返回"private"。
         """
         return "group" if isinstance(self._nbevent, GroupMessageEvent) else "private"
+
+    @property
+    def event_message(self):
+        return typing.cast(MessageEvent, self._nbevent).message
 
 
 class PokeEvent(SuggarEvent):
@@ -258,7 +261,7 @@ class PokeEvent(SuggarEvent):
         self,
         nbevent: PokeNotifyEvent,
         send_message: SEND_MESSAGES,
-        model_response: list[str],
+        model_response: str,
         user_id: int,
     ):
         # 初始化PokeEvent类，并设置相关属性
@@ -304,7 +307,7 @@ class BeforePokeEvent(PokeEvent):
         self,
         nbevent: PokeNotifyEvent,
         send_message: SEND_MESSAGES,
-        model_response: list[str],
+        model_response: str,
         user_id: int,
     ):
         # 初始化BeforePokeEvent类，并设置相关属性
@@ -342,7 +345,7 @@ class BeforeChatEvent(ChatEvent):
         self,
         nbevent: MessageEvent,
         send_message: SEND_MESSAGES,
-        model_response: list[str],
+        model_response: str,
         user_id: int,
     ):
         # 初始化BeforeChatEvent类，并设置相关属性

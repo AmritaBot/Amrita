@@ -41,7 +41,7 @@ ChatException: TypeAlias = (
 
 
 @prehook.handle()
-async def run_tools(event: BeforeChatEvent) -> None:
+async def rag_tools(event: BeforeChatEvent) -> None:
     async def run_tools(
         msg_list: list,
         nonebot_event: MessageEvent,
