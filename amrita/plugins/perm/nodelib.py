@@ -93,9 +93,7 @@ class Permissions:
                 current_children = current_node["children"]
             elif "*" in current_children:  # 当前层级匹配到通配符
                 current_node = current_children["*"]
-                if current_node["has_permission"]:  # 当前节点.*有权限
-                    return True
-                return False  # 当前节点没有.*权限
+                return bool(current_node["has_permission"])
             else:
                 return False  # 没有找到节点
 
