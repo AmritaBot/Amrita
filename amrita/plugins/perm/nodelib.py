@@ -22,8 +22,7 @@ class Permissions:
         if result is None:
             result = []
 
-        for key in data:
-            node: dict[str, Any] = data[key]
+        for key, node in data.items():
             current_path = f"{parent_key}.{key}" if parent_key else key
 
             # 检查当前节点权限
