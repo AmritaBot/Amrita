@@ -142,7 +142,7 @@ class CookieModel(BaseModel):
         return ConfigManager().config.llm_config.block_msg
 
     @block_msg.setter
-    def seter(self, value: list[str]):
+    def block_msg(self, value: list[str]):
         ConfigManager().config.llm_config.block_msg = value
 
 class ExtraConfig(BaseModel, extra="allow"):
