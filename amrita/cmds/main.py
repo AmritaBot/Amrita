@@ -405,31 +405,40 @@ def orm(orm_args):
 
 
 @cli.command()
-@click.option("--count", "-c", default="10")
-@click.option("--details", "-d", is_flag=True)
-def event(count: str, details: bool):
+@click.option("--count", "-c", default="10", help="获取数量")
+@click.option("--details", "-d", is_flag=True, help="显示详细信息")
+@click.option("--self", "-e", is_flag=True, help="在Shell当前环境执行")
+def event(count: str, details: bool, self: bool):
     """Get the last events(10 by default)."""
     if not count.isdigit():
         click.echo(error("Count must be a number greater than 0."))
         return
-    from amrita import init
+    if self:
+        from amrita import init
 
-    init()
-    click.echo(
-        success(
-            f"Getting {count} events...",
-        )
-    )
-    events = LoggingData._get_data_sync()
-    if not events.data:
-        click.echo(warn("No events found."))
-        return
-    for event in events.data[-int(count) :]:
+        init()
         click.echo(
-            f"- {event.time.strftime('%Y-%m-%d %H:%M:%S')} {event.log_level} {event.description}"
-            + (f"\n   |__{event.message}" if details else "")
+            success(
+                f"Getting {count} events...",
+            )
         )
-    click.echo(info(f"Total {len(events.data)} events."))
+        events = LoggingData._get_data_sync()
+        if not events.data:
+            click.echo(warn("No events found."))
+            return
+        for event in events.data[-int(count) :]:
+            click.echo(
+                f"- {event.time.strftime('%Y-%m-%d %H:%M:%S')} {event.log_level} {event.description}"
+                + (f"\n   |__{event.message}" if details else "")
+            )
+        click.echo(info(f"Total {len(events.data)} events."))
+    else:
+        extend_list = []
+        if details:
+            extend_list.append("--details")
+        run_proc(
+            ["uv", "run", "amrita", "event", "--self", "--count", count, *extend_list]
+        )
 
 
 @cli.command(

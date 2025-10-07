@@ -50,7 +50,7 @@ TEST_MSG_USER: Message[list[TextContent]] = Message(
     role="user", content=[TextContent(text="你好，请简要介绍你自己。", type="text")]
 )
 
-TEST_MSG_LIST = [
+TEST_MSG_LIST: list[Message[list[TextContent]]] = [
     TEST_MSG_PROMPT,
     TEST_MSG_USER,
 ]
@@ -59,8 +59,10 @@ TEST_MSG_LIST = [
 class PresetReport(BaseModel):
     preset_name: str  # 预设名称
     preset_data: ModelPreset  # 预设数据
-    test_input: tuple[Message, Message]  # 测试输入
-    test_output: Message | None  # 测试输出
+    test_input: tuple[
+        Message[list[TextContent]], Message[list[TextContent]]
+    ]  # 测试输入
+    test_output: Message[str] | None  # 测试输出
     token_prompt: int  # 提示词的token数
     token_completion: int  # 回复的token数
     status: bool  # 测试结果

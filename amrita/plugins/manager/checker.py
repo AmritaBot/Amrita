@@ -1,5 +1,4 @@
 import asyncio
-import contextlib
 from collections import defaultdict
 from typing import Any
 
@@ -90,6 +89,8 @@ async def _(bot: Bot):
 
 @run_preprocessor
 async def run(matcher: Matcher, event: MessageEvent):
+    if (not StatusManager().ready) and (not await is_lp_admin(event)):
+        raise IgnoredException("Maintenance in progress, operation not supported.")
     has_text_rule = any(
         isinstance(
             checker.call,
@@ -113,10 +114,6 @@ async def run(matcher: Matcher, event: MessageEvent):
     bucket = data[ins_id]
     if not bucket.consume() and (not await is_lp_admin(event)):
         raise IgnoredException("Rate limit exceeded, operation ignored.")
-    if (not StatusManager().ready) and (not await is_lp_admin(event)):
-        with contextlib.suppress(Exception):
-            await matcher.send("正在维护/数据迁移中，暂时不支持该操作！")
-        raise IgnoredException("Maintenance in progress, operation not supported.")
 
 
 @Bot.on_calling_api

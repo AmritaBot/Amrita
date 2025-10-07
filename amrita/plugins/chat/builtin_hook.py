@@ -41,7 +41,7 @@ ChatException: TypeAlias = (
 
 
 @prehook.handle()
-async def run_tools(event: BeforeChatEvent) -> None:
+async def rag_tools(event: BeforeChatEvent) -> None:
     async def run_tools(
         msg_list: list,
         nonebot_event: MessageEvent,
@@ -49,6 +49,7 @@ async def run_tools(event: BeforeChatEvent) -> None:
         original_msg: str = "",
     ):
         if call_count > config_manager.config.llm_config.tools.agent_tool_call_limit:
+            await bot.send(nonebot_event, "调用工具次数过多，Agent工作已终止。")
             return
         tools: list[dict[str, Any]] = []
         if config.llm_config.tools.enable_report:
@@ -75,7 +76,7 @@ async def run_tools(event: BeforeChatEvent) -> None:
                         msg_list.append(
                             Message(
                                 role="user",
-                                content="You had done the job, please continue the completion of the job."
+                                content="你已经完成了聊天前任务，请继续完成对话补全。"
                                 + (
                                     f"\n<INPUT>{original_msg}</INPUT>"
                                     if original_msg
@@ -96,7 +97,9 @@ async def run_tools(event: BeforeChatEvent) -> None:
                             await data.save(nonebot_event)
                             await bot.send(
                                 nonebot_event,
-                                random.choice(config_manager.config.cookies.block_msg),
+                                random.choice(
+                                    config_manager.config.llm_config.block_msg
+                                ),
                             )
                             prehook.cancel_nonebot_process()
                     case _:
@@ -201,6 +204,6 @@ async def cookie(event: ChatEvent, bot: Bot):
                 await data.save(nonebot_event)
                 await bot.send(
                     nonebot_event,
-                    random.choice(config_manager.config.cookies.block_msg),
+                    random.choice(config_manager.config.llm_config.block_msg),
                 )
                 posthook.cancel_nonebot_process()

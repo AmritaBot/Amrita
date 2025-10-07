@@ -556,7 +556,7 @@ async def chat(event: MessageEvent, matcher: Matcher, bot: Bot):
             chat_event = BeforeChatEvent(
                 nbevent=event,
                 send_message=send_messages,
-                model_response=[""],
+                model_response="",
                 user_id=event.user_id,
             )
             await MatcherManager.trigger_event(chat_event, event, bot)
@@ -568,7 +568,7 @@ async def chat(event: MessageEvent, matcher: Matcher, bot: Bot):
             chat_event = ChatEvent(
                 nbevent=event,
                 send_message=send_messages,
-                model_response=[response.content],
+                model_response=response.content or "",
                 user_id=event.user_id,
             )
             await MatcherManager.trigger_event(chat_event, event, bot)

@@ -18,12 +18,11 @@ class Permissions:
     def __str__(self):
         return json.dumps(self.permissions_data)
 
-    def __search_perm(self, data, parent_key="", result=None):
+    def __search_perm(self, data: dict[str, Any], parent_key="", result=None):
         if result is None:
             result = []
 
-        for key in data:
-            node = data[key]
+        for key, node in data.items():
             current_path = f"{parent_key}.{key}" if parent_key else key
 
             # 检查当前节点权限
@@ -68,7 +67,11 @@ class Permissions:
         for i, part in enumerate(node_parts):
             # 不存在创建新节点
             if part not in current_children:
-                current_children[part] = {"has_permission": has_parent, "children": {}}
+                current_children[part] = {
+                    "has_permission": has_parent,
+                    "children": {},
+                    "explicit_hasnt": False,
+                }
             current_node = current_children[part]
             # 最后一个部分设权
             if i == len(node_parts) - 1:
@@ -79,6 +82,7 @@ class Permissions:
         self.__dump_to_str(overwrite=True)
 
     def check_permission(self, node: str) -> bool:
+        # 通配符优先级 > 子节点
         node_parts = node.split(".")
         current_children: dict[str, Any] = self.permissions_data  # 当前层级的子节点字典
         current_node = None
@@ -87,14 +91,19 @@ class Permissions:
             if part in current_children:
                 current_node = current_children[part]
                 current_children = current_node["children"]
-            elif "*" in current_children:
+            elif "*" in current_children:  # 当前层级匹配到通配符
                 current_node = current_children["*"]
-                current_children = current_node["children"]
+                return bool(current_node["has_permission"])
             else:
-                return False  # 没有找到节点或通配符
+                return False  # 没有找到节点
 
         # 返回最终节点的权限
-        return current_node["has_permission"] if current_node else False
+        return (
+            current_node["has_permission"]
+            and not current_node.get("explicit_hasnt", False)
+            if current_node
+            else False
+        )  # 常规节点
 
     def dump_to_file(self, filename: str):
         with open(filename, "w", encoding="utf-8") as f:
@@ -137,7 +146,7 @@ class Permissions:
 
 # 此处仅用于测试
 if __name__ == "__main__":
-    permissions = Permissions({})
+    permissions = Permissions()
     permissions.set_permission("user.read", True)
     permissions.set_permission("user.write", True)
     permissions.set_permission("user.*", True)
