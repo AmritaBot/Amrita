@@ -42,10 +42,12 @@ class AmritaConfig(BaseModel):
 
     @model_validator(mode="after")
     def _vali(self):
-        if not self.admin_group > 0:
-            logger.error("Amrita config 'admin_group' must be set as a real group ID")
-            raise ValueError(
-                "Amrita config 'admin_group' must be set as a real group ID"
+        if 10000 > self.admin_group > 0:
+            logger.warning("Amrita config 'admin_group' is invalid, set to -1")
+            self.admin_group = -1
+        if self.admin_group == -1:
+            logger.info(
+                "Amrita config 'admin_group' is disabled, so some push messages will just be printed to console."
             )
         return self
 
