@@ -99,7 +99,7 @@ class Permissions:
             return True
         current_node = ""
         for part in node.split("."):
-            if node_dict.get(current_node + "." + "*"):
+            if node_dict.get(f"{current_node}.*"):
                 return True
             current_node += ("." if current_node else "") + part
             if node_dict.get(current_node):
