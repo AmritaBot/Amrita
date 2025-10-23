@@ -16,6 +16,8 @@ class Permissions:
         if permissions_data is None:
             permissions_data = {}
         self.permissions_data = permissions_data
+        self.node_dict = {}
+        self.__dump()
 
     def __str__(self):
         return json.dumps(self.permissions_data)
