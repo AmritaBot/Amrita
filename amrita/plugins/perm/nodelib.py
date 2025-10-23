@@ -51,10 +51,6 @@ class Permissions:
         for n, v in self.__search_perm(data):
             self.__permissions_str += f"{n} {'true' if v else 'false'}\n"
             node_dict[n] = v
-        for line in self.__permissions_str.splitlines():
-            if line:
-                perm, arg = line.split(" ")
-                node_dict[perm] = arg == "true"
         self.node_dict = node_dict
 
     def del_permission(self, node: str) -> Self:
