@@ -694,10 +694,10 @@ async def chat(event: MessageEvent, matcher: Matcher, bot: Bot):
                     Date,
                 )
 
-        else:
+        elif isinstance(event, PrivateMessageEvent):
             async with lock:
                 await handle_private_message(
-                    typing.cast(PrivateMessageEvent, event),
+                    event,
                     matcher,
                     bot,
                     data,
