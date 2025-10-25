@@ -54,4 +54,3 @@ class BucketRepoitory:
 
 def get_bukkit(namespace: str, rate: int, key: Any) -> TokenBucket:
     return BucketRepoitory(namespace, rate).get_bucket(key)
-

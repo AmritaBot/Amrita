@@ -101,6 +101,11 @@ class ToolsConfig(BaseModel):
     require_tools: bool = False
     agent_mode_enable: bool = False  # 使用实验性的智能体模式
     agent_tool_call_limit: int = 10  # 智能体模式下的工具调用限制
+    agent_thought_mode: Literal["reasoning", "chat"] = (
+        "chat"  # 使用实验性的智能体模式下的思考模式,
+        # reasoning模式会先执行思考过程，然后执行任务;
+        # chat模式会直接执行任务。
+    )
 
 
 class SessionConfig(BaseModel):
@@ -119,6 +124,12 @@ class AutoReplyConfig(BaseModel):
 
 
 class FunctionConfig(BaseModel):
+    chat_pending_mode: Literal["single", "queue", "single_with_report"] = (
+        "queue"  # 聊天时，如果同一个Session并发调用但是上一条消息没有处理完时插件的行为。
+        # single: 忽略这条消息；
+        # queue: 等待上一条消息处理完再处理；
+        # single_with_report: 忽略这条消息并提示用户正在等待。
+    )
     synthesize_forward_message: bool = True
     nature_chat_style: bool = True
     poke_reply: bool = True
@@ -144,6 +155,7 @@ class CookieModel(BaseModel):
     @block_msg.setter
     def block_msg(self, value: list[str]):
         ConfigManager().config.llm_config.block_msg = value
+
 
 class ExtraConfig(BaseModel, extra="allow"):
     def __getattr__(self, item: str) -> str:

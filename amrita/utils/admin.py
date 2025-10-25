@@ -37,6 +37,7 @@ async def send_forward_msg_to_admin(
     Returns:
         dict: 发送消息后的结果
     """
+
     def to_json(msg: MessageSegment) -> dict:
         return {"type": "node", "data": {"name": name, "uin": uin, "content": msg}}
 
