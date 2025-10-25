@@ -61,3 +61,21 @@ STOP_TOOL = ToolFunctionSchema(
         parameters=FunctionParametersSchema(type="object", properties={}, required=[]),
     ),
 )
+
+REASONING_TOOL = ToolFunctionSchema(
+    type="function",
+    function=FunctionDefinitionSchema(
+        name="reasoning",
+        description="思考你下一步应该如何做",
+        parameters=FunctionParametersSchema(
+            type="object",
+            properties={
+                "reasoning": FunctionPropertySchema(
+                    description="你下一步应该如何做",
+                    type="string",
+                ),
+            },
+            required=["reasoning"],
+        ),
+    ),
+)

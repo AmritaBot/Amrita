@@ -97,7 +97,9 @@ async def enforce_token_limit(
                 )
                 break
         except Exception as e:
-            logger.opt(exception=e, colors=True).exception(f"上下文限制清理出现异常！{e!s}")
+            logger.opt(exception=e, colors=True).exception(
+                f"上下文限制清理出现异常！{e!s}"
+            )
             break
         string_parts = []
         for st in memory_l:
@@ -667,20 +669,41 @@ async def chat(event: MessageEvent, matcher: Matcher, bot: Bot):
 
     try:
         data = await get_memory_data(event)
+        lock = (
+            get_group_lock(event.group_id)
+            if isinstance(event, GroupMessageEvent)
+            else get_private_lock(event.user_id)
+        )
+        match config_manager.config.function.chat_pending_mode:
+            case "queue":
+                pass
+            case "single":
+                if lock.locked():
+                    matcher.stop_propagation()
+            case "single_with_report":
+                if lock.locked():
+                    await matcher.finish("聊天任务正在处理中，请稍后再试")
         if isinstance(event, GroupMessageEvent):
-            async with get_group_lock(event.group_id):
+            async with lock:
                 await handle_group_message(
-                    event, matcher, bot, data, memory_length_limit, Date
+                    event,
+                    matcher,
+                    bot,
+                    data,
+                    memory_length_limit,
+                    Date,
                 )
 
         elif isinstance(event, PrivateMessageEvent):
-            async with get_private_lock(event.user_id):
+            async with lock:
                 await handle_private_message(
-                    event, matcher, bot, data, memory_length_limit, Date
+                    event,
+                    matcher,
+                    bot,
+                    data,
+                    memory_length_limit,
+                    Date,
                 )
-
-        else:
-            matcher.skip()
     except NoneBotException as e:
         raise e
     except CancelException:

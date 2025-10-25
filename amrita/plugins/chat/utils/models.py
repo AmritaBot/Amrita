@@ -39,6 +39,7 @@ T_INT = typing.TypeVar("T_INT", int, None)
 
 class BaseModel(B_Model):
     """BaseModel+dict鸭子类型"""
+
     def __str__(self) -> str:
         return json.dumps(self.model_dump(), ensure_ascii=True)
 
