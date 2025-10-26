@@ -30,7 +30,7 @@ def get_package_metadata(package_name: str) -> dict[str, Any] | None:
         包的元数据字典，如果获取失败则返回None
     """
     try:
-        response = requests.get(f"https://pypi.org/pypi/{package_name}/json")
+        response = requests.get(f"https://pypi.org/pypi/{package_name}/json", timeout=30)
         response.raise_for_status()
         return response.json()
     except Exception:
