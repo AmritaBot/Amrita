@@ -11,7 +11,6 @@ from nonebot.exception import NoneBotException
 from nonebot.log import logger
 
 from amrita.plugins.chat.utils.llm_tools.models import ToolContext
-from amrita.plugins.chat.utils.models import ToolCall
 from amrita.utils.admin import send_to_admin
 
 from .config import config_manager
@@ -54,63 +53,83 @@ BUILTIN_TOOLS_NAME = {
 
 @prehook.handle()
 async def rag_tools(event: BeforeChatEvent) -> None:
+    agent_last_step = [""]
+
+    async def append_reasoning_msg(
+        msg: list,
+        original_msg: str = "",
+        last_step: str = "",
+    ):
+        reasoning_msg = [
+            Message(
+                role="system",
+                content="请根据上文用户输入，分析任务需求，并给出你该步应执行的摘要与原因，如果不需要执行任务则不需要填写描述。"
+                + (
+                    f"\n你的上一步任务为：\n```text\n{last_step}\n```\n"
+                    if last_step
+                    else ""
+                )
+                + (f"\n<INPUT>{original_msg}</INPUT>\n" if original_msg else ""),
+            ),
+            *msg,
+        ]
+        response = await tools_caller(reasoning_msg, [REASONING_TOOL])
+        tool_calls = response.tool_calls
+        if tool_calls:
+            tool = tool_calls[0]
+            if reasoning := json.loads(tool.function.arguments).get("reasoning"):
+                agent_last_step[0] = reasoning
+                await bot.send(nonebot_event, f"[Agent] {reasoning}")
+                msg.append(Message.model_validate(response, from_attributes=True))
+                msg.append(
+                    ToolResult(
+                        name=tool.function.name,
+                        content=reasoning,
+                        tool_call_id=tool.id,
+                    )
+                )
+
     async def run_tools(
         msg_list: list,
         nonebot_event: MessageEvent,
         call_count: int = 0,
         original_msg: str = "",
     ):
+        logger.debug(f"开始第{call_count + 1}轮工具调用，当前消息数: {len(msg_list)}")
         if (
             call_count == 0
             and config_manager.config.llm_config.tools.agent_mode_enable
             and config_manager.config.llm_config.tools.agent_thought_mode == "reasoning"
         ):
-            reasoning_msg = [
-                *msg_list[:-1],
-                Message(
-                    role="system",
-                    content="请根据用户输入，分析任务需求，并给出一个基于该需求的任务描述。"
-                    + (f"\n<INPUT>{original_msg}</INPUT>" if original_msg else ""),
-                ),
-            ]
-            response: ToolCall = typing.cast(
-                list,
-                (
-                    await tools_caller(reasoning_msg, [REASONING_TOOL], REASONING_TOOL)
-                ).tool_calls,
-            )[0]
-            if reasoning := json.loads(response.function.arguments).get("reasoning"):
-                msg_list.append(response)
-                msg_list.append(
-                    ToolResult(
-                        name=response.function.name,
-                        content=reasoning,
-                        tool_call_id=response.id,
-                    )
-                )
+            await append_reasoning_msg(msg_list, original_msg)
 
         if call_count > config_manager.config.llm_config.tools.agent_tool_call_limit:
             await bot.send(nonebot_event, "调用工具次数过多，Agent工作已终止。")
             return
         response_msg = await tools_caller(
-            [
-                *deepcopy([i for i in msg_list if i["role"] == "system"]),
-                deepcopy(msg_list)[-1],
-            ],
+            msg_list,
             tools,
         )
         if tool_calls := response_msg.tool_calls:
             msg_list.append(Message.model_validate(response_msg, from_attributes=True))
             result_msg_list: list[ToolResult] = []
             for tool_call in tool_calls:
-                call_count += 1
                 function_name = tool_call.function.name
                 function_args: dict[str, Any] = json.loads(tool_call.function.arguments)
                 logger.debug(f"函数参数为{tool_call.function.arguments}")
                 logger.debug(f"正在调用函数{function_name}")
                 try:
                     match function_name:
+                        case REASONING_TOOL.function.name:
+                            logger.debug("正在生成任务摘要与原因。")
+                            await append_reasoning_msg(
+                                msg_list,
+                                original_msg,
+                                agent_last_step[0],
+                            )
+                            continue
                         case STOP_TOOL.function.name:
+                            logger.debug("Agent工作已终止。")
                             msg_list.append(
                                 Message(
                                     role="user",
@@ -181,17 +200,26 @@ async def rag_tools(event: BeforeChatEvent) -> None:
                         await bot.send(
                             nonebot_event, f"ERR: Tool {function_name} 执行失败"
                         )
-
+                    msg_list.append(
+                        ToolResult(
+                            name=function_name,
+                            content=f"ERR: Tool {function_name} 执行失败\n{e!s}",
+                            tool_call_id=tool_call.id,
+                        )
+                    )
                     continue
-                logger.debug(f"函数{function_name}返回：{func_response}")
+                else:
+                    logger.debug(f"函数{function_name}返回：{func_response}")
 
-                msg: ToolResult = ToolResult(
-                    content=func_response,
-                    name=function_name,
-                    tool_call_id=tool_call.id,
-                )
-                msg_list.append(msg)
-                result_msg_list.append(msg)
+                    msg: ToolResult = ToolResult(
+                        content=func_response,
+                        name=function_name,
+                        tool_call_id=tool_call.id,
+                    )
+                    msg_list.append(msg)
+                    result_msg_list.append(msg)
+                finally:
+                    call_count += 1
             if config_manager.config.llm_config.tools.agent_mode_enable:
                 # 发送工具调用信息给用户
                 await bot.send(
@@ -199,10 +227,7 @@ async def rag_tools(event: BeforeChatEvent) -> None:
                     f"调用了函数{''.join([f'`{i.function.name}`,' for i in tool_calls])}",
                 )
                 observation_msg = "\n".join(
-                    [
-                        f"工具 {result.name} 的执行结果: {result.content}\n"
-                        for result in result_msg_list
-                    ]
+                    [f"{result.name}: {result.content}\n" for result in result_msg_list]
                 )
                 msg_list.append(
                     Message(
@@ -220,16 +245,23 @@ async def rag_tools(event: BeforeChatEvent) -> None:
     if not isinstance(nonebot_event, MessageEvent):
         return
     bot = typing.cast(Bot, get_bot(str(nonebot_event.self_id)))
-    msg_list = event._send_message
+    msg_list = [
+        *deepcopy([i for i in event.message if i["role"] == "system"]),
+        deepcopy(event.message)[-1],
+    ]
     chat_list_backup = deepcopy(event.message.copy())
     tools: list[dict[str, Any]] = []
     if config.llm_config.tools.enable_report:
         tools.append(REPORT_TOOL.model_dump(exclude_none=True))
+    if config.llm_config.tools.agent_thought_mode == "reasoning":
+        tools.append(REASONING_TOOL.model_dump(exclude_none=True))
     tools.extend(ToolsManager().tools_meta_dict(exclude_none=True).values())
+
     try:
         await run_tools(
             msg_list, nonebot_event, original_msg=nonebot_event.get_plaintext()
         )
+        event._send_message.extend(msg_list[0:])
 
     except Exception as e:
         if isinstance(e, ChatException):
@@ -237,7 +269,7 @@ async def rag_tools(event: BeforeChatEvent) -> None:
         logger.opt(colors=True, exception=e).exception(
             f"ERROR\n{e!s}\n!调用Tools失败！已旧数据继续处理..."
         )
-        msg_list = chat_list_backup
+        event._send_message = chat_list_backup
 
 
 @posthook.handle()

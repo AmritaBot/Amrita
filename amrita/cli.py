@@ -17,6 +17,7 @@ from amrita.utils.dependencies import self_check_optional_dependency
 # 全局变量用于跟踪子进程
 _subprocesses: list[subprocess.Popen] = []
 
+def is_in_venv() -> bool: ...
 
 def run_proc(
     cmd: list[str], stdin=None, stdout=sys.stdout, stderr=sys.stderr, **kwargs
