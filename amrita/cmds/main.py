@@ -482,8 +482,16 @@ def update():
             click.echo(warn(f"新版本的Amrita已就绪: {version}"))
         click.echo(info("正在更新..."))
         run_proc(
-            ["pip", "install", f"amrita=={version}"]
-            + (["--break-system-packages"] if sys.platform.lower() == "linux" else [])
+            ["uv", "add", "amrita==" + version]
+            if IS_IN_VENV
+            else (
+                ["pip", "install", f"amrita=={version}"]
+                + (
+                    ["--break-system-packages"]
+                    if sys.platform.lower() == "linux"
+                    else []
+                )
+            )
         )
     if not IS_IN_VENV:
         click.echo(info("正在检查虚拟环境Amrita..."))
