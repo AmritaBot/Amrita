@@ -61,6 +61,14 @@ def on_tools(
     custom_run: bool = False,
     strict: bool = False,
 ):
+    """Tools注册装饰器
+
+    Args:
+        data (FunctionDefinitionSchema): 函数元数据
+        custom_run (bool, optional): 是否启用自定义运行模式. Defaults to False.
+        strict (bool, optional): 是否启用严格模式. Defaults to False.
+    """
+
     def decorator(
         func: Callable[[dict[str, Any]], Awaitable[str]]
         | Callable[[ToolContext], Awaitable[str | None]],

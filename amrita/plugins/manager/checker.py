@@ -1,5 +1,8 @@
 import asyncio
 from collections import defaultdict
+from copy import deepcopy
+from datetime import datetime
+from functools import lru_cache
 from typing import Any
 
 from nonebot import logger, on_command, on_message, on_notice
@@ -25,6 +28,7 @@ from nonebot.rule import (
     ToMeRule,
 )
 from pydantic import BaseModel
+from typing_extensions import Self
 
 from amrita import get_amrita_config
 from amrita.plugins.menu.models import MatcherData
@@ -41,6 +45,61 @@ watch_group = defaultdict(
 watch_user = defaultdict(
     lambda: TokenBucket(rate=1 / get_amrita_config().rate_limit, capacity=1)
 )
+
+
+class APITimeCostRepo:
+    _repo: defaultdict[str, tuple[int, int, float]]  # (count, successful_count, cost)
+    _instance = None
+
+    def __new__(cls) -> Self:
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+            cls._repo = defaultdict(lambda: (0, 0, 0.0))
+        return cls._instance
+
+    async def push(self, api: str, time_cost: float, is_success: bool):
+        async with self._lock(api):
+            cache = self._repo[api]
+            successful_times = cache[1] + (1 if is_success else 0)
+            called_times = cache[0] + 1
+            cost_v = cache[2]
+            cost_delta = (time_cost - cost_v) / called_times
+            new_cost_time = cost_v + cost_delta
+            self._repo[api] = (called_times, successful_times, new_cost_time)
+
+    async def query(self, api: str) -> tuple[int, int, float]:
+        return self._repo[api]
+
+    async def query_all(self) -> dict[str, tuple[int, int, float]]:
+        return dict(self._repo)
+
+    async def remove(self, api: str):
+        self._repo.pop(api, None)
+
+    async def clear(self):
+        self._repo.clear()
+
+    @lru_cache(maxsize=1024)
+    @staticmethod
+    def _lock(api: str):
+        return asyncio.Lock()
+
+
+class APICalledRepo:
+    _api_call: dict[str, tuple[str, datetime]]
+    _instance = None
+
+    def __new__(cls) -> Self:
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+            cls._api_call = {}
+        return cls._instance
+
+    async def push(self, *, api_hash: str, api: str, time: datetime):
+        self._api_call[api_hash] = (api, time)
+
+    async def pop(self, api_hash: str) -> tuple[str, datetime]:
+        return self._api_call.pop(api_hash)
 
 
 @on_notice(block=False, priority=10).handle()
@@ -116,8 +175,21 @@ async def run(matcher: Matcher, event: MessageEvent):
         raise IgnoredException("Rate limit exceeded, operation ignored.")
 
 
+def make_api_call_hash(api: str, data: dict[str, Any]):
+    data["__api__"] = api
+    return f"{hash(frozenset(data.items()))!s}"
+
+
 @Bot.on_calling_api
-async def handle_api_call(bot: Bot, api: str, data: dict[str, Any]):
+async def _(bot: Bot, api: str, data: dict[str, Any]):
+    api_hash = make_api_call_hash(api, deepcopy(data))
+    await APICalledRepo().push(api_hash=api_hash, api=api, time=datetime.now())
+
+
+@Bot.on_called_api  # 调整说明：将数据库操作调整为后处理来避免造成额外的CallAPI耗时。
+async def _(
+    bot: Bot, exception: Exception | None, api: str, data: dict[str, Any], _: Any
+):
     async def _add():
         if "send" in api and "msg" in api:
             try:
@@ -125,7 +197,15 @@ async def handle_api_call(bot: Bot, api: str, data: dict[str, Any]):
             except Exception as e:
                 logger.warning(e)
 
+    async def _cost():
+        api_hash = make_api_call_hash(api, deepcopy(data))
+        now = datetime.now()
+        api_called_start = await APICalledRepo().pop(api_hash)
+        api_called_time = (now - api_called_start[1]).total_seconds()
+        await APITimeCostRepo().push(api, api_called_time, exception is None)
+
     asyncio.create_task(_add())  # noqa: RUF006
+    asyncio.create_task(_cost())  # noqa: RUF006
 
 
 class Status(BaseModel):

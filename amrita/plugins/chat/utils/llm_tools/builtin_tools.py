@@ -51,6 +51,7 @@ REPORT_TOOL = ToolFunctionSchema(
             type="object",
         ),
     ),
+    strict=True,
 )
 
 STOP_TOOL = ToolFunctionSchema(
@@ -78,4 +79,5 @@ REASONING_TOOL = ToolFunctionSchema(
             required=["reasoning"],
         ),
     ),
+    strict=True,
 )
