@@ -18,7 +18,7 @@ from .checker import APITimeCostRepo
 ).handle()
 async def _(bot: Bot, event: MessageEvent):
     data = await APITimeCostRepo().query_all()
-    msg = "API情况:\n".join(
+    msg = "API情况:\n" + "\n".join(
         [
             f"API:{name},调用次数：{dt[0]!s},失败次数：{dt[0] - dt[1]!s},平均耗时：{dt[2]!s}"
             for name, dt in data.items()
