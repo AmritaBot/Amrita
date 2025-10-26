@@ -239,9 +239,8 @@ def run(run: bool):
         else:
             click.echo(
                 success(
-                    "主环境Amrita已是最新版本。"
-                    if not IS_IN_VENV
-                    else "虚拟环境Amrita已是最新版本。"
+                    "虚拟环境Amrita已是最新版本。" if IS_IN_VENV else "主环境Amrita已是最新版本。"
+
                 )
             )
     if run:
