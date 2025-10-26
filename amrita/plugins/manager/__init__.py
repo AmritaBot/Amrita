@@ -35,5 +35,5 @@ __all__ = [
     "list_black",
     "pardon",
     "send",
-    "status"
+    "status",
 ]

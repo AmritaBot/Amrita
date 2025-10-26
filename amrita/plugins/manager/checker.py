@@ -46,6 +46,7 @@ watch_user = defaultdict(
     lambda: TokenBucket(rate=1 / get_amrita_config().rate_limit, capacity=1)
 )
 
+
 class APITimeCostRepo:
     _repo: defaultdict[str, tuple[int, int, float]]  # (count, successful_count, cost)
     _instance = None
@@ -173,9 +174,11 @@ async def run(matcher: Matcher, event: MessageEvent):
     if not bucket.consume() and (not await is_lp_admin(event)):
         raise IgnoredException("Rate limit exceeded, operation ignored.")
 
+
 def make_api_call_hash(api: str, data: dict[str, Any]):
     data["__api__"] = api
     return f"{hash(frozenset(data.items()))!s}"
+
 
 @Bot.on_calling_api
 async def _(bot: Bot, api: str, data: dict[str, Any]):
