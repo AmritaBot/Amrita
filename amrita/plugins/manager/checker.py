@@ -79,8 +79,8 @@ class APITimeCostRepo:
     async def clear(self):
         self._repo.clear()
 
-    @lru_cache(maxsize=1024)
     @staticmethod
+    @lru_cache(maxsize=1024)
     def _lock(api: str):
         return asyncio.Lock()
 
