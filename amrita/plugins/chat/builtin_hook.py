@@ -261,7 +261,9 @@ async def rag_tools(event: BeforeChatEvent) -> None:
         await run_tools(
             msg_list, nonebot_event, original_msg=nonebot_event.get_plaintext()
         )
-        event._send_message.extend(msg_list[1:])
+        event._send_message.extend(
+            [msg for msg in msg_list if msg not in event._send_message]
+        )
 
     except Exception as e:
         if isinstance(e, ChatException):
