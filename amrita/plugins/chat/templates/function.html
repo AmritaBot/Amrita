@@ -18,7 +18,7 @@ align-items: center; justify-content: left; margin-bottom: 5px; } {%endblock%}
         <i class="fas fa-rocket"></i>
       </div>
       <div class="stat-info">
-        <h3>{{ token_prompt }}</h3>
+        <h3>{{ token_completion }}</h3>
         <p>今日Tokens输出</p>
       </div>
     </div>
@@ -28,11 +28,105 @@ align-items: center; justify-content: left; margin-bottom: 5px; } {%endblock%}
       </div>
       <div class="stat-info">
         <h3>{{ usage_count }}</h3>
-        <p>今日Tokens总消耗</p>
+        <p>今日调用次数</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="charts-grid">
+    <div class="chart-card">
+      <div class="chart-header">
+        <div class="chart-title">Token输入统计</div>
+      </div>
+      <div class="chart-container">
+        <div class="chart-canvas-container">
+          <canvas id="inputChart" class="chart-canvas"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="charts-grid">
+    <div class="chart-card">
+      <div class="chart-header">
+        <div class="chart-title">Token输出统计</div>
+      </div>
+      <div class="chart-container">
+        <div class="chart-canvas-container">
+          <canvas id="outputChart" class="chart-canvas"></canvas>
+        </div>
       </div>
     </div>
   </div>
 </div>
 {% endblock %} {%block scripts%}
-<script></script>
+<script>
+  const CHART_DATA_JSON = `{{ chart_data | tojson }}`
+  const CHART_DATA = JSON.parse(CHART_DATA_JSON)
+  document.addEventListener('DOMContentLoaded', function() {
+      initCharts();
+  });
+
+  function initCharts() {
+
+      const inputCtx = document.getElementById('inputChart').getContext('2d');
+      let inputLabels = [];
+      let inputData = [];
+      CHART_DATA.forEach(function(item) {
+          inputLabels.push(item.date);
+          inputData.push(item.token_input);
+      });
+      messagesChart = new Chart(inputCtx, {
+          type: 'line',
+          data: {
+              labels: inputLabels,
+              datasets: [{
+                  label: 'Tokens',
+                  data: inputData,
+                  borderColor: 'rgba(49, 80, 214, 1)',
+                  backgroundColor: 'rgba(138, 43, 226, 0.2)',
+                  tension: 0.1
+              }]
+          },
+          options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              scales: {
+                  y: {
+                      beginAtZero: true
+                  }
+              }
+          }
+      });
+
+      const outputCtx = document.getElementById('outputChart').getContext('2d');
+      let outputLabels = [];
+      let outputData = [];
+      CHART_DATA.forEach(function(item) {
+          outputLabels.push(item.date);
+          outputData.push(item.token_output);
+      });
+      messagesChart = new Chart(outputCtx, {
+          type: 'line',
+          data: {
+              labels: outputLabels,
+              datasets: [{
+                  label: 'Tokens',
+                  data: outputData,
+                  borderColor: 'rgba(49, 80, 214, 1)',
+                  backgroundColor: 'rgba(138, 43, 226, 0.2)',
+                  tension: 0.1
+              }]
+          },
+          options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              scales: {
+                  y: {
+                      beginAtZero: true
+                  }
+              }
+          }
+      });
+    }
+</script>
 {%endblock%}

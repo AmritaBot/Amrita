@@ -147,6 +147,18 @@ class InsightsModel(BaseModel):
     usage_count: int = Field(..., description="聊天请求次数")
 
     @classmethod
+    async def get_all(cls) -> list[Self]:
+        async with database_lock():
+            async with get_session() as session:
+                await cls._delete_expired(
+                    days=config_manager.config.usage_limit.global_insights_expire_days,
+                    session=session,
+                )
+                stmt = select(GlobalInsights)
+                insights = (await session.execute(stmt)).scalars().all()
+                session.add_all(insights)
+                return [cls.model_validate(x, from_attributes=True) for x in insights]
+    @classmethod
     async def get(cls) -> Self:
         date_now = datetime.now().strftime("%Y-%m-%d")
         async with database_lock(date_now):
