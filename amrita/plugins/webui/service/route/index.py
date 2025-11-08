@@ -116,7 +116,7 @@ async def dashboard(request: Request):
         if bar.get("name") == "仪表盘":
             bar["active"] = True
             break
-    events = (await LoggingData.get()).data[-20:]
+    events = (await LoggingData.get()).data[-200:]
     events.reverse()
     return TemplatesManager().TemplateResponse(
         "dashboard.html",

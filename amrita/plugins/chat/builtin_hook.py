@@ -37,7 +37,8 @@ from .utils.memory import (
     get_memory_data,
 )
 
-prehook = on_before_chat(block=False, priority=1)
+prehook = on_before_chat(block=False, priority=2)
+checkhook = on_before_chat(block=False, priority=1)
 posthook = on_chat(block=False, priority=1)
 
 ChatException: TypeAlias = (
@@ -50,9 +51,42 @@ BUILTIN_TOOLS_NAME = {
     REASONING_TOOL.function.name,
 }
 
+@checkhook.handle()
+async def text_check(event: BeforeChatEvent) -> None:
+    config = config_manager.config
+    if not config.llm_config.tools.enable_report:
+        checkhook.pass_event()
+    logger.info("正在进行内容审查......")
+    bot = get_bot()
+    tool_list = [REPORT_TOOL]
+    response = await tools_caller(event._send_message, tool_list)
+    nonebot_event = typing.cast(MessageEvent, event.get_nonebot_event())
+    if tool_calls := response.tool_calls:
+        for tool_call in tool_calls:
+            function_name = tool_call.function.name
+            function_args: dict[str, Any] = json.loads(tool_call.function.arguments)
+            if function_name == REPORT_TOOL.function.name:
+                await report(
+                    nonebot_event,
+                    function_args.get("content", ""),
+                    typing.cast(Bot, bot),
+                )
+                if config_manager.config.llm_config.tools.report_then_block:
+                    data = await get_memory_data(nonebot_event)
+                    data.memory.messages = []
+                    await data.save(nonebot_event)
+                    await bot.send(
+                        nonebot_event,
+                        random.choice(config_manager.config.llm_config.block_msg),
+                    )
+                    prehook.cancel_nonebot_process()
+            else:
+                await send_to_admin(
+                    f"[LLM-Report] 检测到非传入工具调用：{function_name}，请向模型提供商反馈此问题。"
+                )
 
 @prehook.handle()
-async def rag_tools(event: BeforeChatEvent) -> None:
+async def agent_core(event: BeforeChatEvent) -> None:
     agent_last_step = [""]
 
     async def append_reasoning_msg(
@@ -142,23 +176,6 @@ async def rag_tools(event: BeforeChatEvent) -> None:
                                 )
                             )
                             return
-                        case REPORT_TOOL.function.name:
-                            func_response = await report(
-                                nonebot_event,
-                                function_args.get("content", ""),
-                                bot,
-                            )
-                            if config_manager.config.llm_config.tools.report_then_block:
-                                data = await get_memory_data(nonebot_event)
-                                data.memory.messages = []
-                                await data.save(nonebot_event)
-                                await bot.send(
-                                    nonebot_event,
-                                    random.choice(
-                                        config_manager.config.llm_config.block_msg
-                                    ),
-                                )
-                                prehook.cancel_nonebot_process()
                         case _:
                             if (
                                 tool_data := ToolsManager().get_tool(function_name)
@@ -251,8 +268,6 @@ async def rag_tools(event: BeforeChatEvent) -> None:
     ]
     chat_list_backup = deepcopy(event.message.copy())
     tools: list[dict[str, Any]] = []
-    if config.llm_config.tools.enable_report:
-        tools.append(REPORT_TOOL.model_dump(exclude_none=True))
     if config.llm_config.tools.agent_thought_mode == "reasoning":
         tools.append(REASONING_TOOL.model_dump(exclude_none=True))
     tools.extend(ToolsManager().tools_meta_dict(exclude_none=True).values())
