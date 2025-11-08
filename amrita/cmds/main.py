@@ -455,11 +455,13 @@ def nb(nb_args):
 
 
 @cli.command()
-def test():
+@click.option("--ignore-venv", "-i", is_flag=True, help="忽略Venv环境")
+def test(ignore_venv: bool):
     """运行Amrita项目的负载测试。"""
     if not check_optional_dependency():
-        click.echo(error("缺少可选依赖 'full'"))
-    else:
+        return click.echo(error("缺少可选依赖 'full'"))
+    if ignore_venv or IS_IN_VENV:
+        click.echo(info("正在运行负载测试..."))
         from amrita import load_test
 
         try:
@@ -470,6 +472,8 @@ def test():
             exit(1)
         else:
             click.echo(info("完成!"))
+    else:
+        run_proc(["uv", "run", "amrita", "test", "--ignore-venv"])
 
 
 @cli.command()
@@ -482,20 +486,26 @@ def update():
             click.echo(warn(f"新版本的Amrita已就绪: {version}"))
         click.echo(info("正在更新..."))
         run_proc(
-            ["uv", "add", "amrita==" + version]
-            if IS_IN_VENV
-            else (
-                ["pip", "install", f"amrita=={version}"]
-                + (
-                    ["--break-system-packages"]
-                    if sys.platform.lower() == "linux"
-                    else []
-                )
-            )
+            ["pip", "install", f"amrita=={version}"]
+            + (["--break-system-packages"] if sys.platform.lower() == "linux" else [])
         )
     if not IS_IN_VENV:
         click.echo(info("正在检查虚拟环境Amrita..."))
         if not os.path.exists(".venv"):
             click.echo(warn("未找到虚拟环境，已跳过。"))
             return
-        run_proc(["uv", "run", "amrita", "update"])
+        venv_version = (
+            stdout_run_proc(["uv", "run", "pip", "show", "amrita"])
+            .split("\n")[1]
+            .split(" ")[1]
+            .strip()
+        )
+        click.echo(info(f"检测到虚拟环境Amrita: {venv_version}，目标：{version}"))
+        if venv_version < version:
+            click.echo(info("正在更新虚拟环境Amrita..."))
+            try:
+                run_proc(["uv", "add", f"amrita=={version}"])
+            except Exception as e:
+                click.echo(error("虚拟环境Amrita更新失败!"))
+                click.echo(error(f"错误: {e}"))
+                exit(1)

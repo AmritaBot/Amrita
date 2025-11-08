@@ -80,8 +80,8 @@ def install(name: str, pypi: bool):
                 ["nb", "plugin", "install", name],
             )
         except Exception:
-            click.echo(error(f"安装插件 {name} 失败。未找到包。"))
-            if click.confirm(question("您想要尝试从PyPI安装吗?")):
+            click.echo(error(f"安装插件 {name} "))
+            if click.confirm(question("您想要尝试从PyPI直接安装吗?")):
                 return pypi_install(name)
 
 
