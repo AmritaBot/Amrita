@@ -1,4 +1,5 @@
 import json
+import os
 import random
 import typing
 from collections.abc import Awaitable, Callable
@@ -51,12 +52,15 @@ BUILTIN_TOOLS_NAME = {
     REASONING_TOOL.function.name,
 }
 
+AGENT_PROCESS_TOOLS = (
+    REASONING_TOOL,
+    STOP_TOOL,
+)
+
 
 @checkhook.handle()
 async def text_check(event: BeforeChatEvent) -> None:
     config = config_manager.config
-    if not config.llm_config.tools.enable_tools:
-        return
     if not config.llm_config.tools.enable_report:
         checkhook.pass_event()
     logger.info("正在进行内容审查......")
@@ -273,9 +277,22 @@ async def agent_core(event: BeforeChatEvent) -> None:
     ]
     chat_list_backup = deepcopy(event.message.copy())
     tools: list[dict[str, Any]] = []
-    if config.llm_config.tools.agent_thought_mode == "reasoning":
-        tools.append(REASONING_TOOL.model_dump(exclude_none=True))
+    if config.llm_config.tools.agent_mode_enable:
+        tools.append(STOP_TOOL.model_dump())
+        if config.llm_config.tools.agent_thought_mode == "reasoning":
+            tools.append(REASONING_TOOL.model_dump(exclude_none=True))
     tools.extend(ToolsManager().tools_meta_dict(exclude_none=True).values())
+    logger.debug(f"工具列表：{tools}")
+    if not tools:
+        logger.warning("未定义任何有效工具！Tools Workflow已跳过。")
+        return
+    if str(os.getenv("AMRITA_IGNORE_AGENT_TOOLS")).lower() == "true" and (
+        config.llm_config.tools.agent_mode_enable
+        and len(tools) == len(AGENT_PROCESS_TOOLS)
+    ):
+        logger.warning(
+            "注意：当前工具类型仅有Agent模式过程工具，而无其他有效工具定义，这通常不是使用Agent模式的最佳实践。配置环境变量AMRITA_IGNORE_AGENT_TOOLS=true可忽略此警告。"
+        )
 
     try:
         await run_tools(
