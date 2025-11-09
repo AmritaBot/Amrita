@@ -20,6 +20,7 @@ from openai.types.chat.chat_completion_named_tool_choice_param import (
 from openai.types.chat.chat_completion_tool_choice_option_param import (
     ChatCompletionToolChoiceOptionParam,
 )
+from pydantic import ValidationError
 from typing_extensions import override
 
 from amrita.plugins.chat.utils.tokenizer import hybrid_token_count
@@ -235,18 +236,24 @@ async def usage_enough(event: Event) -> bool:
 def _validate_msg_list(
     messages: Iterable[Message | ToolResult | dict[str, typing.Any]],
 ) -> list[Message | ToolResult]:
-    return [
-        (
-            (
-                Message.model_validate(msg)
-                if msg["role"] != "tool"
-                else ToolResult.model_validate(msg)
-            )
-            if isinstance(msg, dict)
-            else msg
-        )
-        for msg in messages
-    ]
+    validated_messages = []
+    for msg in messages:
+        if isinstance(msg, dict):
+            # 确保消息有 role 字段
+            if "role" not in msg:
+                raise ValueError("Message dictionary is missing 'role' field")
+            try:
+                validated_msg = (
+                    Message.model_validate(msg)
+                    if msg["role"] != "tool"
+                    else ToolResult.model_validate(msg)
+                )
+            except ValidationError as e:
+                raise ValueError(f"Invalid message format: {e}")
+            validated_messages.append(validated_msg)
+        else:
+            validated_messages.append(msg)
+    return validated_messages
 
 
 async def _determine_presets(

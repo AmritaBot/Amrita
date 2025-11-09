@@ -1,4 +1,5 @@
 import json
+import os
 import random
 import typing
 from collections.abc import Awaitable, Callable
@@ -37,7 +38,8 @@ from .utils.memory import (
     get_memory_data,
 )
 
-prehook = on_before_chat(block=False, priority=1)
+prehook = on_before_chat(block=False, priority=2)
+checkhook = on_before_chat(block=False, priority=1)
 posthook = on_chat(block=False, priority=1)
 
 ChatException: TypeAlias = (
@@ -50,9 +52,49 @@ BUILTIN_TOOLS_NAME = {
     REASONING_TOOL.function.name,
 }
 
+AGENT_PROCESS_TOOLS = (
+    REASONING_TOOL,
+    STOP_TOOL,
+)
+
+
+@checkhook.handle()
+async def text_check(event: BeforeChatEvent) -> None:
+    config = config_manager.config
+    if not config.llm_config.tools.enable_report:
+        checkhook.pass_event()
+    logger.info("正在进行内容审查......")
+    bot = get_bot()
+    tool_list = [REPORT_TOOL]
+    response = await tools_caller(event._send_message, tool_list)
+    nonebot_event = typing.cast(MessageEvent, event.get_nonebot_event())
+    if tool_calls := response.tool_calls:
+        for tool_call in tool_calls:
+            function_name = tool_call.function.name
+            function_args: dict[str, Any] = json.loads(tool_call.function.arguments)
+            if function_name == REPORT_TOOL.function.name:
+                await report(
+                    nonebot_event,
+                    function_args.get("content", ""),
+                    typing.cast(Bot, bot),
+                )
+                if config_manager.config.llm_config.tools.report_then_block:
+                    data = await get_memory_data(nonebot_event)
+                    data.memory.messages = []
+                    await data.save(nonebot_event)
+                    await bot.send(
+                        nonebot_event,
+                        random.choice(config_manager.config.llm_config.block_msg),
+                    )
+                    prehook.cancel_nonebot_process()
+            else:
+                await send_to_admin(
+                    f"[LLM-Report] 检测到非传入工具调用：{function_name}，请向模型提供商反馈此问题。"
+                )
+
 
 @prehook.handle()
-async def rag_tools(event: BeforeChatEvent) -> None:
+async def agent_core(event: BeforeChatEvent) -> None:
     agent_last_step = [""]
 
     async def append_reasoning_msg(
@@ -83,6 +125,7 @@ async def rag_tools(event: BeforeChatEvent) -> None:
                 msg.append(Message.model_validate(response, from_attributes=True))
                 msg.append(
                     ToolResult(
+                        role="tool",
                         name=tool.function.name,
                         content=reasoning,
                         tool_call_id=tool.id,
@@ -142,23 +185,6 @@ async def rag_tools(event: BeforeChatEvent) -> None:
                                 )
                             )
                             return
-                        case REPORT_TOOL.function.name:
-                            func_response = await report(
-                                nonebot_event,
-                                function_args.get("content", ""),
-                                bot,
-                            )
-                            if config_manager.config.llm_config.tools.report_then_block:
-                                data = await get_memory_data(nonebot_event)
-                                data.memory.messages = []
-                                await data.save(nonebot_event)
-                                await bot.send(
-                                    nonebot_event,
-                                    random.choice(
-                                        config_manager.config.llm_config.block_msg
-                                    ),
-                                )
-                                prehook.cancel_nonebot_process()
                         case _:
                             if (
                                 tool_data := ToolsManager().get_tool(function_name)
@@ -251,11 +277,22 @@ async def rag_tools(event: BeforeChatEvent) -> None:
     ]
     chat_list_backup = deepcopy(event.message.copy())
     tools: list[dict[str, Any]] = []
-    if config.llm_config.tools.enable_report:
-        tools.append(REPORT_TOOL.model_dump(exclude_none=True))
-    if config.llm_config.tools.agent_thought_mode == "reasoning":
-        tools.append(REASONING_TOOL.model_dump(exclude_none=True))
+    if config.llm_config.tools.agent_mode_enable:
+        tools.append(STOP_TOOL.model_dump())
+        if config.llm_config.tools.agent_thought_mode == "reasoning":
+            tools.append(REASONING_TOOL.model_dump(exclude_none=True))
     tools.extend(ToolsManager().tools_meta_dict(exclude_none=True).values())
+    logger.debug(f"工具列表：{tools}")
+    if not tools:
+        logger.warning("未定义任何有效工具！Tools Workflow已跳过。")
+        return
+    if str(os.getenv("AMRITA_IGNORE_AGENT_TOOLS")).lower() == "true" and (
+        config.llm_config.tools.agent_mode_enable
+        and len(tools) == len(AGENT_PROCESS_TOOLS)
+    ):
+        logger.warning(
+            "注意：当前工具类型仅有Agent模式过程工具，而无其他有效工具定义，这通常不是使用Agent模式的最佳实践。配置环境变量AMRITA_IGNORE_AGENT_TOOLS=true可忽略此警告。"
+        )
 
     try:
         await run_tools(

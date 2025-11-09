@@ -1,20 +1,20 @@
 [project]
 name = "amrita"
-version = "0.3.8.2"
+version = "0.3.9"
 description = "A powerful bot framework powered by NoneBot2"
 readme = "README.md"
 license = "GPL-3.0-or-later"
 requires-python = ">=3.10, <4.0"
 dependencies = [
     "click>=8.2.1",
-    "colorama>=0.4.6",
+    "colorama>=0.4",
     "toml>=0.10.2",
     "pip>=25.2",
     "nb-cli>=1.0.0",
     "nonebot-plugin-localstore>=0.7.4",
     "typing-extensions>=4.6.0",
     "uv>=0.8.12",
-    "requests>=2.32.5",
+    "requests>=2.0", # See https://github.com/twindb/backup/pull/465
     "python-multipart>=0.0.20",
     "aiofiles>=24.1.0",
 ]

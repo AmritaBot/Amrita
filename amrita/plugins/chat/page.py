@@ -20,11 +20,21 @@ SideBarManager().add_sidebar_category(
 @on_page("/manage/chat/function", page_name="信息统计", category="聊天管理")
 async def _(ctx: PageContext):
     insight = await InsightsModel.get()
+    insight_all = await InsightsModel.get_all()
     return PageResponse(
         name="function.html",
         context={
             "token_prompt": insight.token_input,
             "token_completion": insight.token_output,
             "usage_count": insight.usage_count,
+            "chart_data": [
+                {
+                    "date": i.date,
+                    "token_input": i.token_input,
+                    "token_output": i.token_output,
+                    "usage_count": i.usage_count,
+                }
+                for i in insight_all
+            ],
         },
     )

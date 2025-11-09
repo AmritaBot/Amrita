@@ -95,7 +95,7 @@ class ModelPreset(BaseModel):
 
 
 class ToolsConfig(BaseModel):
-    enable_tools: bool = True
+    enable_tools: bool = True  # 此选项不影响内容审查是否启用。
     enable_report: bool = True
     report_then_block: bool = True
     require_tools: bool = False
