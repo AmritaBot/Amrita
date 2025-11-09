@@ -51,6 +51,7 @@ BUILTIN_TOOLS_NAME = {
     REASONING_TOOL.function.name,
 }
 
+
 @checkhook.handle()
 async def text_check(event: BeforeChatEvent) -> None:
     config = config_manager.config
@@ -84,6 +85,7 @@ async def text_check(event: BeforeChatEvent) -> None:
                 await send_to_admin(
                     f"[LLM-Report] 检测到非传入工具调用：{function_name}，请向模型提供商反馈此问题。"
                 )
+
 
 @prehook.handle()
 async def agent_core(event: BeforeChatEvent) -> None:

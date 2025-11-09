@@ -158,6 +158,7 @@ class InsightsModel(BaseModel):
                 insights = (await session.execute(stmt)).scalars().all()
                 session.add_all(insights)
                 return [cls.model_validate(x, from_attributes=True) for x in insights]
+
     @classmethod
     async def get(cls) -> Self:
         date_now = datetime.now().strftime("%Y-%m-%d")
