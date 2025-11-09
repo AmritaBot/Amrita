@@ -75,7 +75,7 @@ align-items: center; justify-content: left; margin-bottom: 5px; } {%endblock%}
           inputLabels.push(item.date);
           inputData.push(item.token_input);
       });
-      messagesChart = new Chart(inputCtx, {
+      const inputChart = new Chart(inputCtx, {
           type: 'line',
           data: {
               labels: inputLabels,
