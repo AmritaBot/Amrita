@@ -55,6 +55,8 @@ BUILTIN_TOOLS_NAME = {
 @checkhook.handle()
 async def text_check(event: BeforeChatEvent) -> None:
     config = config_manager.config
+    if not config.llm_config.tools.enable_tools:
+        return
     if not config.llm_config.tools.enable_report:
         checkhook.pass_event()
     logger.info("正在进行内容审查......")
@@ -119,6 +121,7 @@ async def agent_core(event: BeforeChatEvent) -> None:
                 msg.append(Message.model_validate(response, from_attributes=True))
                 msg.append(
                     ToolResult(
+                        role="tool",
                         name=tool.function.name,
                         content=reasoning,
                         tool_call_id=tool.id,
