@@ -154,7 +154,6 @@ async def agent_core(event: BeforeChatEvent) -> None:
             tools,
         )
         if tool_calls := response_msg.tool_calls:
-            msg_list.append(Message.model_validate(response_msg, from_attributes=True))
             result_msg_list: list[ToolResult] = []
             for tool_call in tool_calls:
                 function_name = tool_call.function.name
@@ -190,6 +189,11 @@ async def agent_core(event: BeforeChatEvent) -> None:
                                 tool_data := ToolsManager().get_tool(function_name)
                             ) is not None:
                                 if not tool_data.custom_run:
+                                    msg_list.append(
+                                        Message.model_validate(
+                                            response_msg, from_attributes=True
+                                        )
+                                    )
                                     func_response: str = await typing.cast(
                                         Callable[[dict[str, Any]], Awaitable[str]],
                                         tool_data.func,
@@ -209,6 +213,11 @@ async def agent_core(event: BeforeChatEvent) -> None:
                                 ) is None:
                                     continue
                                 else:
+                                    msg_list.append(
+                                        Message.model_validate(
+                                            response_msg, from_attributes=True
+                                        )
+                                    )
                                     func_response = tool_response
                             else:
                                 logger.opt(exception=True, colors=True).error(
