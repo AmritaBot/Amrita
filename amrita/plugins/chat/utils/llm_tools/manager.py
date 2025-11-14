@@ -15,6 +15,9 @@ class ToolsManager:
             cls._instance = super().__new__(cls)
         return cls._instance
 
+    def has_tool(self, name: str) -> bool:
+        return name in self._models
+
     def get_tool(self, name: str, default: Any | None = None) -> ToolData | None | Any:
         return self._models.get(name, default)
 
