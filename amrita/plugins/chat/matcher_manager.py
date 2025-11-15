@@ -23,6 +23,7 @@ from .handlers.disable import disable
 from .handlers.enable import enable
 from .handlers.fakepeople_switch import switch
 from .handlers.insights import insights
+from .handlers.mcp import add_mcp_server, del_mcp_server, mcp_status
 from .handlers.poke_event import poke_event
 from .handlers.preset_test import t_preset
 from .handlers.presets import presets
@@ -205,4 +206,36 @@ base_matcher.on_command(
         description="测试所有预设,--details查看详细结果",
         usage="/test_preset [-d|--details]",
     ).model_dump(),
+    permission=is_bot_admin,
 ).append_handler(t_preset)
+
+base_matcher.on_command(
+    "mcp_stats",
+    aliases={"MCP状态"},
+    permission=is_bot_admin,
+    state=MatcherData(
+        name="mcp_stats", description="获取MCP状态", usage="/mcp_stats [-d|--detail]"
+    ).model_dump(),
+).append_handler(mcp_status)
+
+base_matcher.on_command(
+    "add_mcp_server",
+    aliases={"添加MCP服务器"},
+    state=MatcherData(
+        name="add_mcp_server",
+        description="添加MCP服务器",
+        usage="/add_mcp_server <服务器脚本>",
+    ).model_dump(),
+    permission=is_bot_admin,
+).append_handler(add_mcp_server)
+
+base_matcher.on_command(
+    "del_mcp_server",
+    aliases={"删除MCP服务器"},
+    state=MatcherData(
+        name="del_mcp_server",
+        description="删除MCP服务器",
+        usage="/del_mcp_server <服务器脚本>",
+    ).model_dump(),
+    permission=is_bot_admin,
+).append_handler(del_mcp_server)
