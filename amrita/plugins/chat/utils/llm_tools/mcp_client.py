@@ -242,6 +242,7 @@ class ClientManager:
             self.tools_remapping.update(tools_remapping_tmp)
             self.reversed_remappings.update(reversed_remappings_tmp)
             self.name_to_clients.update(name_to_clients_tmp)
+
     async def initialize_all(self):
         """连接所有 MCP Server"""
         async with self._lock:

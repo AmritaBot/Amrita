@@ -5,6 +5,7 @@ require("amrita.plugins.menu")
 
 from . import (
     add,
+    amrita,
     apicall_insight,
     auto_clean,
     ban,
@@ -26,6 +27,7 @@ __plugin_meta__ = PluginMetadata(
 
 __all__ = [
     "add",
+    "amrita",
     "apicall_insight",
     "auto_clean",
     "ban",
