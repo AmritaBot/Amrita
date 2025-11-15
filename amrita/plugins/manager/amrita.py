@@ -26,9 +26,12 @@ async def _(matcher: Matcher, args: Message = CommandArg()):
             elif arg_list[0] == "update":
                 await matcher.send("正在检查Amrita更新...")
                 try:
+                    from aiohttp import ClientTimeout
+                    timeout = ClientTimeout(total=10)
                     async with ClientSession() as session:
                         async with session.get(
-                            "https://pypi.org/pypi/amrita/json"
+                            "https://pypi.org/pypi/amrita/json",
+                            timeout=timeout
                         ) as response:
                             metadata = await response.json()
                             if metadata["releases"] != {}:
