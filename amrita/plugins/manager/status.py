@@ -3,6 +3,7 @@ import platform
 import shutil
 import sys
 from datetime import datetime
+from io import BytesIO
 
 import psutil
 from nonebot import on_command
@@ -137,4 +138,7 @@ def create_system_info_image(system_info: list[str]):
 ).handle()
 async def _(matcher: Matcher, bot: Bot):
     img = create_system_info_image(await generate_info(bot=bot))
-    await matcher.finish(MessageSegment.image(img.tobytes()))
+    btio = BytesIO()
+    btio.seek(0)
+    img.save(btio, format="png")
+    await matcher.finish(MessageSegment.image(btio))
