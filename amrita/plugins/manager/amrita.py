@@ -48,16 +48,14 @@ async def _(matcher: Matcher, args: Message = CommandArg()):
                         )
                         try:
                             await subprocess.create_subprocess_shell(
-                                (
-                                    f"pip install amrita=={latest_version}"
-                                    + (
-                                        "--break-system-packages"
-                                        if sys.platform.lower() == "linux"
-                                        else ""
-                                    )
-                                )
-                                if not IS_IN_VENV
-                                else f"uv add amrita=={latest_version}"
+                                f"uv add amrita=={latest_version}" if IS_IN_VENV else (
+                                                                    f"pip install amrita=={latest_version}"
+                                                                    + (
+                                                                        "--break-system-packages"
+                                                                        if sys.platform.lower() == "linux"
+                                                                        else ""
+                                                                    )
+                                                                )
                             )
                             await matcher.send("完成更新，请重新启动程序以应用更改。")
                         except Exception as e:
