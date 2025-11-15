@@ -35,7 +35,8 @@ async def _(matcher: Matcher, args: Message = CommandArg()):
                         ) as response:
                             metadata = await response.json()
                             if metadata["releases"] != {}:
-                                latest_version = list(metadata["releases"].keys())[-1]
+                                from packaging import version
+                                latest_version = max(metadata["releases"].keys(), key=version.parse)
                             else:
                                 await matcher.send("检查更新失败，请稍后再试")
                                 return
