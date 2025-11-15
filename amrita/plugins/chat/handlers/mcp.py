@@ -51,6 +51,8 @@ async def mcp_status(
 async def add_mcp_server(
     matcher: Matcher, bot: Bot, event: MessageEvent, args: Message = CommandArg()
 ):
+    if not config_manager.config.llm_config.tools.agent_mcp_client_enable:
+        return
     config = config_manager.ins_config
     mcp_server = args.extract_plain_text().strip()
     if not mcp_server:
@@ -68,6 +70,8 @@ async def add_mcp_server(
 
 
 async def del_mcp_server(matcher: Matcher, args: Message = CommandArg()):
+    if not config_manager.config.llm_config.tools.agent_mcp_client_enable:
+        return
     config = config_manager.ins_config
     mcp_server = args.extract_plain_text().strip()
     if not mcp_server:
@@ -85,6 +89,8 @@ async def del_mcp_server(matcher: Matcher, args: Message = CommandArg()):
 
 
 async def reload(matcher: Matcher):
+    if not config_manager.config.llm_config.tools.agent_mcp_client_enable:
+        return
     try:
         await ClientManager().initialize_all()
         await matcher.send("重载成功")
