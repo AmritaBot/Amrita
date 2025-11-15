@@ -1,4 +1,5 @@
 # client.py
+import random
 from asyncio import Lock
 from pathlib import Path
 from typing import Any, overload
@@ -103,8 +104,10 @@ class MCPClient:
 class ClientManager:
     clients: set[MCPClient]
     name_to_clients: dict[str, MCPClient]  # 根据FunctionName映射到MCPClient
-    tools_remapping: dict[str, str]  # 针对于SuggarChat重复工具的重映射
-    reversed_remappings: dict[str, str]  # 逆向映射
+    tools_remapping: dict[
+        str, str
+    ]  # 针对于SuggarChat重复工具的重映射(原始名称->重映射名称)
+    reversed_remappings: dict[str, str]  # 逆向映射(重映射名称->原始名称)
     _instance = None
     _lock: Lock
     _is_initialized = False  # ToolsMapping是否已经就绪
@@ -180,8 +183,8 @@ class ClientManager:
             for tool in tools:
                 name = tool.function.name
                 ClientManager.name_to_clients.pop(name, None)
-                if remap := ClientManager.reversed_remappings.pop(name, None):
-                    ClientManager.tools_remapping.pop(remap, None)
+                if remap := ClientManager.tools_remapping.pop(name, None):
+                    ClientManager.reversed_remappings.pop(remap, None)
         await ClientManager()._load_this(client)
 
     async def initialize_this(self, server_script: str | Path | Server) -> Self:
@@ -201,15 +204,27 @@ class ClientManager:
             async with client as c:
                 tools = c.get_tools()
                 for tool in tools:
+                    if (
+                        tool.function.name in self.tools_remapping
+                        or tool.function.name in self.name_to_clients
+                    ):
+                        if fail_then_raise:
+                            raise ValueError(
+                                f"{tool.function.name} is already registered"
+                            )
+                        else:
+                            continue
                     self.name_to_clients[tool.function.name] = client
                     if ToolsManager().has_tool(tool.function.name):
-                        remapped_name = f"referred_{tool.function.name}"
+                        remapped_name = (
+                            f"referred_{random.randint(1, 100)}_{tool.function.name}"
+                        )
                         logger.warning(
                             f"⚠️  工具已存在：{tool.function.name}，它将被重映射到：{remapped_name}"
                         )
-                        tool.function.name = remapped_name
                         self.tools_remapping[tool.function.name] = remapped_name
                         self.reversed_remappings[remapped_name] = tool.function.name
+                        tool.function.name = remapped_name
                         ToolsManager().register_tool(
                             ToolData(
                                 data=tool, func=self._tools_wrapper(tool.function.name)
