@@ -22,6 +22,7 @@ Amrita 是一个基于[NoneBot2](https://nonebot.dev/)的强大聊天机器人�
 - **强大 CLI 工具**: 一体化命令行管理工具，简化开发和部署流程
 - **Agent 模式**: 支持智能对话管理，自动生成回复
 - **Web UI**: 集成 Web UI，提供可视化管理界面
+- **MCP**: 支持Model Context Protocol
 
 ## 📚 文档和资源
 
