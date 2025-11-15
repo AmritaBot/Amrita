@@ -47,7 +47,10 @@ async def mcp_status(
 
     await matcher.finish(std_txt)
 
-async def add_mcp_server(matcher:Matcher,bot: Bot, event: MessageEvent, args: Message = CommandArg()):
+
+async def add_mcp_server(
+    matcher: Matcher, bot: Bot, event: MessageEvent, args: Message = CommandArg()
+):
     config = config_manager.ins_config
     mcp_server = args.extract_plain_text().strip()
     if not mcp_server:
@@ -56,16 +59,15 @@ async def add_mcp_server(matcher:Matcher,bot: Bot, event: MessageEvent, args: Me
         await matcher.finish("MCP Server脚本已存在")
     try:
         await ClientManager().initialize_this(mcp_server)
-        config.llm_config.tools.agent_mcp_server_scripts.append(
-            mcp_server
-        )
+        config.llm_config.tools.agent_mcp_server_scripts.append(mcp_server)
         await config_manager.save_config()
         await matcher.finish("添加成功")
     except Exception as e:
         await matcher.send(f"添加失败: {e}")
-        logger.opt(exception=e,colors=True).exception(e)
+        logger.opt(exception=e, colors=True).exception(e)
 
-async def del_mcp_server(matcher: Matcher, args: Message= CommandArg()):
+
+async def del_mcp_server(matcher: Matcher, args: Message = CommandArg()):
     config = config_manager.ins_config
     mcp_server = args.extract_plain_text().strip()
     if not mcp_server:
@@ -78,5 +80,14 @@ async def del_mcp_server(matcher: Matcher, args: Message= CommandArg()):
         await config_manager.save_config()
         await matcher.finish("删除成功")
     except Exception as e:
-        logger.opt(exception=e,colors=True).exception(e)
+        logger.opt(exception=e, colors=True).exception(e)
         await matcher.finish("删除失败")
+
+
+async def reload(matcher: Matcher):
+    try:
+        await ClientManager().initialize_all()
+        await matcher.send("重载成功")
+    except Exception as e:
+        logger.opt(exception=e, colors=True).exception(e)
+        await matcher.send("重载失败")

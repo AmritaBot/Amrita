@@ -23,7 +23,7 @@ from .handlers.disable import disable
 from .handlers.enable import enable
 from .handlers.fakepeople_switch import switch
 from .handlers.insights import insights
-from .handlers.mcp import add_mcp_server, del_mcp_server, mcp_status
+from .handlers.mcp import add_mcp_server, del_mcp_server, mcp_status, reload
 from .handlers.poke_event import poke_event
 from .handlers.preset_test import t_preset
 from .handlers.presets import presets
@@ -239,3 +239,13 @@ base_matcher.on_command(
     ).model_dump(),
     permission=is_bot_admin,
 ).append_handler(del_mcp_server)
+base_matcher.on_command(
+    "mcp_reload",
+    aliases={"重载MCP服务器"},
+    state=MatcherData(
+        name="mcp_reload",
+        description="重载MCP所有服务器",
+        usage="/mcp_reload",
+    ).model_dump(),
+    permission=is_bot_admin,
+).append_handler(reload)
