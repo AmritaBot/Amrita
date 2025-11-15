@@ -276,8 +276,8 @@ class LLM_Config(BaseModel):
     ]
 
 
-class PromptConfig(BaseModel):
-    prompt_report_tool: str = ""
+#class PromptConfig(BaseModel):
+#    prompt_report_tool: str = ""
 
 
 class Config(BaseModel):
