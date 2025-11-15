@@ -106,6 +106,8 @@ class ToolsConfig(BaseModel):
         # reasoning模式会先执行思考过程，然后执行任务;
         # chat模式会直接执行任务。
     )
+    agent_mcp_client_enable: bool = False
+    agent_mcp_server_scripts: list[str] = []
 
 
 class SessionConfig(BaseModel):
@@ -272,6 +274,10 @@ class LLM_Config(BaseModel):
         "喵呜～问题太深奥会卡住Suggar的猫脑",
         "（变魔术状）看！话题消失魔术成功喵～",
     ]
+
+
+#class PromptConfig(BaseModel):
+#    prompt_report_tool: str = ""
 
 
 class Config(BaseModel):
