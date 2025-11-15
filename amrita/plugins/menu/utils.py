@@ -15,13 +15,13 @@ def generate_menu(plugins: list[PluginData]) -> list[str]:
         if not plugin.matcher_grouping or not plugin.metadata:
             continue
 
-        plugin_title = f"{plugin.metadata.name}\n"
+        plugin_title = f"{plugin.metadata.name}\n\n"
         plugin_markdown = plugin_title
         for matchers in plugin.matcher_grouping.values():
             for matcher_data in matchers:
                 plugin_markdown += f" {matcher_data.name}: {matcher_data.description}"
                 if matcher_data.usage:
-                    plugin_markdown += f"\n  用法: {matcher_data.usage}"
+                    plugin_markdown += f"\n - 用法: {matcher_data.usage}"
                 plugin_markdown += "\n"
         menu_datas.append(plugin_markdown.strip())
 
