@@ -22,14 +22,10 @@ class ToolsManager:
         return cls._instance
 
     def has_tool(self, name: str) -> bool:
-        if name in self._disabled_tools:
-            return False
-        return name in self._models
+        return False if name in self._disabled_tools else name in self._models
 
     def get_tool(self, name: str, default: T = None) -> ToolData | T | None:
-        if not self.has_tool(name):
-            return default
-        return self._models.get(name, default)
+        return default if not self.has_tool(name) else self._models.get(name, default)
 
     def get_tool_meta(
         self, name: str, default: T | None = None
