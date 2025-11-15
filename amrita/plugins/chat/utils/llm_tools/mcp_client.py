@@ -1,11 +1,11 @@
-# client.py
+# mcp_client.py
 import random
 from asyncio import Lock
-from pathlib import Path
+from copy import deepcopy
 from typing import Any, overload
 
 from fastmcp import Client
-from fastmcp.server import FastMCP as Server
+from fastmcp.client.transports import ClientTransportT
 from nonebot import logger
 from typing_extensions import Self
 
@@ -17,7 +17,7 @@ from amrita.plugins.chat.utils.llm_tools.models import (
     ToolFunctionSchema,
 )
 
-MCP_SERVER_SCRIPT_TYPE = str | Path | Server
+MCP_SERVER_SCRIPT_TYPE = ClientTransportT
 
 
 class NOT_GIVEN:
@@ -122,7 +122,7 @@ class ClientManager:
             cls._lock = Lock()
         return cls._instance
 
-    def get_client_by_script(self, server_script: str | Path | Server) -> MCPClient:
+    def get_client_by_script(self, server_script: MCP_SERVER_SCRIPT_TYPE) -> MCPClient:
         """获取 MCP Client（不操作存储的MCP Server）
         Args:
             server_script (str, optional): MCP Server 脚本路径（或URI）。
@@ -156,14 +156,14 @@ class ClientManager:
         ...
 
     @overload
-    def register_only(self, *, server_script: str | Path | Server) -> Self:
+    def register_only(self, *, server_script: MCP_SERVER_SCRIPT_TYPE) -> Self:
         """仅注册MCP Server，不进行初始化"""
         ...
 
     def register_only(
         self,
         *,
-        server_script: str | Path | Server | None = None,
+        server_script: MCP_SERVER_SCRIPT_TYPE | None = None,
         client: MCPClient | None = None,
     ) -> Self:
         """仅注册MCP Server，不进行初始化"""
@@ -182,12 +182,13 @@ class ClientManager:
         async with ClientManager._lock:
             for tool in tools:
                 name = tool.function.name
+                ToolsManager().remove_tool(name)
                 ClientManager.name_to_clients.pop(name, None)
                 if remap := ClientManager.tools_remapping.pop(name, None):
                     ClientManager.reversed_remappings.pop(remap, None)
         await ClientManager()._load_this(client)
 
-    async def initialize_this(self, server_script: str | Path | Server) -> Self:
+    async def initialize_this(self, server_script: MCP_SERVER_SCRIPT_TYPE) -> Self:
         """注册并初始化单个MCP Server"""
         client = self.get_client_by_script(server_script)
         async with self._lock:
@@ -201,20 +202,20 @@ class ClientManager:
 
     async def _load_this(self, client: MCPClient, fail_then_raise=True):
         try:
+            tools_remapping_tmp = {}
+            reversed_remappings_tmp = {}
+            name_to_clients_tmp = {}
             async with client as c:
-                tools = c.get_tools()
+                tools = deepcopy(c.get_tools())
                 for tool in tools:
                     if (
                         tool.function.name in self.tools_remapping
                         or tool.function.name in self.name_to_clients
                     ):
-                        if fail_then_raise:
-                            raise ValueError(
-                                f"{tool.function.name} is already registered"
-                            )
-                        else:
-                            continue
-                    self.name_to_clients[tool.function.name] = client
+                        logger.warning(
+                            f"{client}@{client.server_script} has a tool named {tool.function.name}, which is already registered"
+                        )
+                    name_to_clients_tmp[tool.function.name] = client
                     if ToolsManager().has_tool(tool.function.name):
                         remapped_name = (
                             f"referred_{random.randint(1, 100)}_{tool.function.name}"
@@ -222,9 +223,10 @@ class ClientManager:
                         logger.warning(
                             f"⚠️  工具已存在：{tool.function.name}，它将被重映射到：{remapped_name}"
                         )
-                        self.tools_remapping[tool.function.name] = remapped_name
-                        self.reversed_remappings[remapped_name] = tool.function.name
+                        tools_remapping_tmp[tool.function.name] = remapped_name
+                        reversed_remappings_tmp[remapped_name] = tool.function.name
                         tool.function.name = remapped_name
+
                         ToolsManager().register_tool(
                             ToolData(
                                 data=tool, func=self._tools_wrapper(tool.function.name)
@@ -235,7 +237,11 @@ class ClientManager:
             if fail_then_raise:
                 raise
             logger.error(f"❌ 连接到 MCP Server@{client.server_script} 失败：{e}")
-
+        else:
+            logger.info(f"✅ 加载到 MCP Server@{client.server_script} 成功")
+            self.tools_remapping.update(tools_remapping_tmp)
+            self.reversed_remappings.update(reversed_remappings_tmp)
+            self.name_to_clients.update(name_to_clients_tmp)
     async def initialize_all(self):
         """连接所有 MCP Server"""
         async with self._lock:

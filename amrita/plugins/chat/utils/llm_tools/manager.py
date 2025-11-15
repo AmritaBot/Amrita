@@ -8,6 +8,7 @@ from .models import FunctionDefinitionSchema, ToolContext, ToolData, ToolFunctio
 
 T = typing.TypeVar("T")
 
+
 class ToolsManager:
     _instance = None
     _models: ClassVar[dict[str, ToolData]] = {}
@@ -72,6 +73,23 @@ class ToolsManager:
     def remove_tool(self, name: str) -> None:
         if name in self._models:
             del self._models[name]
+        if name in self._disabled_tools:
+            self._disabled_tools.remove(name)
+
+    def enable_tool(self, name: str) -> None:
+        if name in self._disabled_tools:
+            self._disabled_tools.remove(name)
+        else:
+            raise ValueError(f"工具 {name} 并没有被Disabled")
+
+    def disable_tool(self, name: str) -> None:
+        if self.has_tool(name):
+            self._disabled_tools.add(name)
+        else:
+            raise ValueError(f"工具 {name} 不存在或已经禁用")
+
+    def get_disabled_tools(self) -> list[str]:
+        return list(self._disabled_tools)
 
 
 def on_tools(
