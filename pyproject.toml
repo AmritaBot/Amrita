@@ -17,6 +17,7 @@ dependencies = [
     "requests>=2.0", # See https://github.com/twindb/backup/pull/465
     "python-multipart>=0.0.20",
     "aiofiles>=24.1.0",
+    "pillow>=12.0.0",
 ]
 
 [project.optional-dependencies]
