@@ -14,6 +14,7 @@ import click
 import colorama
 import requests
 from colorama import Fore, Style
+from packaging import version
 
 from amrita.utils.dependencies import self_check_optional_dependency
 from amrita.utils.utils import get_amrita_version
@@ -43,10 +44,9 @@ def get_package_metadata(package_name: str) -> dict[str, Any] | None:
 
 def should_update() -> tuple[bool, str]:
     if metadata := get_package_metadata("amrita"):
-        if (
-            metadata["releases"] != {}
-            and list(metadata["releases"].keys())[-1] > get_amrita_version()
-        ):
+        if metadata["releases"] != {} and max(
+            list(metadata["releases"].keys()), key=version.parse
+        ) > version.parse(get_amrita_version()):
             latest_version = list(metadata["releases"].keys())[-1]
             return True, latest_version
         else:

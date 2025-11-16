@@ -249,7 +249,7 @@ class ClientManager:
             self.tools_remapping.update(tools_remapping_tmp)
             self.reversed_remappings.update(reversed_remappings_tmp)
             self.name_to_clients.update(name_to_clients_tmp)
-            if isinstance(client.server_script, (str, Path)):
+            if isinstance(client.server_script, str | Path):
                 server_script = str(client.server_script)
                 self.script_to_clients[server_script] = client
 

@@ -1,11 +1,12 @@
 import sys
 from asyncio import subprocess
 
-from aiohttp import ClientSession
+from aiohttp import ClientSession, ClientTimeout
 from nonebot import on_command
 from nonebot.adapters.onebot.v11 import Message
 from nonebot.matcher import Matcher
 from nonebot.params import CommandArg
+from packaging import version
 
 from amrita.cli import IS_IN_VENV
 from amrita.plugins.perm.API.admin import is_lp_admin
@@ -26,17 +27,16 @@ async def _(matcher: Matcher, args: Message = CommandArg()):
             elif arg_list[0] == "update":
                 await matcher.send("正在检查Amrita更新...")
                 try:
-                    from aiohttp import ClientTimeout
                     timeout = ClientTimeout(total=10)
                     async with ClientSession() as session:
                         async with session.get(
-                            "https://pypi.org/pypi/amrita/json",
-                            timeout=timeout
+                            "https://pypi.org/pypi/amrita/json", timeout=timeout
                         ) as response:
                             metadata = await response.json()
                             if metadata["releases"] != {}:
-                                from packaging import version
-                                latest_version = max(metadata["releases"].keys(), key=version.parse)
+                                latest_version = max(
+                                    metadata["releases"].keys(), key=version.parse
+                                )
                             else:
                                 await matcher.send("检查更新失败，请稍后再试")
                                 return
@@ -49,14 +49,16 @@ async def _(matcher: Matcher, args: Message = CommandArg()):
                         )
                         try:
                             await subprocess.create_subprocess_shell(
-                                f"uv add amrita=={latest_version}" if IS_IN_VENV else (
-                                                                    f"pip install amrita=={latest_version}"
-                                                                    + (
-                                                                        "--break-system-packages"
-                                                                        if sys.platform.lower() == "linux"
-                                                                        else ""
-                                                                    )
-                                                                )
+                                f"uv add amrita=={latest_version}"
+                                if IS_IN_VENV
+                                else (
+                                    f"pip install amrita=={latest_version}"
+                                    + (
+                                        "--break-system-packages"
+                                        if sys.platform.lower() == "linux"
+                                        else ""
+                                    )
+                                )
                             )
                             await matcher.send("完成更新，请重新启动程序以应用更改。")
                         except Exception as e:
