@@ -9,6 +9,7 @@ from nonebot.adapters.onebot.v11 import (
 from nonebot.matcher import Matcher
 from nonebot.params import CommandArg
 
+from amrita.plugins.chat.builtin_hook import ChatException
 from amrita.plugins.chat.config import config_manager
 from amrita.utils.send import send_forward_msg
 
@@ -19,9 +20,9 @@ async def mcp_status(
     bot: Bot, matcher: Matcher, event: MessageEvent, arg: Message = CommandArg()
 ):
     arg_text = arg.extract_plain_text().strip()
-    tools_count = len(ClientManager.name_to_clients)
-    mcp_server_counts = len(ClientManager.clients)
-    tools_mapping_count = len(ClientManager.tools_remapping)
+    tools_count = len(ClientManager().name_to_clients)
+    mcp_server_counts = len(ClientManager().clients)
+    tools_mapping_count = len(ClientManager().tools_remapping)
     std_txt = f"MCP状态统计\nMCP Servers: {mcp_server_counts}\nMCP Tools: {tools_count}\nMCP Tools(Mapped): {tools_mapping_count}"
     if arg_text in ("-d", "--detail", "--details"):
         if not isinstance(event, PrivateMessageEvent):
@@ -37,7 +38,7 @@ async def mcp_status(
                         ]
                     )
                 )
-                for client in ClientManager.clients
+                for client in ClientManager().clients
             ],
         ]
 
@@ -65,6 +66,8 @@ async def add_mcp_server(
         await config_manager.save_config()
         await matcher.finish("添加成功")
     except Exception as e:
+        if isinstance(e, ChatException):
+            pass
         await matcher.send(f"添加失败: {e}")
         logger.opt(exception=e, colors=True).exception(e)
 

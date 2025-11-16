@@ -1,6 +1,6 @@
 [project]
 name = "amrita"
-version = "0.4.0.dev1"
+version = "0.4.0"
 description = "A powerful bot framework powered by NoneBot2"
 readme = "README.md"
 license = "GPL-3.0-or-later"
@@ -14,9 +14,10 @@ dependencies = [
     "nonebot-plugin-localstore>=0.7.4",
     "typing-extensions>=4.6.0",
     "uv>=0.8.12",
-    "requests>=2.0", # See https://github.com/twindb/backup/pull/465
+    "requests>=2.0",                    # See https://github.com/twindb/backup/pull/465
     "python-multipart>=0.0.20",
     "aiofiles>=24.1.0",
+
 ]
 
 [project.optional-dependencies]
@@ -65,6 +66,7 @@ dev-dependencies = [
     "nonebot-plugin-orm[default]>=0.8.2",
     "pytest>=8.4.1",
     "amrita[full]",
+    "mcp>=1.21.1",
 ]
 package = true
 

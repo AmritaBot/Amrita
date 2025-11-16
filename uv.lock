@@ -182,11 +182,10 @@ wheels = [
 
 [[package]]
 name = "amrita"
-version = "0.4.0.dev1"
+version = "0.4.0"
 source = { editable = "." }
 dependencies = [
     { name = "aiofiles" },
-    { name = "aiohttp" },
     { name = "click" },
     { name = "colorama" },
     { name = "nb-cli" },
@@ -201,6 +200,7 @@ dependencies = [
 
 [package.optional-dependencies]
 full = [
+    { name = "aiohttp" },
     { name = "async-lru" },
     { name = "bcrypt" },
     { name = "dotenv" },
@@ -226,6 +226,7 @@ full = [
 [package.dev-dependencies]
 dev = [
     { name = "amrita", extra = ["full"] },
+    { name = "mcp" },
     { name = "nonebot-plugin-orm", extra = ["default"] },
     { name = "pytest" },
     { name = "ruff" },
@@ -234,7 +235,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "aiofiles", specifier = ">=24.1.0" },
-    { name = "aiohttp", specifier = ">=3.13.2" },
+    { name = "aiohttp", marker = "extra == 'full'", specifier = ">=3.13.2" },
     { name = "async-lru", marker = "extra == 'full'", specifier = ">=2.0.5" },
     { name = "bcrypt", marker = "extra == 'full'", specifier = ">=4.3.0" },
     { name = "click", specifier = ">=8.2.1" },
@@ -271,6 +272,7 @@ provides-extras = ["full"]
 [package.metadata.requires-dev]
 dev = [
     { name = "amrita", extras = ["full"], editable = "." },
+    { name = "mcp", specifier = ">=1.21.1" },
     { name = "nonebot-plugin-orm", extras = ["default"], specifier = ">=0.8.2" },
     { name = "pytest", specifier = ">=8.4.1" },
     { name = "ruff", specifier = ">=0.12.8" },
