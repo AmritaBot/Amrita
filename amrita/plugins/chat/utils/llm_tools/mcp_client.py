@@ -8,6 +8,7 @@ from fastmcp import Client
 from fastmcp.client.transports import ClientTransportT
 from nonebot import logger
 from typing_extensions import Self
+from zipp import Path
 
 from amrita.plugins.chat.utils.llm_tools.manager import ToolsManager
 from amrita.plugins.chat.utils.llm_tools.models import (
@@ -27,7 +28,11 @@ class NOT_GIVEN:
 class MCPClient:
     """可复用的MCP Client"""
 
-    def __init__(self, server_script: MCP_SERVER_SCRIPT_TYPE):
+    def __init__(
+        self,
+        server_script: MCP_SERVER_SCRIPT_TYPE,
+        # headers: dict | None = None,
+    ):
         self.mcp_client = None
         self.server_script = server_script
         self.tools = []
@@ -102,7 +107,8 @@ class MCPClient:
 
 
 class ClientManager:
-    clients: set[MCPClient]
+    clients: list[MCPClient]
+    script_to_clients: dict[str, MCPClient]
     name_to_clients: dict[str, MCPClient]  # 根据FunctionName映射到MCPClient
     tools_remapping: dict[
         str, str
@@ -115,10 +121,11 @@ class ClientManager:
     def __new__(cls):
         if cls._instance is None:
             cls._instance = super().__new__(cls)
-            cls.clients = set()
+            cls.clients = []
             cls.name_to_clients = {}
             cls.tools_remapping = {}
             cls.reversed_remappings = {}
+            cls.script_to_clients = {}
             cls._lock = Lock()
         return cls._instance
 
@@ -168,10 +175,10 @@ class ClientManager:
     ) -> Self:
         """仅注册MCP Server，不进行初始化"""
         if client is not None:
-            self.clients.add(client)
+            self.clients.append(client)
         elif server_script is not None:
             client = MCPClient(server_script)
-            self.clients.add(client)
+            self.clients.append(client)
         else:
             raise ValueError("请提供MCP Server脚本或MCP Client")
         return self
@@ -192,12 +199,12 @@ class ClientManager:
         """注册并初始化单个MCP Server"""
         client = self.get_client_by_script(server_script)
         async with self._lock:
-            self.clients.add(client)
             try:
                 await self._load_this(client)
             except Exception as e:
                 logger.error(f"❌ 初始化 MCP Server@{server_script} 失败：{e}")
-                self.clients.remove(client)
+            else:
+                self.clients.append(client)
         return self
 
     async def _load_this(self, client: MCPClient, fail_then_raise=True):
@@ -242,9 +249,30 @@ class ClientManager:
             self.tools_remapping.update(tools_remapping_tmp)
             self.reversed_remappings.update(reversed_remappings_tmp)
             self.name_to_clients.update(name_to_clients_tmp)
+            if isinstance(client.server_script, str | Path):
+                server_script = str(client.server_script)
+                self.script_to_clients[server_script] = client
+
     async def initialize_all(self):
         """连接所有 MCP Server"""
         async with self._lock:
             for client in self.clients:
                 await self._load_this(client, False)
             self._is_initialized = True
+
+    async def unregister_client(self, script_name: str | Path):
+        """注销一个 MCP Server"""
+        async with self._lock:
+            script_name = str(script_name)
+            if script_name in self.script_to_clients:
+                client = self.script_to_clients.pop(script_name)
+                for tool in client.openai_tools:
+                    name = tool.function.name
+                    ToolsManager().remove_tool(name)
+                    ClientManager.name_to_clients.pop(name, None)
+                    if remap := ClientManager.tools_remapping.pop(name, None):
+                        ClientManager.reversed_remappings.pop(remap, None)
+                for client in self.clients:
+                    if client.server_script == script_name:
+                        self.clients.remove(client)
+                        break
