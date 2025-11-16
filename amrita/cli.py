@@ -132,11 +132,16 @@ def stdout_run_proc(cmd: list[str]):
     return stdout.decode("utf-8")
 
 
+__is_cleaning = False
+
+
 def _cleanup_subprocesses():
     """清理所有子进程
 
     终止所有正在运行的子进程，首先尝试优雅地终止，超时后强制杀死。
     """
+    global __is_cleaning
+    __is_cleaning = True
     for proc in _subprocesses:
         try:
             proc.terminate()
@@ -157,6 +162,10 @@ def _signal_handler(signum, frame):
         signum: 信号编号
         frame: 当前堆栈帧
     """
+    global __is_cleaning
+    if __is_cleaning:
+        return
+    click.echo(warn("正在清理进程..."))
     _cleanup_subprocesses()
     sys.exit(0)
 

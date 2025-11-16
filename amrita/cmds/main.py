@@ -11,6 +11,8 @@ from pathlib import Path
 from typing import Any
 
 import click
+import packaging
+import packaging.version
 import toml
 from pydantic import BaseModel, Field
 
@@ -229,10 +231,9 @@ def run(run: bool):
         run: 是否直接运行项目而不安装依赖
     """
     if metadata := get_package_metadata("amrita"):
-        if (
-            metadata["releases"] != {}
-            and list(metadata["releases"].keys())[-1] > get_amrita_version()
-        ):
+        if metadata["releases"] != {} and packaging.version.parse(
+            max(list(metadata["releases"].keys()), key=packaging.version.parse)
+        ) > packaging.version.parse(get_amrita_version()):
             click.echo(
                 warn(f"新版本的Amrita已就绪: {list(metadata['releases'].keys())[-1]}")
             )

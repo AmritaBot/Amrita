@@ -97,6 +97,10 @@ class ModelPreset(BaseModel):
 class ToolsConfig(BaseModel):
     enable_tools: bool = True  # 此选项不影响内容审查是否启用。
     enable_report: bool = True
+    report_exclude_system_prompt: bool = (
+        False  # 默认情况下，内容审查会检查系统提示和上下文。
+    )
+    report_exclude_context: bool = False  # 默认情况下，内容审查会检查系统提示和上下文。
     report_then_block: bool = True
     require_tools: bool = False
     agent_mode_enable: bool = False  # 使用实验性的智能体模式

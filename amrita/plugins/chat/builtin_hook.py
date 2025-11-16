@@ -66,7 +66,12 @@ async def text_check(event: BeforeChatEvent) -> None:
     logger.info("正在进行内容审查......")
     bot = get_bot()
     tool_list = [REPORT_TOOL]
-    response = await tools_caller(event._send_message, tool_list)
+    msg = event._send_message
+    if config.llm_config.tools.report_exclude_system_prompt:
+        msg = msg[1:]
+    if config.llm_config.tools.report_exclude_context:
+        msg = msg[:-1]
+    response = await tools_caller(msg, tool_list)
     nonebot_event = typing.cast(MessageEvent, event.get_nonebot_event())
     if tool_calls := response.tool_calls:
         for tool_call in tool_calls:

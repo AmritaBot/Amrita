@@ -28,6 +28,10 @@ async def onEnable():
         logger.info("正在初始化MCP Client......")
         mcp_servers = conf.llm_config.tools.agent_mcp_server_scripts
         for server in mcp_servers:
-            await ClientManager().initialize_this(server)
+            try:
+                await ClientManager().initialize_this(server)
+            except Exception as e:  # noqa: PERF203
+                logger.error(f"初始化MCP Client@{server}失败: {e}")
+                logger.opt(exception=e, colors=True).exception(e)
         logger.info("MCP Client初始化完成！")
     logger.debug("成功启动！")

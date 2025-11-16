@@ -203,6 +203,7 @@ class ClientManager:
                 await self._load_this(client)
             except Exception as e:
                 logger.error(f"❌ 初始化 MCP Server@{server_script} 失败：{e}")
+                raise
             else:
                 self.clients.append(client)
         return self
