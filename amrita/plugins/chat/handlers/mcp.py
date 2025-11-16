@@ -18,7 +18,7 @@ from ..utils.llm_tools.mcp_client import ClientManager
 async def mcp_status(
     bot: Bot, matcher: Matcher, event: MessageEvent, arg: Message = CommandArg()
 ):
-    arg_text = arg.extract_plain_text().strip().split()
+    arg_text = arg.extract_plain_text().strip()
     tools_count = len(ClientManager.name_to_clients)
     mcp_server_counts = len(ClientManager.clients)
     tools_mapping_count = len(ClientManager.tools_remapping)
