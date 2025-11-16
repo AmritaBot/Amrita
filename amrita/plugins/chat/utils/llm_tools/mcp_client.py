@@ -199,12 +199,12 @@ class ClientManager:
         """注册并初始化单个MCP Server"""
         client = self.get_client_by_script(server_script)
         async with self._lock:
-            self.clients.append(client)
             try:
                 await self._load_this(client)
             except Exception as e:
                 logger.error(f"❌ 初始化 MCP Server@{server_script} 失败：{e}")
-                self.clients.remove(client)
+            else:
+                self.clients.append(client)
         return self
 
     async def _load_this(self, client: MCPClient, fail_then_raise=True):
@@ -272,4 +272,7 @@ class ClientManager:
                     ClientManager.name_to_clients.pop(name, None)
                     if remap := ClientManager.tools_remapping.pop(name, None):
                         ClientManager.reversed_remappings.pop(remap, None)
-                self.clients.remove(client)
+                for client in self.clients:
+                    if client.server_script == script_name:
+                        self.clients.remove(client)
+                        break
