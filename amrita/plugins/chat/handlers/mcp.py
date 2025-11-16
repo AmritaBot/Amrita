@@ -67,7 +67,7 @@ async def add_mcp_server(
         await matcher.finish("添加成功")
     except Exception as e:
         if isinstance(e, ChatException):
-            pass
+            raise
         await matcher.send(f"添加失败: {e}")
         logger.opt(exception=e, colors=True).exception(e)
 
