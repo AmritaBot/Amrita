@@ -1,4 +1,3 @@
-import shlex
 import sys
 from asyncio import subprocess
 
