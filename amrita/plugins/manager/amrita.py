@@ -1,3 +1,4 @@
+import shlex
 import sys
 from asyncio import subprocess
 
@@ -43,23 +44,27 @@ async def _(matcher: Matcher, args: Message = CommandArg()):
                 except Exception:
                     await matcher.finish("错误：无法检查更新")
                 else:
-                    if latest_version > get_amrita_version():
+                    if version.parse(latest_version) > version.parse(
+                        get_amrita_version()
+                    ):
                         await matcher.send(
                             f"新版本的Amrita已就绪: {latest_version}，正在更新..."
                         )
                         try:
-                            await subprocess.create_subprocess_shell(
-                                f"uv add amrita=={latest_version}"
-                                if IS_IN_VENV
-                                else (
-                                    f"pip install amrita=={latest_version}"
-                                    + (
-                                        "--break-system-packages"
-                                        if sys.platform.lower() == "linux"
-                                        else ""
+                            await (
+                                await subprocess.create_subprocess_shell(
+                                    f"uv add amrita=={latest_version}"
+                                    if IS_IN_VENV
+                                    else (
+                                        f"pip install amrita=={latest_version}"
+                                        + (
+                                            "--break-system-packages"
+                                            if sys.platform.lower() == "linux"
+                                            else ""
+                                        )
                                     )
                                 )
-                            )
+                            ).wait()
                             await matcher.send("完成更新，请重新启动程序以应用更改。")
                         except Exception as e:
                             await matcher.send("更新失败：" + str(e))
