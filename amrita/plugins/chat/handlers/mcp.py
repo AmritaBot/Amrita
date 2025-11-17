@@ -35,7 +35,7 @@ async def mcp_command(
                     return await add_mcp_server(matcher, bot, event, arg_list[1])
                 elif arg_list[0] in ("del", "删除"):
                     return await del_mcp_server(matcher, arg_list[1])
-            await matcher.finish("参数位置'0'错误或数量错误")
+            await matcher.finish("参数数量或类型错误，请检查命令格式。")
 
 
 async def mcp_status(bot: Bot, matcher: Matcher, event: MessageEvent, arg: list[str]):
