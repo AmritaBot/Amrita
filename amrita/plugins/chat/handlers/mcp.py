@@ -30,7 +30,7 @@ async def mcp_command(
                 return await mcp_status(bot, matcher, event, arg_list[1:])
             elif arg_list[0] == "reload":
                 return await reload(matcher)
-            elif len(arg) == 2:
+            elif len(arg_list) == 2:
                 if arg_list[0] in ("add", "添加"):
                     return await add_mcp_server(matcher, bot, event, arg_list[1])
                 elif arg_list[0] in ("del", "删除"):
