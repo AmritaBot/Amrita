@@ -16,10 +16,30 @@ from amrita.utils.send import send_forward_msg
 from ..utils.llm_tools.mcp_client import ClientManager
 
 
-async def mcp_status(
+async def mcp_command(
     bot: Bot, matcher: Matcher, event: MessageEvent, arg: Message = CommandArg()
 ):
-    arg_text = arg.extract_plain_text().strip()
+    arg_list = arg.extract_plain_text().strip().split()
+    match len(arg_list):
+        case 0:
+            await matcher.finish(
+                "❌ 缺少参数！\n可用：stats [-d|--details];add <server_script>;del <server_script>;reload"
+            )
+        case 1 | 2:
+            if arg_list[0] == "stats":
+                return await mcp_status(bot, matcher, event, arg_list[1:])
+            elif arg_list[0] == "reload":
+                return await reload(matcher)
+            elif len(arg) == 2:
+                if arg_list[0] in ("add", "添加"):
+                    return await add_mcp_server(matcher, bot, event, arg_list[1])
+                elif arg_list[0] in ("del", "删除"):
+                    return await del_mcp_server(matcher, arg_list[1])
+            await matcher.finish("参数位置'0'错误或数量错误")
+
+
+async def mcp_status(bot: Bot, matcher: Matcher, event: MessageEvent, arg: list[str]):
+    arg_text = arg[0] if len(arg) > 0 else ""
     tools_count = len(ClientManager().name_to_clients)
     mcp_server_counts = len(ClientManager().clients)
     tools_mapping_count = len(ClientManager().tools_remapping)
@@ -50,12 +70,11 @@ async def mcp_status(
 
 
 async def add_mcp_server(
-    matcher: Matcher, bot: Bot, event: MessageEvent, args: Message = CommandArg()
+    matcher: Matcher, bot: Bot, event: MessageEvent, mcp_server: str
 ):
     if not config_manager.config.llm_config.tools.agent_mcp_client_enable:
         return
     config = config_manager.ins_config
-    mcp_server = args.extract_plain_text().strip()
     if not mcp_server:
         await matcher.finish("请输入MCP Server脚本路径")
     if mcp_server in config.llm_config.tools.agent_mcp_server_scripts:
@@ -72,11 +91,10 @@ async def add_mcp_server(
         logger.opt(exception=e, colors=True).exception(e)
 
 
-async def del_mcp_server(matcher: Matcher, args: Message = CommandArg()):
+async def del_mcp_server(matcher: Matcher, mcp_server: str):
     if not config_manager.config.llm_config.tools.agent_mcp_client_enable:
         return
     config = config_manager.ins_config
-    mcp_server = args.extract_plain_text().strip()
     if not mcp_server:
         await matcher.finish("请输入要删除的MCP Server")
     if mcp_server not in config.llm_config.tools.agent_mcp_server_scripts:
