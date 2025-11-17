@@ -39,7 +39,7 @@ async def mcp_command(
 
 
 async def mcp_status(bot: Bot, matcher: Matcher, event: MessageEvent, arg: list[str]):
-    arg_text = arg[0] if len(arg) > 0 else ""
+    arg_text = arg[0] if arg else ""
     tools_count = len(ClientManager().name_to_clients)
     mcp_server_counts = len(ClientManager().clients)
     tools_mapping_count = len(ClientManager().tools_remapping)
