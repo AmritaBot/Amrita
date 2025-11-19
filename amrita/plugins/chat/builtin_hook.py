@@ -144,10 +144,14 @@ async def agent_core(event: BeforeChatEvent) -> None:
         original_msg: str = "",
     ):
         logger.debug(f"开始第{call_count + 1}轮工具调用，当前消息数: {len(msg_list)}")
-        if (
-            call_count == 0
-            and config_manager.config.llm_config.tools.agent_mode_enable
-            and config_manager.config.llm_config.tools.agent_thought_mode == "reasoning"
+        if config_manager.config.llm_config.tools.agent_mode_enable and (
+            (
+                call_count == 0
+                and config_manager.config.llm_config.tools.agent_thought_mode
+                == "reasoning"
+            )
+            or config_manager.config.llm_config.tools.agent_thought_mode
+            == "reasoning-required"
         ):
             await append_reasoning_msg(msg_list, original_msg)
 
@@ -293,7 +297,7 @@ async def agent_core(event: BeforeChatEvent) -> None:
     tools: list[dict[str, Any]] = []
     if config.llm_config.tools.agent_mode_enable:
         tools.append(STOP_TOOL.model_dump())
-        if config.llm_config.tools.agent_thought_mode == "reasoning":
+        if config.llm_config.tools.agent_thought_mode.startswith("reasoning"):
             tools.append(REASONING_TOOL.model_dump(exclude_none=True))
     tools.extend(ToolsManager().tools_meta_dict(exclude_none=True).values())
     logger.debug(f"工具列表：{tools}")
