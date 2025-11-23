@@ -10,6 +10,8 @@ from subprocess import CalledProcessError
 
 import click
 import toml
+import tomli
+import tomli_w
 
 from amrita.cli import (
     error,
@@ -24,6 +26,7 @@ from amrita.cli import (
 )
 from amrita.resource import EXAMPLE_PLUGIN, EXAMPLE_PLUGIN_CONFIG
 
+PY_LIST = list
 
 def pypi_install(name: str):
     """从PyPI安装插件
@@ -152,30 +155,42 @@ def remove(name: str):
                 stderr=subprocess.PIPE,
             )
         elif name.replace("-", "_").startswith("amrita_plugin"):
-            with open("pyproject.toml", encoding="utf-8") as f:
-                data = toml.load(f)
-                if "nonebot" in data:
-                    if "plugins" in data["nonebot"]:
-                        if name.replace("-", "_") in data["nonebot"]["plugins"]:
-                            data["nonebot"]["plugins"].remove(name.replace("-", "_"))
-            with open("pyproject.toml", "w", encoding="utf-8") as f:
-                toml.dump(data, f)
+            with open(
+                "pyproject.toml",
+                "rb",
+            ) as f:
+                data = tomli.load(f)
+                if "tool" in data:
+                    if "nonebot" in data["tool"]:
+                        if "plugins" in data["tool"]["nonebot"]:
+                            if (
+                                name.replace("-", "_")
+                                in data["tool"]["nonebot"]["plugins"]
+                            ):
+                                plugins_list: PY_LIST[str] = PY_LIST(
+                                    data["tool"]["nonebot"]["plugins"]
+                                )
+                                plugins_list.remove(name.replace("-", "_"))
+                                data["tool"]["nonebot"]["plugins"] = plugins_list
+            with open("pyproject.toml", "wb") as f:
+                tomli_w.dump(data, f)
             run_proc(
                 ["uv", "remove", name.replace("-", "_")],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
             )
-        click.echo(error(f"插件 {name} 不存在。"))
+    else:
+        confirm = click.confirm(
+            question(f"您确定要删除插件 '{name}' 吗?"), default=False
+        )
+        if not confirm:
+            return
 
-    confirm = click.confirm(question(f"您确定要删除插件 '{name}' 吗?"), default=False)
-    if not confirm:
-        return
+        # 删除插件目录
+        import shutil
 
-    # 删除插件目录
-    import shutil
-
-    shutil.rmtree(plugin_dir)
-    click.echo(success(f"插件 {name} 删除成功!"))
+        shutil.rmtree(plugin_dir)
+        click.echo(success(f"插件 {name} 删除成功!"))
 
 
 def echo_plugins():

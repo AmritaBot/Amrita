@@ -6,6 +6,8 @@ readme = "README.md"
 license = "GPL-3.0-or-later"
 requires-python = ">=3.10, <4.0"
 dependencies = [
+    "tomli>=2.0.0",
+    "tomli-w>=1.0.0",
     "click>=8.2.1",
     "colorama>=0.4",
     "toml>=0.10.2",
@@ -31,8 +33,6 @@ full = [
     "uvicorn>=0.35.0",
     "psutil>=7.0.0",
     "pytz>=2025.1",
-    "tomli>=2.0.0",
-    "tomli-w>=1.0.0",
     "stubs>=1.0.0",
     "dotenv>=0.9.9",
     "importlib>=1.0.4",
