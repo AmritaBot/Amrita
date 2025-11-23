@@ -613,7 +613,7 @@ class ConfigManager:
             default_value = "null"
         if not hasattr(self.ins_config.extra, key):
             setattr(self.ins_config.extra, key, default_value)
-            logger.warning(self.ins_config.extra.model_dump_json())
+            logger.info(f"Extra config registered: {key}:{default_value}")
         await self.save_config()
 
     def reg_config(self, key: str, default_value=None):

@@ -167,7 +167,6 @@ def remove(name: str):
             )
         click.echo(error(f"插件 {name} 不存在。"))
 
-
     confirm = click.confirm(question(f"您确定要删除插件 '{name}' 吗?"), default=False)
     if not confirm:
         return

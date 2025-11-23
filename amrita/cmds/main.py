@@ -127,6 +127,7 @@ class PyprojectFile(BaseModel):
     project: Pyproject
     tool: Tool = Tool()
 
+
 def init_project(
     project_dir: Path, project_name: str, description: str, python_version: str
 ):
@@ -168,6 +169,7 @@ def init_project(
             run_proc(["git", "init", str(project_dir)])
     except Exception as e:
         click.echo(error(f"无法初始化Git仓库：{e}"))
+
 
 @cli.command()
 def version():
