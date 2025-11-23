@@ -21,7 +21,7 @@ WEBUI_PASSWORD=admin123"""
 DOTENV_DEV = """LOG_LEVEL=DEBUG"""
 
 # 生产环境配置文件内容
-DOTENV_PROD = """"""
+DOTENV_PROD = """LOG_LEVEL=INFO"""
 
 # Git忽略文件内容
 GITIGNORE = """# Created by https://www.toptal.com/developers/gitignore/api/python
@@ -199,7 +199,17 @@ poetry.toml
 # LSP config files
 pyrightconfig.json
 
-# End of https://www.toptal.com/developers/gitignore/api/python"""
+# End of https://www.toptal.com/developers/gitignore/api/python
+
+# Amrita
+config/
+# bot.py
+data/
+cache/
+logs/
+.env.*
+
+# End of Amrita"""
 
 # README文件模板
 README = """
@@ -208,9 +218,9 @@ README = """
 ## How to start
 
 1. generate project using `amrita init` .
-2. create your plugin using `nb plugin create` .
+2. create your plugin using `amrita plugin new` .
 3. writing your plugins under `{project_name}/plugins` folder.
-4. run your bot using `amrita run --reload` .
+4. run your bot using `amrita run` .
 
 ## Documentation
 

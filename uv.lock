@@ -182,7 +182,7 @@ wheels = [
 
 [[package]]
 name = "amrita"
-version = "0.4.1"
+version = "0.4.3"
 source = { editable = "." }
 dependencies = [
     { name = "aiofiles" },
@@ -190,10 +190,13 @@ dependencies = [
     { name = "colorama" },
     { name = "nb-cli" },
     { name = "nonebot-plugin-localstore" },
+    { name = "packaging" },
     { name = "pip" },
     { name = "python-multipart" },
     { name = "requests" },
     { name = "toml" },
+    { name = "tomli" },
+    { name = "tomli-w" },
     { name = "typing-extensions" },
     { name = "uv" },
 ]
@@ -212,14 +215,11 @@ full = [
     { name = "nonebot-plugin-orm", extra = ["default"] },
     { name = "nonebot2", extra = ["fastapi"] },
     { name = "openai" },
-    { name = "packaging" },
     { name = "pillow" },
     { name = "psutil" },
     { name = "pydantic" },
     { name = "pytz" },
     { name = "stubs" },
-    { name = "tomli" },
-    { name = "tomli-w" },
     { name = "uvicorn" },
     { name = "watchfiles" },
 ]
@@ -252,7 +252,7 @@ requires-dist = [
     { name = "nonebot-plugin-orm", extras = ["default"], marker = "extra == 'full'", specifier = ">=0.8.2" },
     { name = "nonebot2", extras = ["fastapi"], marker = "extra == 'full'", specifier = ">=2.4.3" },
     { name = "openai", marker = "extra == 'full'", specifier = ">=1.66.3,<=1.99.0" },
-    { name = "packaging", marker = "extra == 'full'", specifier = ">=25.0" },
+    { name = "packaging", specifier = ">=25.0" },
     { name = "pillow", marker = "extra == 'full'", specifier = ">=12.0.0" },
     { name = "pip", specifier = ">=25.2" },
     { name = "psutil", marker = "extra == 'full'", specifier = ">=7.0.0" },
@@ -262,8 +262,8 @@ requires-dist = [
     { name = "requests", specifier = ">=2.0" },
     { name = "stubs", marker = "extra == 'full'", specifier = ">=1.0.0" },
     { name = "toml", specifier = ">=0.10.2" },
-    { name = "tomli", marker = "extra == 'full'", specifier = ">=2.0.0" },
-    { name = "tomli-w", marker = "extra == 'full'", specifier = ">=1.0.0" },
+    { name = "tomli", specifier = ">=2.0.0" },
+    { name = "tomli-w", specifier = ">=1.0.0" },
     { name = "typing-extensions", specifier = ">=4.6.0" },
     { name = "uv", specifier = ">=0.8.12" },
     { name = "uvicorn", marker = "extra == 'full'", specifier = ">=0.35.0" },
