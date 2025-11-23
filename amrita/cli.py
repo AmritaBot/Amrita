@@ -3,61 +3,19 @@
 该模块提供了Amrita项目的命令行界面工具，用于项目管理、依赖检查、插件管理等功能。
 """
 
-import os
 import signal
 import subprocess
 import sys
-from logging import warning
-from typing import Any
+from typing import Literal, overload
 
 import click
 import colorama
-import requests
 from colorama import Fore, Style
-from packaging import version
 
 from amrita.utils.dependencies import self_check_optional_dependency
-from amrita.utils.utils import get_amrita_version
 
 # 全局变量用于跟踪子进程
 _subprocesses: list[subprocess.Popen] = []
-
-
-def get_package_metadata(package_name: str) -> dict[str, Any] | None:
-    """获取PyPI包的元数据信息
-
-    Args:
-        package_name: 包名称
-
-    Returns:
-        包的元数据字典，如果获取失败则返回None
-    """
-    try:
-        response = requests.get(
-            f"https://pypi.org/pypi/{package_name}/json", timeout=30
-        )
-        response.raise_for_status()
-        return response.json()
-    except Exception:
-        return
-
-
-def should_update() -> tuple[bool, str]:
-    if metadata := get_package_metadata("amrita"):
-        if metadata["releases"] != {} and version.parse(
-            max(list(metadata["releases"].keys()), key=version.parse)
-        ) > version.parse(get_amrita_version()):
-            latest_version = list(metadata["releases"].keys())[-1]
-            return True, latest_version
-        else:
-            click.echo(
-                success(
-                    "主环境Amrita已是最新版本。"
-                    if not IS_IN_VENV
-                    else "虚拟环境Amrita已是最新版本。"
-                )
-            )
-    return False, get_amrita_version()
 
 
 def run_proc(
@@ -132,16 +90,11 @@ def stdout_run_proc(cmd: list[str]):
     return stdout.decode("utf-8")
 
 
-__is_cleaning = False
-
-
 def _cleanup_subprocesses():
     """清理所有子进程
 
     终止所有正在运行的子进程，首先尝试优雅地终止，超时后强制杀死。
     """
-    global __is_cleaning
-    __is_cleaning = True
     for proc in _subprocesses:
         try:
             proc.terminate()
@@ -162,10 +115,6 @@ def _signal_handler(signum, frame):
         signum: 信号编号
         frame: 当前堆栈帧
     """
-    global __is_cleaning
-    if __is_cleaning:
-        return
-    click.echo(warn("正在清理进程..."))
     _cleanup_subprocesses()
     sys.exit(0)
 
@@ -175,8 +124,18 @@ signal.signal(signal.SIGTERM, _signal_handler)
 signal.signal(signal.SIGINT, _signal_handler)
 
 
+@overload
 def check_optional_dependency(
-    with_details: bool = False, quiet: bool = False
+    is_self: Literal[True], with_details: Literal[True]
+) -> tuple[bool, list[str]]: ...
+
+
+@overload
+def check_optional_dependency(is_self: bool = False) -> bool: ...
+
+
+def check_optional_dependency(
+    is_self: bool = False, with_details: bool = False
 ) -> bool | tuple[bool, list[str]]:
     """检测amrita[full]可选依赖是否已安装
 
@@ -188,10 +147,10 @@ def check_optional_dependency(
         如果with_details为True，返回(状态, 缺失依赖列表)元组；
         否则只返回状态布尔值
     """
-    if not IS_IN_VENV:
+    if not is_self:
         try:
             run_proc(
-                ["uv", "run", "amrita", "check-dependencies"],
+                ["uv", "run", "amrita", "check-dependencies", "--self"],
                 stdout=subprocess.PIPE,
             )
             return True
@@ -199,11 +158,15 @@ def check_optional_dependency(
             return False
     else:
         status, missed = self_check_optional_dependency()
-        if not status and not quiet:
-            click.echo(error("一些可选依赖已丢失，但是您可以重新安装它们。"))
+        if not status:
+            click.echo(
+                error(
+                    "Some optional dependencies are missing. Please install them first."
+                )
+            )
             for pkg in missed:
-                click.echo(f"- {pkg} 是被要求的，但是没有被找到。")
-            click.echo(info("您可以通过以下方式来安装它们:\n  uv add amrita[full]"))
+                click.echo(f"- {pkg} was required, but it was not found.")
+            click.echo(info("You can install them by running:\n  uv add amrita[full]"))
         if with_details:
             return status, missed
         return status
@@ -219,7 +182,7 @@ def install_optional_dependency_no_venv() -> bool:
         run_proc(["pip", "install", "amrita[full]"])
         return True
     except (subprocess.CalledProcessError, FileNotFoundError):
-        click.echo(error("pip 运行失败。"))
+        click.echo(error("pip run failed."))
         return False
 
 
@@ -254,7 +217,7 @@ def install_optional_dependency() -> bool:
     except (subprocess.CalledProcessError, FileNotFoundError) as e:
         click.echo(
             error(
-                f"因为`{e}`，我们无法自动安装可选依赖, 尝试通过此方式手动安装： 'uv add amrita[full]'"
+                f"Failed to install amrita[full] dependency: {e}, try to install manually by 'uv add amrita[full]'"
             )
         )
         return False
@@ -344,44 +307,15 @@ def success(message: str):
     return f"{Fore.GREEN}[+]{Style.RESET_ALL} {message}"
 
 
-def is_in_venv(fail_then_throw: bool = False) -> bool:
-    """综合检查虚拟环境"""
-    if (
-        "AMRITA_IGNORE_VENV" in os.environ
-        and os.environ["AMRITA_IGNORE_VENV"].lower() == "true"
-    ):
-        click.echo(
-            warning("虚拟环境检查已被禁用。这通常不是推荐做法，但如您所愿，这将继续。")
-        )
-        return True
-
-    methods = {
-        "VIRTUAL_ENV" in os.environ,
-        hasattr(sys, "base_prefix") and sys.base_prefix != sys.prefix,
-        hasattr(sys, "real_prefix"),
-    }
-
-    in_venv = any(methods)
-    if in_venv:
-        if "VIRTUAL_ENV" in os.environ:
-            click.echo(info(f"使用虚拟环境路径: {os.environ['VIRTUAL_ENV']}"))
-    elif fail_then_throw:
-        raise Exception("未在虚拟环境中运行")
-    return in_venv
-
-
-IS_IN_VENV = is_in_venv()
-
-
 @click.group()
 def cli():
-    """Amrita CLI - PROJ.AmritaBot项目命令行工具"""
+    """Amrita CLI - CLI for PROJ.AmritaBot"""
     pass
 
 
 @cli.group()
 def plugin():
-    """管理插件。"""
+    """Manage plugins."""
     pass
 
 

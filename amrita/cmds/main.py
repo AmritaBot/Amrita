@@ -11,15 +11,12 @@ from pathlib import Path
 from typing import Any
 
 import click
-import packaging
-import packaging.version
 import toml
 from pydantic import BaseModel, Field
 
 from amrita.cmds.plugin import get_package_metadata
 
 from ..cli import (
-    IS_IN_VENV,
     check_nb_cli_available,
     check_optional_dependency,
     cli,
@@ -29,7 +26,6 @@ from ..cli import (
     install_optional_dependency_no_venv,
     question,
     run_proc,
-    should_update,
     stdout_run_proc,
     success,
     warn,
@@ -49,7 +45,7 @@ class Pyproject(BaseModel):
         default_factory=lambda: [f"amrita[full]>={get_amrita_version()}"]
     )
     readme: str = "README.md"
-    requires_python: str = ">=3.10, <3.14"
+    requires_python: str = ">=3.10, <4.0"
 
 
 class NonebotTool(BaseModel):
@@ -83,57 +79,64 @@ class PyprojectFile(BaseModel):
 
 @cli.command()
 def version():
-    """打印版本号。
+    """Print the version number.
 
     显示Amrita和NoneBot的版本信息。
     """
     try:
         version = get_amrita_version()
-        click.echo(f"Amrita 版本: {version}")
+        click.echo(f"Amrita version: {version}")
 
         # 尝试获取NoneBot版本
         try:
             nb_version = metadata.version("nonebot2")
-            click.echo(f"NoneBot 版本: {nb_version}")
+            click.echo(f"NoneBot version: {nb_version}")
         except metadata.PackageNotFoundError:
-            click.echo(warn("NoneBot 未安装"))
+            click.echo(warn("NoneBot is not installed"))
 
     except metadata.PackageNotFoundError:
-        click.echo(error("Amrita 未正确安装"))
+        click.echo(error("Amrita is not installed properly"))
 
 
 @cli.command()
-def check_dependencies():
-    """检查依赖。
+@click.option("--self", "-s", help="Check directly in this environment", is_flag=True)
+def check_dependencies(self):
+    """Check dependencies.
 
     检查项目依赖是否完整，如不完整则提供修复选项。
 
+    Args:
+        self: 是否在当前环境中直接检查
     """
-    click.echo(info("正在检查Amrita完整依赖..."))
+    click.echo(info("Checking dependencies..."))
 
     # 检查uv是否可用
     try:
         stdout_run_proc(["uv", "--version"])
     except (subprocess.CalledProcessError, FileNotFoundError):
-        click.echo(error("UV 未安装，请安装UV后再试！"))
+        click.echo(error("uv is not available. Please install uv first."))
 
     # 检查amrita[full]依赖
-    if check_optional_dependency():
-        click.echo(success("完成依赖检查"))
+    if check_optional_dependency(self):
+        click.echo(success("Dependencies checked successfully!"))
     else:
-        click.echo(error("已检查到依赖存在异常。"))
-        fix: bool = click.confirm(question("您想要修复它吗？"))
+        click.echo(error("Dependencies has problems"))
+        if self:
+            sys.exit(1)
+        fix: bool = click.confirm(question("Do you want to fix it?"))
         if fix:
             return install_optional_dependency()
 
 
 @cli.command()
-@click.option("--project-name", "-p", help="项目名称")
-@click.option("--description", "-d", help="项目描述")
-@click.option("--python-version", "-py", help="Python版本要求", default=">=3.10, <4.0")
-@click.option("--this-dir", "-t", is_flag=True, help="使用当前目录")
+@click.option("--project-name", "-p", help="Project name")
+@click.option("--description", "-d", help="Project description")
+@click.option(
+    "--python-version", "-py", help="Python version requirement", default=">=3.10, <4.0"
+)
+@click.option("--this-dir", "-t", is_flag=True, help="Use current directory")
 def create(project_name, description, python_version, this_dir):
-    """创建一个新项目。
+    """Create a new project.
 
     创建一个新的Amrita项目，包括目录结构和必要文件。
 
@@ -144,20 +147,22 @@ def create(project_name, description, python_version, this_dir):
         this_dir: 是否在当前目录创建项目
     """
     cwd = Path(os.getcwd())
-    project_name = project_name or click.prompt(question("项目名称"), type=str)
+    project_name = project_name or click.prompt(question("Project name"), type=str)
     description = description or click.prompt(
-        question("项目描述"), type=str, default=""
+        question("Project description"), type=str, default=""
     )
 
     project_dir = cwd / project_name if not this_dir else cwd
 
     if project_dir.exists() and project_dir.is_dir() and list(project_dir.iterdir()):
-        click.echo(warn(f"项目 `{project_name}` 看起来已经存在了."))
-        overwrite = click.confirm(question("你想要覆盖它们吗?"), default=False)
+        click.echo(warn(f"Project {project_name} already exists."))
+        overwrite = click.confirm(
+            question("Do you want to overwrite existing files?"), default=False
+        )
         if not overwrite:
             return
 
-    click.echo(info(f"正在创建项目 {project_name}..."))
+    click.echo(info(f"Creating project {project_name}..."))
 
     # 创建项目目录结构
     os.makedirs(str(project_dir / "plugins"), exist_ok=True)
@@ -191,30 +196,33 @@ def create(project_name, description, python_version, this_dir):
     with open(project_dir / ".python-version", "w", encoding="utf-8") as f:
         f.write("3.10\n")
     # 安装依赖
-    if click.confirm(question("您现在想要安装依赖吗?"), default=True):
-        click.echo(info("正在安装依赖......"))
-        if click.confirm(
-            question("您想要使用虚拟环境吗（这通常是推荐的做法）?"), default=True
-        ):
+    if click.confirm(
+        question("Do you want to install dependencies now?"), default=True
+    ):
+        click.echo(info("Installing dependencies..."))
+        if click.confirm(question("Do you want to use venv?"), default=True):
             os.chdir(str(project_dir))
             if not install_optional_dependency():
-                click.echo(error("出现了一些问题，我们无法安装依赖。"))
+                click.echo(error("Failed to install dependencies."))
                 return
         elif not install_optional_dependency_no_venv():
-            click.echo(error("无法安装依赖项。"))
+            click.echo(error("Failed to install dependencies."))
             return
-    click.echo(success(f"您的项目 {project_name} 已完成创建!"))
-    click.echo(info("您接下来可以运行以下命令启动项目:"))
+    click.echo(success(f"Project {project_name} created successfully!"))
+    click.echo(info("Next steps:"))
     click.echo(info(f"  cd {project_name if not this_dir else '.'}"))
     click.echo(info("  amrita run"))
 
 
 @cli.command()
 def entry():
-    """在当前目录生成bot.py入口文件。"""
-    click.echo(info("正在生成 bot.py..."))
+    """Generate a bot.py on current directory.
+
+    在当前目录生成bot.py入口文件。
+    """
+    click.echo(info("Generating bot.py..."))
     if os.path.exists("bot.py"):
-        click.echo(error("bot.py 已存在。"))
+        click.echo(error("bot.py already exists."))
         return
     with open("bot.py", "w") as f:
         f.write(
@@ -223,28 +231,27 @@ def entry():
 
 
 @cli.command()
-@click.option("--run", "-r", is_flag=True, help="运行项目而不安装依赖。")
+@click.option(
+    "--run", "-r", is_flag=True, help="Run the project without installing dependencies."
+)
 def run(run: bool):
-    """运行Amrita项目。
+    """Run the project.
+
+    运行Amrita项目。
 
     Args:
         run: 是否直接运行项目而不安装依赖
     """
     if metadata := get_package_metadata("amrita"):
-        if metadata["releases"] != {} and packaging.version.parse(
-            max(list(metadata["releases"].keys()), key=packaging.version.parse)
-        ) > packaging.version.parse(get_amrita_version()):
+        if (
+            metadata["releases"] != {}
+            and list(metadata["releases"].keys())[-1] > get_amrita_version()
+        ):
             click.echo(
-                warn(f"新版本的Amrita已就绪: {list(metadata['releases'].keys())[-1]}")
+                warn(f"New version available: {list(metadata['releases'].keys())[-1]}")
             )
         else:
-            click.echo(
-                success(
-                    "虚拟环境Amrita已是最新版本。"
-                    if IS_IN_VENV
-                    else "主环境Amrita已是最新版本。"
-                )
-            )
+            click.echo(success("Amrita is up to date"))
     if run:
         try:
             # 添加当前目录到sys.path以确保插件能被正确导入
@@ -254,38 +261,40 @@ def run(run: bool):
 
             bot.main()
         except ImportError as e:
-            click.echo(error(f"错误，依赖缺失: {e}"))
+            click.echo(error(f"Missing dependency: {e}"))
             return
         except Exception as e:
-            click.echo(error(f"在运行Bot时发生了一些问题: {e}"))
+            click.echo(error(f"Runtime error: {e}"))
             return
         return
 
     if not os.path.exists("pyproject.toml"):
-        click.echo(error("未找到 pyproject.toml"))
+        click.echo(error("pyproject.toml not found"))
         return
 
     # 依赖检测和安装
     if not check_optional_dependency():
-        click.echo(warn("缺少可选依赖 'full'"))
+        click.echo(warn("Missing optional dependency 'full'"))
         if not install_optional_dependency():
-            click.echo(error("安装可选依赖 'full' 失败"))
+            click.echo(error("Failed to install optional dependency 'full'"))
             return
 
-    click.echo(info("正在启动项目"))
+    click.echo(info("Starting project"))
     # 构建运行命令
     cmd = ["uv", "run", "amrita", "run", "--run"]
     try:
         run_proc(cmd)
     except Exception:
-        click.echo(error("运行项目时出现问题。"))
+        click.echo(error("Something went wrong when running the project."))
         return
 
 
 @cli.command()
-@click.option("--description", "-d", help="项目描述")
+@click.option("--description", "-d", help="Project description")
 def init(description):
-    """将当前目录初始化为Amrita项目。
+    """Initialize current directory as an Amrita project.
+
+    将当前目录初始化为Amrita项目。
 
     Args:
         description: 项目描述
@@ -294,12 +303,14 @@ def init(description):
     project_name = cwd.name
 
     if (cwd / "pyproject.toml").exists():
-        click.echo(warn("项目已初始化。"))
-        overwrite = click.confirm(question("您想要覆盖现有文件吗?"), default=False)
+        click.echo(warn("Project already initialized."))
+        overwrite = click.confirm(
+            question("Do you want to overwrite existing files?"), default=False
+        )
         if not overwrite:
             return
 
-    click.echo(info(f"正在初始化项目 {project_name}..."))
+    click.echo(info(f"Initializing project {project_name}..."))
 
     # 创建目录结构
     os.makedirs(str(cwd / "plugins"), exist_ok=True)
@@ -332,23 +343,23 @@ def init(description):
         f.write("3.10\n")
 
     # 安装依赖
-    click.echo(info("正在安装依赖..."))
+    click.echo(info("Installing dependencies..."))
     if not install_optional_dependency():
-        click.echo(error("安装依赖失败。"))
+        click.echo(error("Failed to install dependencies."))
         return
 
-    click.echo(success("项目初始化成功！"))
-    click.echo(info("下一步: amrita run"))
+    click.echo(success("Project initialized successfully!"))
+    click.echo(info("Next steps: amrita run"))
 
 
 @cli.command()
 def proj_info():
-    """显示项目信息。
+    """Show project information.
 
     显示项目信息，包括名称、版本、描述和依赖等。
     """
     if not os.path.exists("pyproject.toml"):
-        click.echo(error("未找到 pyproject.toml。"))
+        click.echo(error("No pyproject.toml found."))
         return
 
     try:
@@ -356,15 +367,15 @@ def proj_info():
             data = toml.load(f)
 
         project_info = data.get("project", {})
-        click.echo(success("项目信息:"))
-        click.echo(f"  名称: {project_info.get('name', 'N/A')}")
-        click.echo(f"  版本: {project_info.get('version', 'N/A')}")
-        click.echo(f"  描述: {project_info.get('description', 'N/A')}")
+        click.echo(success("Project Information:"))
+        click.echo(f"  Name: {project_info.get('name', 'N/A')}")
+        click.echo(f"  Version: {project_info.get('version', 'N/A')}")
+        click.echo(f"  Description: {project_info.get('description', 'N/A')}")
         click.echo(f"  Python: {project_info.get('requires-python', 'N/A')}")
 
         dependencies = project_info.get("dependencies", [])
         if dependencies:
-            click.echo("  依赖:")
+            click.echo("  Dependencies:")
             for dep in dependencies:
                 click.echo(f"    - {dep}")
 
@@ -373,7 +384,7 @@ def proj_info():
         echo_plugins()
 
     except Exception as e:
-        click.echo(error(f"读取项目信息时出错: {e}"))
+        click.echo(error(f"Error reading project info: {e}"))
 
 
 @cli.command(
@@ -383,7 +394,9 @@ def proj_info():
 )
 @click.argument("orm_args", nargs=-1, type=click.UNPROCESSED)
 def orm(orm_args):
-    """直接运行nb-orm命令。
+    """Run nb-orm commands directly.
+
+    直接运行nb-orm命令。
 
     Args:
         orm_args: 传递给orm的参数
@@ -392,37 +405,31 @@ def orm(orm_args):
 
 
 @cli.command()
-@click.option("--count", "-c", default="10", help="获取数量")
-@click.option("--details", "-d", is_flag=True, help="显示详细信息")
+@click.option("--count", "-c", default="10")
+@click.option("--details", "-d", is_flag=True)
 def event(count: str, details: bool):
-    """获取最近的事件(默认10个)。"""
+    """Get the last events(10 by default)."""
     if not count.isdigit():
-        click.echo(error("数量必须为大于0的正整数."))
+        click.echo(error("Count must be a number greater than 0."))
         return
-    if IS_IN_VENV:
-        from amrita import init
+    from amrita import init
 
-        init()
-        click.echo(
-            success(
-                f"获取数量为 {count} 的事件...",
-            )
+    init()
+    click.echo(
+        success(
+            f"Getting {count} events...",
         )
-        events = LoggingData._get_data_sync()
-        if not events.data:
-            click.echo(warn("没有日志事件被找到。"))
-            return
-        for event in events.data[-int(count) :]:
-            click.echo(
-                f"- {event.time.strftime('%Y-%m-%d %H:%M:%S')} {event.log_level} {event.description}"
-                + (f"\n   |__{event.message}" if details else "")
-            )
-        click.echo(info(f"总共 {len(events.data)} 个事件。"))
-    else:
-        extend_list = []
-        if details:
-            extend_list.append("--details")
-        run_proc(["uv", "run", "amrita", "event", "--count", count, *extend_list])
+    )
+    events = LoggingData._get_data_sync()
+    if not events.data:
+        click.echo(warn("No events found."))
+        return
+    for event in events.data[-int(count) :]:
+        click.echo(
+            f"- {event.time.strftime('%Y-%m-%d %H:%M:%S')} {event.log_level} {event.description}"
+            + (f"\n   |__{event.message}" if details else "")
+        )
+    click.echo(info(f"Total {len(events.data)} events."))
 
 
 @cli.command(
@@ -432,81 +439,59 @@ def event(count: str, details: bool):
 )
 @click.argument("nb_args", nargs=-1, type=click.UNPROCESSED)
 def nb(nb_args):
-    """直接运行nb-cli命令。
+    """Run nb-cli commands directly.
+
+    直接运行nb-cli命令。
 
     Args:
         nb_args: 传递给nb-cli的参数
     """
     if not check_nb_cli_available():
-        click.echo(error("nb-cli 不可用。请使用 'pip install nb-cli' 安装"))
+        click.echo(
+            error(
+                "nb-cli is not available. Please install it with 'pip install nb-cli'"
+            )
+        )
         return
 
     try:
         # 将参数传递给nb-cli
-        click.echo(info("正在运行 nb-cli..."))
+        click.echo(info("Running nb-cli..."))
         run_proc(["nb", *list(nb_args)])
     except subprocess.CalledProcessError as e:
         if e.returncode == 127:
-            click.echo(error("nb-cli 不可用。请使用 'pip install nb-cli' 安装"))
+            click.echo(
+                error(
+                    "nb-cli is not available. Please install it with 'pip install nb-cli'"
+                )
+            )
         elif e.returncode == 2:
             click.echo(error(bytes(e.stdout).decode("utf-8")))
-            click.echo(error("nb-cli 命令失败，您的命令是否正确？"))
+            click.echo(error("nb-cli command failed,is your command correct?"))
         else:
-            click.echo(error(f"nb-cli 命令失败，退出代码 {e.returncode}"))
+            click.echo(error(f"nb-cli command failed with exit code {e.returncode}"))
 
 
 @cli.command()
-@click.option("--ignore-venv", "-i", is_flag=True, help="忽略Venv环境")
-def test(ignore_venv: bool):
-    """运行Amrita项目的负载测试。"""
+def test():
+    """Run a load test for Amrita project
+
+    运行Amrita项目的负载测试。
+    """
     if not check_optional_dependency():
-        return click.echo(error("缺少可选依赖 'full'"))
-    if ignore_venv or IS_IN_VENV:
-        click.echo(info("正在运行负载测试..."))
+        click.echo(error("Missing optional dependency 'full'"))
+    else:
         from amrita import load_test
 
         try:
             load_test.main()
         except Exception as e:
-            click.echo(error("糟糕！在预加载时出现问题(运行 on_startup 钩子)!"))
-            click.echo(error(f"错误: {e}"))
+            click.echo(
+                error(
+                    "OOPS!There is something wrong while pre-loading(Running on_startup hooks)!"
+                )
+            )
+            click.echo(error(f"Error: {e}"))
             exit(1)
         else:
-            click.echo(info("完成!"))
-    else:
-        run_proc(["uv", "run", "amrita", "test", "--ignore-venv"])
-
-
-@cli.command()
-def update():
-    """更新Amrita"""
-    click.echo(info("正在检查更新..."))
-    need_update, version = should_update()
-    if need_update:
-        if not IS_IN_VENV:
-            click.echo(warn(f"新版本的Amrita已就绪: {version}"))
-        click.echo(info("正在更新..."))
-        run_proc(
-            ["pip", "install", f"amrita=={version}"]
-            + (["--break-system-packages"] if sys.platform.lower() == "linux" else [])
-        )
-    if not IS_IN_VENV:
-        click.echo(info("正在检查虚拟环境Amrita..."))
-        if not os.path.exists(".venv"):
-            click.echo(warn("未找到虚拟环境，已跳过。"))
-            return
-        venv_version = (
-            stdout_run_proc(["uv", "run", "pip", "show", "amrita"])
-            .split("\n")[1]
-            .split(" ")[1]
-            .strip()
-        )
-        click.echo(info(f"检测到虚拟环境Amrita: {venv_version}，目标：{version}"))
-        if venv_version < version:
-            click.echo(info("正在更新虚拟环境Amrita..."))
-            try:
-                run_proc(["uv", "add", f"amrita=={version}"])
-            except Exception as e:
-                click.echo(error("虚拟环境Amrita更新失败!"))
-                click.echo(error(f"错误: {e}"))
-                exit(1)
+            click.echo(info("Done!"))

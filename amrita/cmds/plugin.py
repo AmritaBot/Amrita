@@ -7,13 +7,14 @@ import os
 import subprocess
 from pathlib import Path
 from subprocess import CalledProcessError
+from typing import Any
 
 import click
+import requests
 import toml
 
 from amrita.cli import (
     error,
-    get_package_metadata,
     info,
     plugin,
     question,
@@ -25,6 +26,23 @@ from amrita.cli import (
 from amrita.resource import EXAMPLE_PLUGIN, EXAMPLE_PLUGIN_CONFIG
 
 
+def get_package_metadata(package_name: str) -> dict[str, Any] | None:
+    """获取PyPI包的元数据信息
+
+    Args:
+        package_name: 包名称
+
+    Returns:
+        包的元数据字典，如果获取失败则返回None
+    """
+    try:
+        response = requests.get(f"https://pypi.org/pypi/{package_name}/json")
+        response.raise_for_status()
+        return response.json()
+    except Exception:
+        return
+
+
 def pypi_install(name: str):
     """从PyPI安装插件
 
@@ -32,18 +50,18 @@ def pypi_install(name: str):
         name: 插件名称
     """
     name = name.replace("_", "-")
-    click.echo(info("尝试直接从PyPI安装插件..."))
+    click.echo(info("Try to install plugin from pypi directly..."))
     metadata = get_package_metadata(name)
     if not metadata:
-        click.echo(error("未找到包"))
+        click.echo(error("Package not found"))
         return
-    click.echo(info(f"正在下载 {name}..."))
+    click.echo(info(f"Downloading {name}..."))
     try:
         run_proc(["uv", "add", name])
     except CalledProcessError:
-        click.echo(error(f"安装 {name} 失败"))
+        click.echo(error(f"Failed to install {name}"))
         return
-    click.echo(info("正在安装..."))
+    click.echo(info("Installing..."))
     with open("pyproject.toml", encoding="utf-8") as f:
         data = toml.load(f)
         if "nonebot" not in data["tool"]:
@@ -53,14 +71,18 @@ def pypi_install(name: str):
             data["tool"]["nonebot"]["plugins"].append(name.replace("-", "_"))
     with open("pyproject.toml", "w", encoding="utf-8") as f:
         toml.dump(data, f)
-    click.echo(success(f"插件 {name} 已添加到 pyproject.toml 并成功安装。"))
+    click.echo(
+        success(f"Plugin {name} added to pyproject.toml and installed successfully.")
+    )
 
 
 @plugin.command()
 @click.argument("name")
-@click.option("--pypi", "-p", help="直接从PyPI安装", is_flag=True, default=False)
+@click.option(
+    "--pypi", "-p", help="Install from PyPI directly", is_flag=True, default=False
+)
 def install(name: str, pypi: bool):
-    """安装插件。
+    """Install a plugin.
 
     安装指定的插件。
 
@@ -70,7 +92,7 @@ def install(name: str, pypi: bool):
     """
     cwd = Path(os.getcwd())
     if (cwd / "plugins" / name).exists():
-        click.echo(warn(f"插件 {name} 已存在。"))
+        click.echo(warn(f"Plugin {name} already exists."))
         return
     if pypi or name.replace("_", "-").startswith("amrita-plugin-"):
         pypi_install(name)
@@ -80,15 +102,15 @@ def install(name: str, pypi: bool):
                 ["nb", "plugin", "install", name],
             )
         except Exception:
-            click.echo(error(f"安装插件 {name} "))
-            if click.confirm(question("您想要尝试从PyPI直接安装吗?")):
+            click.echo(error(f"Failed to install plugin {name}.Package not found."))
+            if click.confirm(question("Do you want to try installing it from pypi?")):
                 return pypi_install(name)
 
 
 @plugin.command()
 @click.argument("name", default="")
 def new(name: str):
-    """创建新插件。
+    """Create a new plugin.
 
     创建一个新的插件。
 
@@ -97,17 +119,19 @@ def new(name: str):
     """
     cwd = Path(os.getcwd())
     if not name:
-        name = click.prompt(question("插件名称"))
+        name = click.prompt(question("Plugin name"))
     plugins_dir = cwd / "plugins"
 
     if not plugins_dir.exists():
-        click.echo(error("不在Amrita项目目录中。"))
+        click.echo(error("Not in an Amrita project directory."))
         return
 
     plugin_dir = plugins_dir / name
     if plugin_dir.exists():
-        click.echo(warn(f"插件 {name} 已存在。"))
-        overwrite = click.confirm(question("您想要覆盖它吗?"), default=False)
+        click.echo(warn(f"Plugin {name} already exists."))
+        overwrite = click.confirm(
+            question("Do you want to overwrite it?"), default=False
+        )
         if not overwrite:
             return
 
@@ -126,13 +150,13 @@ def new(name: str):
     with open(plugin_dir / "config.py", "w", encoding="utf-8") as f:
         f.write(EXAMPLE_PLUGIN_CONFIG.format(name=name.replace("-", "_")))
 
-    click.echo(success(f"插件 {name} 创建成功!"))
+    click.echo(success(f"Plugin {name} created successfully!"))
 
 
 @plugin.command()
 @click.argument("name", default="")
 def remove(name: str):
-    """删除插件。
+    """Remove a plugin.
 
     删除指定的插件。
 
@@ -140,7 +164,7 @@ def remove(name: str):
         name: 插件名称
     """
     if not name:
-        name = click.prompt(question("输入插件名称"))
+        name = click.prompt(question("Enter plugin name"))
     cwd = Path(os.getcwd())
     plugin_dir = cwd / "plugins" / name
 
@@ -153,10 +177,12 @@ def remove(name: str):
             )
         except Exception:
             pass
-        click.echo(error(f"插件 {name} 不存在。"))
+        click.echo(error(f"Plugin {name} does not exist."))
         return
 
-    confirm = click.confirm(question(f"您确定要删除插件 '{name}' 吗?"), default=False)
+    confirm = click.confirm(
+        question(f"Are you sure you want to remove plugin '{name}'?"), default=False
+    )
     if not confirm:
         return
 
@@ -164,7 +190,7 @@ def remove(name: str):
     import shutil
 
     shutil.rmtree(plugin_dir)
-    click.echo(success(f"插件 {name} 删除成功!"))
+    click.echo(success(f"Plugin {name} removed successfully!"))
 
 
 def echo_plugins():
@@ -177,23 +203,23 @@ def echo_plugins():
     plugins = []
     stdout = stdout_run_proc(["uv", "run", "pip", "freeze"])
     freeze_str = [
-        "(包) " + (i.split("=="))[0]
+        "(Package) " + (i.split("=="))[0]
         for i in (stdout).split("\n")
         if i.startswith("nonebot-plugin") or i.startswith("amrita-plugin")
     ]
     plugins.extend(freeze_str)
 
     if not plugins_dir.exists():
-        click.echo(error("不在Amrita项目目录中。"))
+        click.echo(error("Not in an Amrita project directory."))
         return
 
     if not plugins_dir.is_dir():
-        click.echo(error("插件目录不是一个目录。"))
+        click.echo(error("Plugins directory is not a directory."))
         return
 
     plugins.extend(
         [
-            "(本地) " + item.name.replace(".py", "")
+            "(Local) " + item.name.replace(".py", "")
             for item in plugins_dir.iterdir()
             if (
                 not (item.name.startswith("-") or item.name.startswith("_"))
@@ -203,17 +229,17 @@ def echo_plugins():
     )
 
     if not plugins:
-        click.echo(info("未找到插件。"))
+        click.echo(info("No plugins found."))
         return
 
-    click.echo(success("可用插件:"))
+    click.echo(success("Available plugins:"))
     for pl in plugins:
         click.echo(f"  - {pl}")
 
 
 @plugin.command()
 def list():
-    """列出所有插件。
+    """List all plugins.
 
     列出所有插件。
     """
