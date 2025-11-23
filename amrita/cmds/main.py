@@ -68,10 +68,57 @@ class NonebotTool(BaseModel):
     plugin_dirs: list[str] = []
 
 
+class RUffToolLint(BaseModel):
+    select: list[str] = [
+        "F",  # Pyflakes
+        "W",  # pycodestyle warnings
+        "E",  # pycodestyle errors
+        "UP",  # pyupgrade
+        "ASYNC",  # flake8-async
+        "C4",  # flake8-comprehensions
+        "T10",  # flake8-debugger
+        "PYI",  # flake8-pyi
+        "PT",  # flake8-pytest-style
+        "Q",  # flake8-quotes
+        "RUF",  # Ruff-specific rules
+        "I",  # isort
+        "PERF",  # pylint-performance
+    ]
+    ignore: list[str] = [
+        "E402",  # module-import-not-at-top-of-file
+        "E501",  # line-too-long
+        "UP037",  # quoted-annotation
+        "RUF001",  # ambiguous-unicode-character-string
+        "RUF002",  # ambiguous-unicode-character-docstring
+        "RUF003",  # ambiguous-unicode-character-comment
+    ]
+
+
+class RuffTool(BaseModel):
+    """Ruff工具配置模型"""
+
+    line_length: int = 88
+    target_version: list[str] = ["py310"]
+    lint: RUffToolLint = RUffToolLint()
+
+
 class Tool(BaseModel):
     """工具配置模型"""
 
     nonebot: NonebotTool = NonebotTool()
+    ruff: RuffTool = RuffTool()
+    uv: dict[str, Any] = Field(
+        default_factory=lambda: {
+            "dev-dependencies": [
+                "ruff>=0.12.8",
+                "nonebot-plugin-orm[default]>=0.8.2",
+            ],
+            "package": True,
+        }
+    )
+    pyright: dict[str, Any] = Field(
+        default_factory=lambda: {"typeCheckingMode": "standard"}
+    )
 
 
 class PyprojectFile(BaseModel):
@@ -80,6 +127,47 @@ class PyprojectFile(BaseModel):
     project: Pyproject
     tool: Tool = Tool()
 
+def init_project(
+    project_dir: Path, project_name: str, description: str, python_version: str
+):
+    project_dir.resolve()  # 解析project_dir，防止可能的CLI注入
+    # 创建项目目录结构
+    os.makedirs(str(project_dir / "plugins"), exist_ok=True)
+    os.makedirs(str(project_dir / "data"), exist_ok=True)
+    os.makedirs(str(project_dir / "config"), exist_ok=True)
+    # 创建pyproject.toml
+    data = PyprojectFile(
+        project=Pyproject(
+            name=project_name, description=description, requires_python=python_version
+        )
+    ).model_dump()
+
+    with open(project_dir / "pyproject.toml", "w", encoding="utf-8") as f:
+        f.write(toml.dumps(data))
+
+    # 创建其他项目文件
+    if not (project_dir / ".env").exists():
+        with open(project_dir / ".env", "w", encoding="utf-8") as f:
+            f.write(DOTENV)
+    if not (project_dir / ".env.prod").exists():
+        with open(project_dir / ".env.prod", "w", encoding="utf-8") as f:
+            f.write(DOTENV_PROD)
+    if not (project_dir / ".env.dev").exists():
+        with open(project_dir / ".env.dev", "w", encoding="utf-8") as f:
+            f.write(DOTENV_DEV)
+    with open(project_dir / ".gitignore", "w", encoding="utf-8") as f:
+        f.write(GITIGNORE)
+    with open(project_dir / "README.md", "w", encoding="utf-8") as f:
+        f.write(README.format(project_name=project_name))
+    with open(project_dir / ".python-version", "w", encoding="utf-8") as f:
+        f.write(python_version)
+    try:
+        if not os.path.exists(str(project_dir / ".git")) or not os.path.isdir(
+            str(project_dir / ".git")
+        ):
+            run_proc(["git", "init", str(project_dir)])
+    except Exception as e:
+        click.echo(error(f"无法初始化Git仓库：{e}"))
 
 @cli.command()
 def version():
@@ -159,37 +247,7 @@ def create(project_name, description, python_version, this_dir):
 
     click.echo(info(f"正在创建项目 {project_name}..."))
 
-    # 创建项目目录结构
-    os.makedirs(str(project_dir / "plugins"), exist_ok=True)
-    os.makedirs(str(project_dir / "data"), exist_ok=True)
-    os.makedirs(str(project_dir / "config"), exist_ok=True)
-
-    # 创建pyproject.toml
-    data = PyprojectFile(
-        project=Pyproject(
-            name=project_name, description=description, requires_python=python_version
-        )
-    ).model_dump()
-
-    with open(project_dir / "pyproject.toml", "w", encoding="utf-8") as f:
-        f.write(toml.dumps(data))
-
-    # 创建其他项目文件
-    if not (project_dir / ".env").exists():
-        with open(project_dir / ".env", "w", encoding="utf-8") as f:
-            f.write(DOTENV)
-    if not (project_dir / ".env.prod").exists():
-        with open(project_dir / ".env.prod", "w", encoding="utf-8") as f:
-            f.write(DOTENV_PROD)
-    if not (project_dir / ".env.dev").exists():
-        with open(project_dir / ".env.dev", "w", encoding="utf-8") as f:
-            f.write(DOTENV_DEV)
-    with open(project_dir / ".gitignore", "w", encoding="utf-8") as f:
-        f.write(GITIGNORE)
-    with open(project_dir / "README.md", "w", encoding="utf-8") as f:
-        f.write(README.format(project_name=project_name))
-    with open(project_dir / ".python-version", "w", encoding="utf-8") as f:
-        f.write("3.10\n")
+    init_project(project_dir, project_name, description, python_version)
     # 安装依赖
     if click.confirm(question("您现在想要安装依赖吗?"), default=True):
         click.echo(info("正在安装依赖......"))
@@ -301,36 +359,7 @@ def init(description):
 
     click.echo(info(f"正在初始化项目 {project_name}..."))
 
-    # 创建目录结构
-    os.makedirs(str(cwd / "plugins"), exist_ok=True)
-    os.makedirs(str(cwd / "data"), exist_ok=True)
-    os.makedirs(str(cwd / "config"), exist_ok=True)
-
-    # 创建pyproject.toml
-    data = PyprojectFile(
-        project=Pyproject(
-            name=project_name,
-            description=description or "",
-        )
-    ).model_dump()
-    if not (cwd / ".env").exists():
-        with open(cwd / ".env", "w", encoding="utf-8") as f:
-            f.write(DOTENV)
-    if not (cwd / ".env.prod").exists():
-        with open(cwd / ".env.prod", "w", encoding="utf-8") as f:
-            f.write(DOTENV_PROD)
-    if not (cwd / ".env.dev").exists():
-        with open(cwd / ".env.dev", "w", encoding="utf-8") as f:
-            f.write(DOTENV_DEV)
-    with open(cwd / "pyproject.toml", "w", encoding="utf-8") as f:
-        f.write(toml.dumps(data))
-    with open(cwd / ".gitignore", "w", encoding="utf-8") as f:
-        f.write(GITIGNORE)
-    with open(cwd / "README.md", "w", encoding="utf-8") as f:
-        f.write(README.format(project_name=project_name))
-    with open(cwd / ".python-version", "w", encoding="utf-8") as f:
-        f.write("3.10\n")
-
+    init_project(cwd, project_name, description, "3.10")
     # 安装依赖
     click.echo(info("正在安装依赖..."))
     if not install_optional_dependency():

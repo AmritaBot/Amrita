@@ -145,16 +145,28 @@ def remove(name: str):
     plugin_dir = cwd / "plugins" / name
 
     if not plugin_dir.exists():
-        try:
+        if name.replace("-", "_").startswith("nonebot_plugin"):
             run_proc(
                 ["nb", "plugin", "remove", name],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
             )
-        except Exception:
-            pass
+        elif name.replace("-", "_").startswith("amrita_plugin"):
+            with open("pyproject.toml", encoding="utf-8") as f:
+                data = toml.load(f)
+                if "nonebot" in data:
+                    if "plugins" in data["nonebot"]:
+                        if name.replace("-", "_") in data["nonebot"]["plugins"]:
+                            data["nonebot"]["plugins"].remove(name.replace("-", "_"))
+            with open("pyproject.toml", "w", encoding="utf-8") as f:
+                toml.dump(data, f)
+            run_proc(
+                ["uv", "remove", name.replace("-", "_")],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
         click.echo(error(f"插件 {name} 不存在。"))
-        return
+
 
     confirm = click.confirm(question(f"您确定要删除插件 '{name}' 吗?"), default=False)
     if not confirm:
