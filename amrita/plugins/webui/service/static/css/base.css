@@ -590,6 +590,7 @@ textarea:focus {
   .sidebar {
     width: 0;
     overflow-x: hidden;
+    
   }
 
   .sidebar.mobile-open {
@@ -785,11 +786,22 @@ body.dark-mode .chart-card {
 }
 
 .chart-container {
-  margin: 35px;
   height: 300px;
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.chart-wrapper {
+  padding: 20px;
+  background: white;
+  border-radius: 10px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+body.dark-mode .chart-wrapper {
+  background: var(--dark-card-bg);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
 }
 
 .gauge-container {

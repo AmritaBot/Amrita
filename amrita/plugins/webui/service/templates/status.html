@@ -1,5 +1,15 @@
 {% extends "base.html" %} {% block title %} 机器人详情 - Amrita Dashboard{%
-endblock %} {% block extra_css %} {% endblock %} {% block content %}
+endblock %} {% block extra_head %}
+<meta
+  name="viewport"
+  content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+/>
+{% endblock %} {% block extra_css %} @media (max-width: 768px) { .info-grid {
+grid-template-columns: 1fr; } .charts-grid { grid-template-columns: 1fr; }
+.card-header { flex-direction: column; align-items: flex-start; } .refresh-btn {
+margin-top: 10px; } .chart-container { margin: 15px; height: 200px; }
+.gauge-title { font-size: 14px; } .gauge-value { font-size: 20px; } } {%
+endblock %} {% block content %}
 <div class="info-grid">
   <div class="info-card">
     <div class="card-header">

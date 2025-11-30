@@ -28,6 +28,7 @@ from amrita.resource import EXAMPLE_PLUGIN, EXAMPLE_PLUGIN_CONFIG
 
 PY_LIST = list
 
+
 def pypi_install(name: str):
     """从PyPI安装插件
 

@@ -9,6 +9,8 @@ import tomli_w
 from nonebot_plugin_localstore import get_plugin_config_dir, get_plugin_data_dir
 from pydantic import BaseModel, Field
 
+from amrita.config_manager import UniConfigManager
+
 plugin_data_dir = get_plugin_data_dir()
 config_dir = get_plugin_config_dir()
 os.makedirs(plugin_data_dir, exist_ok=True)
@@ -65,26 +67,11 @@ class Data_Manager:
     # cmd_settings_path = plugin_data_dir / "command_settings.json"
     config: Config = field(default_factory=Config)
 
-    def init(self):
+    async def init(self):
         os.makedirs(self.group_data_path, exist_ok=True)
         os.makedirs(self.user_data_path, exist_ok=True)
         os.makedirs(self.permission_groups_path, exist_ok=True)
-
-        if not self.config_path.exists():
-            self.config = Config()
-            self.config.save_to_toml(self.config_path)
-        else:
-            self.config = Config.load_from_toml(self.config_path)
-
-        """
-        if not self.cmd_settings_path.exists():
-            cmd_settings = CommandConfig()
-            with open(self.cmd_settings_path, "w") as f:
-                json.dump(cmd_settings.model_dump(), f, indent=4)
-        else:
-            with open(self.cmd_settings_path) as f:
-                self.cmd_settings = CommandConfig.model_validate_json(f.read())
-"""
+        await UniConfigManager().add_config(Config)
 
     def save_user_data(self, user_id: str, data: dict[str, str | dict | bool]):
         UserData.model_validate(data)
@@ -146,15 +133,5 @@ class Data_Manager:
         with open(data_path, encoding="utf-8") as f:
             return UserData(**json.load(f))
 
-
-"""
-    def get_command_settings(self):
-        with open(self.cmd_settings_path) as f:
-            return CommandConfig(**json.load(f))
-
-    def save_command_settings(self, data: CommandConfig):
-        with open(self.cmd_settings_path, "w") as f:
-            json.dump(data.model_dump(), f)
-"""
 
 data_manager = Data_Manager()
