@@ -11,4 +11,4 @@ banner_template = """\033[34m▗▖   ▗▄▄▖
 @get_driver().on_startup
 async def load_config():
     print(banner_template)
-    data_manager.init()
+    await data_manager.init()

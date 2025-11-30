@@ -1,4 +1,3 @@
-import asyncio
 import copy
 import json
 import os
@@ -7,6 +6,7 @@ from copy import deepcopy
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Literal
+import typing
 
 import aiofiles
 import nonebot_plugin_localstore as store
@@ -14,11 +14,11 @@ import tomli
 import tomli_w
 from nonebot import get_driver, logger
 from pydantic import BaseModel
-from watchfiles import awatch
 
 from amrita.config import get_amrita_config
+from amrita.config_manager import UniConfigManager
 
-__kernel_version__ = "unknow"
+__kernel_version__ = "unknown"
 
 # 保留为其他插件提供的引用
 
@@ -399,59 +399,44 @@ class ConfigManager:
 
     async def load(self):
         """_初始化配置目录_"""
+
+        async def prompt_callback():
+            logger.info("正在重载插件提示词文件...")
+            await self.get_prompts(False, True)
+            await self.load_prompt()
+            logger.success("提示词文件已重载")
+
+        async def models_callback():
+            logger.info("正在重载模型目录...")
+            await self.get_all_presets(False)
+            logger.success("完成")
+
+        async def on_load(*args):
+            self.ins_config = typing.cast(Config, await UniConfigManager().get_config())
         logger.info("正在初始化存储目录...")
         logger.debug(f"配置目录: {self.config_dir}")
         os.makedirs(self.config_dir, exist_ok=True)
         os.makedirs(self.private_prompts, exist_ok=True)
         os.makedirs(self.group_prompts, exist_ok=True)
         os.makedirs(self.custom_models_dir, exist_ok=True)
-
-        if self.toml_config.exists():
-            self.ins_config = Config.load_from_toml(self.toml_config)
-
-        else:
-            self.ins_config = Config()
-            self.ins_config.save_to_toml(self.toml_config)
-
-        self.ins_config.save_to_toml(self.toml_config)
+        await UniConfigManager().add_config(Config, on_reload=on_load)
+        await UniConfigManager().add_directory("models", lambda *_: models_callback())
         self.validate_presets()
         await self.get_all_presets(cache=False)
         await self.get_prompts(cache=False)
         await self.load_prompt()
-
-    def init_watch(self):
-        if not self._initialized:
-            self._tasks = []
-            self._tasks.append(asyncio.create_task(self._watch_config_dir()))
-            self._initialized = True
-
-    async def _watch_config_dir(self):
-        async for changes in awatch(self.config_dir):
-            if any(path == str(self.toml_config) for _, path in changes):
-                logger.info("检测到配置文件更改，正在重新加载配置...")
-                try:
-                    await self.reload_config()
-                except Exception as e:
-                    logger.opt(exception=e, colors=True).warning("配置文件重载失败")
-            elif any(
-                (
-                    path.startswith(str(self.group_prompts))
-                    or path.startswith(str(self.private_prompts))
-                )
-                and path.endswith(".txt")
-                for _, path in changes
-            ):
-                logger.info("检测到提示词文件更改，正在重新加载提示词...")
-                await self.get_prompts(cache=False, load_only=True)
-                await self.load_prompt()
-                logger.info("完成。")
-            elif any(
-                path.startswith(str(self.custom_models_dir)) and path.endswith(".json")
-                for _, path in changes
-            ):
-                logger.info("检测到模型预设文件更改，正在重新加载模型预设...")
-                await self.get_all_presets(cache=False)
-                logger.info("完成。")
+        await UniConfigManager().add_directory(
+            "group_prompts",
+            lambda *_: prompt_callback(),
+            lambda change: (change[1].startswith(str(self.group_prompts)))
+            and change[1].endswith(".txt"),
+        )
+        await UniConfigManager().add_directory(
+            "private_prompts",
+            lambda *_: prompt_callback(),
+            lambda change: change[1].startswith(str(self.private_prompts))
+            and change[1].endswith(".txt"),
+        )
 
     def validate_presets(self):
         def validate_preset(path: Path):
@@ -513,11 +498,11 @@ class ConfigManager:
             return self.prompts
         self.prompts = Prompts()
         for file in self.private_prompts.glob("*.txt"):
-            async with aiofiles.open(str(file), encoding="utf-8") as f:
+            async with aiofiles.open(file, encoding="utf-8") as f:
                 prompt = await f.read()
             self.prompts.private.append(Prompt(prompt, file.stem))
         for file in self.group_prompts.glob("*.txt"):
-            async with aiofiles.open(str(file), encoding="utf-8") as f:
+            async with aiofiles.open(file, encoding="utf-8") as f:
                 prompt = await f.read()
             self.prompts.group.append(Prompt(prompt, file.stem))
         if not self.prompts.private:
@@ -579,13 +564,12 @@ class ConfigManager:
         await self.load()
 
     async def reload_config(self):
-        self.ins_config = Config.load_from_toml(self.toml_config)
+        self.ins_config = typing.cast(Config, await UniConfigManager().get_config())
         logger.info("重载配置文件")
 
     async def save_config(self):
         """保存配置"""
-        if self.ins_config:
-            self.ins_config.save_to_toml(self.toml_config)
+        await UniConfigManager().save_config()
 
     async def set_config(self, key: str, value: str):
         """
@@ -613,7 +597,6 @@ class ConfigManager:
             default_value = "null"
         if not hasattr(self.ins_config.extra, key):
             setattr(self.ins_config.extra, key, default_value)
-            logger.warning(self.ins_config.extra.model_dump_json())
         await self.save_config()
 
     def reg_config(self, key: str, default_value=None):

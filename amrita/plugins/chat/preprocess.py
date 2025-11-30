@@ -23,7 +23,6 @@ async def onEnable():
     logger.info(__LOGO.format(version=kernel_version))
     logger.debug("加载配置文件...")
     await config_manager.load()
-    config_manager.init_watch()
     if (conf := config.config_manager.config).llm_config.tools.agent_mcp_client_enable:
         logger.info("正在初始化MCP Client......")
         mcp_servers = conf.llm_config.tools.agent_mcp_server_scripts
