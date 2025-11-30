@@ -54,7 +54,7 @@ class UniConfigManager:
         init_now: bool = True,
         watch: bool = True,
         owner_name: str | None = None,
-        on_reload:CALLBACK_TYPE | None = None,
+        on_reload: CALLBACK_TYPE | None = None,
     ):
         owner_name = owner_name or _try_get_caller_plugin().name
         logger.debug(f"`{owner_name}` add config `{config_class.__name__}`")
@@ -68,7 +68,10 @@ class UniConfigManager:
         if init_now:
             await self._init_config_or_nothing(owner_name, config_dir)
         if watch:
-            callbacks = (self._config_reload_callback,*((on_reload,) if on_reload else ()),)
+            callbacks = (
+                self._config_reload_callback,
+                *((on_reload,) if on_reload else ()),
+            )
             await self._add_watch_path(
                 owner_name,
                 config_dir / "config.toml",

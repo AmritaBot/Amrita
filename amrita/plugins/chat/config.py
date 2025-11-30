@@ -2,11 +2,11 @@ import copy
 import json
 import os
 import re
+import typing
 from copy import deepcopy
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Literal
-import typing
 
 import aiofiles
 import nonebot_plugin_localstore as store
@@ -413,6 +413,7 @@ class ConfigManager:
 
         async def on_load(*args):
             self.ins_config = typing.cast(Config, await UniConfigManager().get_config())
+
         logger.info("正在初始化存储目录...")
         logger.debug(f"配置目录: {self.config_dir}")
         os.makedirs(self.config_dir, exist_ok=True)
