@@ -42,6 +42,7 @@ class UniConfigManager:
             cls._config_directories = defaultdict(set)
             cls._lock = defaultdict(Lock)
             cls._callback_lock = defaultdict(Lock)
+            cls._config_file_cache = {}
             cls._tasks = []
         return cls._instance
 
