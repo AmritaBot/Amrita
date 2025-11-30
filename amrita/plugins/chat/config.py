@@ -421,6 +421,7 @@ class ConfigManager:
         os.makedirs(self.group_prompts, exist_ok=True)
         os.makedirs(self.custom_models_dir, exist_ok=True)
         await UniConfigManager().add_config(Config, on_reload=on_load)
+        await on_load()
         await UniConfigManager().add_directory("models", lambda *_: models_callback())
         self.validate_presets()
         await self.get_all_presets(cache=False)
