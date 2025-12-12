@@ -49,7 +49,6 @@ class Pyproject(BaseModel):
         default_factory=lambda: [f"amrita[full]>={get_amrita_version()}"]
     )
     readme: str = "README.md"
-    requires_python: str = ">=3.10, <3.14"
 
 
 class NonebotTool(BaseModel):
@@ -68,45 +67,41 @@ class NonebotTool(BaseModel):
     plugin_dirs: list[str] = []
 
 
-class RUffToolLint(BaseModel):
-    select: list[str] = [
-        "F",  # Pyflakes
-        "W",  # pycodestyle warnings
-        "E",  # pycodestyle errors
-        "UP",  # pyupgrade
-        "ASYNC",  # flake8-async
-        "C4",  # flake8-comprehensions
-        "T10",  # flake8-debugger
-        "PYI",  # flake8-pyi
-        "PT",  # flake8-pytest-style
-        "Q",  # flake8-quotes
-        "RUF",  # Ruff-specific rules
-        "I",  # isort
-        "PERF",  # pylint-performance
-    ]
-    ignore: list[str] = [
-        "E402",  # module-import-not-at-top-of-file
-        "E501",  # line-too-long
-        "UP037",  # quoted-annotation
-        "RUF001",  # ambiguous-unicode-character-string
-        "RUF002",  # ambiguous-unicode-character-docstring
-        "RUF003",  # ambiguous-unicode-character-comment
-    ]
-
-
-class RuffTool(BaseModel):
-    """Ruff工具配置模型"""
-
-    line_length: int = 88
-    target_version: list[str] = ["py310"]
-    lint: RUffToolLint = RUffToolLint()
-
-
 class Tool(BaseModel):
     """工具配置模型"""
 
     nonebot: NonebotTool = NonebotTool()
-    ruff: RuffTool = RuffTool()
+    ruff: dict[str, Any] = Field(
+        default_factory=lambda: {
+            "line-length": 88,
+            "target-version": "py310",
+            "lint": {
+                "select": [
+                    "F",  # Pyflakes
+                    "W",  # pycodestyle warnings
+                    "E",  # pycodestyle errors
+                    "UP",  # pyupgrade
+                    "ASYNC",  # flake8-async
+                    "C4",  # flake8-comprehensions
+                    "T10",  # flake8-debugger
+                    "PYI",  # flake8-pyi
+                    "PT",  # flake8-pytest-style
+                    "Q",  # flake8-quotes
+                    "RUF",  # Ruff-specific rules
+                    "I",  # isort
+                    "PERF",  # pylint-performance
+                ],
+                "ignore": [
+                    "E402",  # module-import-not-at-top-of-file
+                    "E501",  # line-too-long
+                    "UP037",  # quoted-annotation
+                    "RUF001",  # ambiguous-unicode-character-string
+                    "RUF002",  # ambiguous-unicode-character-docstring
+                    "RUF003",  # ambiguous-unicode-character-comment
+                ],
+            },
+        }
+    )
     uv: dict[str, Any] = Field(
         default_factory=lambda: {
             "dev-dependencies": [
@@ -138,10 +133,19 @@ def init_project(
     os.makedirs(str(project_dir / "config"), exist_ok=True)
     # 创建pyproject.toml
     data = PyprojectFile(
-        project=Pyproject(
-            name=project_name, description=description, requires_python=python_version
-        )
+        project=Pyproject(name=project_name, description=description)
     ).model_dump()
+    data["project"]["requires-python"] = f"{python_version}, <3.14"
+    assert isinstance(data["tool"], dict)
+    data["tool"].setdefault("setuptools", {})
+    assert isinstance(data["tool"]["setuptools"], dict)
+    data["tool"]["setuptools"].setdefault("packages", {})
+    assert isinstance(data["tool"]["setuptools"]["packages"], dict)
+    data["tool"]["setuptools"]["packages"].setdefault("find", {})
+    data["tool"]["setuptools"]["packages"]["find"]["include"] = [
+        "plugins",
+        "src/plugins",
+    ]
 
     with open(project_dir / "pyproject.toml", "w", encoding="utf-8") as f:
         f.write(toml.dumps(data))
