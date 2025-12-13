@@ -190,7 +190,7 @@ def update_dict(data: T, update_data: dict[str, Any]) -> T:
         if key not in data:
             data[key] = value
         elif key in data and isinstance(data[key], dict) and isinstance(value, dict):
-            update_dict(data[key], value)
+            data[key] = update_dict(data[key], value)
     return data
 
 
