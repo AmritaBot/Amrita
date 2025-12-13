@@ -40,7 +40,7 @@ jobs:
         run: |
           source ./.venv/bin/activate
           echo "DATABASE_URL=aiosqlite+:///db.sqlite3" > .env
-          uv run nb orm upgrade
+          uv run amrita orm upgrade
       - name: Run Load Test
         run: |
           echo "ADMIN_GROUP=1" >> .env

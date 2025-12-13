@@ -13,12 +13,14 @@ from pathlib import Path
 from typing import Any
 
 import click
+import nonebot
 import packaging
 import packaging.version
 import toml
 import tomli_w
 from pydantic import BaseModel, Field
 
+import amrita
 from amrita.cmds.plugin import get_package_metadata
 
 from ..cli import (
@@ -500,7 +502,11 @@ def orm(orm_args):
     Args:
         orm_args: 传递给orm的参数
     """
-    nb(["orm", *list(orm_args)])
+    amrita.init()
+    nonebot.require("nonebot_plugin_orm")
+    from nonebot_plugin_orm import __main__
+
+    __main__.main(orm_args)
 
 
 @cli.command()
@@ -550,7 +556,7 @@ def nb(nb_args):
         nb_args: 传递给nb-cli的参数
     """
     if not check_nb_cli_available():
-        click.echo(error("nb-cli 不可用。请使用 'pip install nb-cli' 安装"))
+        click.echo(error("nb-cli 不可用。请使用 'uv add nb-cli' 安装"))
         return
 
     try:
@@ -559,7 +565,7 @@ def nb(nb_args):
         run_proc(["nb", *list(nb_args)])
     except subprocess.CalledProcessError as e:
         if e.returncode == 127:
-            click.echo(error("nb-cli 不可用。请使用 'pip install nb-cli' 安装"))
+            click.echo(error("nb-cli 不可用。请使用 'uv add nb-cli' 安装"))
         elif e.returncode == 2:
             click.echo(error(bytes(e.stdout).decode("utf-8")))
             click.echo(error("nb-cli 命令失败，您的命令是否正确？"))
