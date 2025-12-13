@@ -60,7 +60,12 @@ def init():
     class AsyncErrorHandler:
         def write(self, message):
             try:
-                self.task = asyncio.create_task(self.process(message))
+                try:
+                    asyncio.get_running_loop()
+                except RuntimeError:
+                    pass
+                else:
+                    self.task = asyncio.create_task(self.process(message))
             except RuntimeError:
                 print(
                     "RuntimeWarning:\nThis is a known bug.\nPlease ignore this warning.\n----------\n"

@@ -1,3 +1,4 @@
+# TODO: Amrita plugin system
 import sys
 from pathlib import Path
 
@@ -19,7 +20,7 @@ def load_plugins():
     for name in (Path(__file__).parent.parent / "plugins").iterdir():
         if name in config.disabled_builtin_plugins:
             continue
-        nonebot.logger.debug(f"Require plugin {name.name}...")
+        nonebot.logger.debug(f"Require built-in plugin {name.name}...")
         nonebot.require(f"amrita.plugins.{name.name}")
     nonebot.logger.debug("Appling Patches")
     apply_alias()
@@ -29,9 +30,15 @@ def load_plugins():
 
     meta = PyprojectFile.model_validate(toml.load("pyproject.toml"))
     for plugin in meta.tool.nonebot.plugins:
-        nonebot.logger.debug(f"Require plugin {plugin}...")
+        nonebot.logger.debug(f"Loading NoneBot plugin {plugin}...")
         try:
             nonebot.require(plugin)
+        except Exception as e:
+            nonebot.logger.error(f"Failed to load plugin {plugin}: {e}")
+    for plugin in meta.tool.amrita.plugins:
+        nonebot.logger.debug(f"Loading Amrita plugin {plugin}...")
+        try:
+            nonebot.require(plugin)  # TODO: Amrita plugin system
         except Exception as e:
             nonebot.logger.error(f"Failed to load plugin {plugin}: {e}")
     nonebot.logger.info("Require local plugins......")

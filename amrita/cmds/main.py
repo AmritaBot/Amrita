@@ -7,15 +7,20 @@ import importlib.metadata as metadata
 import os
 import subprocess
 import sys
+import typing
+from copy import deepcopy
 from pathlib import Path
 from typing import Any
 
 import click
+import nonebot
 import packaging
 import packaging.version
 import toml
+import tomli_w
 from pydantic import BaseModel, Field
 
+import amrita
 from amrita.cmds.plugin import get_package_metadata
 
 from ..cli import (
@@ -49,6 +54,7 @@ class Pyproject(BaseModel):
         default_factory=lambda: [f"amrita[full]>={get_amrita_version()}"]
     )
     readme: str = "README.md"
+    requires_python: str = Field(default=">=3.10, <3.14", alias="requires-python")
 
 
 class NonebotTool(BaseModel):
@@ -56,10 +62,6 @@ class NonebotTool(BaseModel):
 
     plugins: list[str] = [
         "nonebot_plugin_orm",
-        "amrita.plugins.chat",
-        "amrita.plugins.manager",
-        "amrita.plugins.menu",
-        "amrita.plugins.perm",
     ]
     adapters: list[dict[str, Any]] = [
         {"name": "OneBot V11", "module_name": "nonebot.adapters.onebot.v11"},
@@ -67,60 +69,129 @@ class NonebotTool(BaseModel):
     plugin_dirs: list[str] = []
 
 
+class RUFFLint(BaseModel):
+    """Ruff lint工具配置模型"""
+
+    select: list[str] = [
+        "F",  # Pyflakes
+        "W",  # pycodestyle warnings
+        "E",  # pycodestyle errors
+        "UP",  # pyupgrade
+        "ASYNC",  # flake8-async
+        "C4",  # flake8-comprehensions
+        "T10",  # flake8-debugger
+        "PYI",  # flake8-pyi
+        "PT",  # flake8-pytest-style
+        "Q",  # flake8-quotes
+        "RUF",  # Ruff-specific rules
+        "I",  # isort
+        "PERF",  # pylint-performance
+    ]
+    ignore: list[str] = [
+        "E402",  # module-import-not-at-top-of-file
+        "E501",  # line-too-long
+        "UP037",  # quoted-annotation
+        "RUF001",  # ambiguous-unicode-character-string
+        "RUF002",  # ambiguous-unicode-character-docstring
+        "RUF003",  # ambiguous-unicode-character-comment
+    ]
+
+
+class RUFFTool(BaseModel):
+    """Ruff工具配置模型"""
+
+    line_length: int = Field(default=88, alias="line-length")
+    target_version: str = Field(default="py310", alias="target-version")
+    lint: RUFFLint = RUFFLint()
+
+
+class SetupToolPackagesFinder(BaseModel):
+    """Setup工具配置模型"""
+
+    exclude: list[str] = Field(
+        default_factory=lambda: [
+            "__pycache__",
+            "*.pyc",
+        ]
+    )
+    include: list[str] = Field(default_factory=lambda: ["plugins", "src/plugins"])
+
+
+class SetupToolPackages(BaseModel):
+    """Setup工具配置模型"""
+
+    find: SetupToolPackagesFinder = SetupToolPackagesFinder()
+
+
+class SetupTool(BaseModel):
+    """Setup工具配置模型"""
+
+    packages: SetupToolPackages = SetupToolPackages()
+
+
+class UVTool(BaseModel):
+    """uv工具配置模型"""
+
+    dev_denpencies: list[str] = Field(
+        default_factory=lambda: [
+            "ruff>=0.12.8",
+            "nonebot-plugin-orm[default]>=0.8.2",
+            "pyright>=1.1.407",
+        ],
+        alias="dev-dependencies",
+    )
+    package: bool = True
+
+
+class AmritaTool(BaseModel):
+    """Amrita工具配置模型"""
+
+    plugins: list[str] = [
+        "amrita.plugins.chat",
+        "amrita.plugins.manager",
+        "amrita.plugins.menu",
+        "amrita.plugins.perm",
+    ]
+
+
 class Tool(BaseModel):
     """工具配置模型"""
 
     nonebot: NonebotTool = NonebotTool()
-    ruff: dict[str, Any] = Field(
-        default_factory=lambda: {
-            "line-length": 88,
-            "target-version": "py310",
-            "lint": {
-                "select": [
-                    "F",  # Pyflakes
-                    "W",  # pycodestyle warnings
-                    "E",  # pycodestyle errors
-                    "UP",  # pyupgrade
-                    "ASYNC",  # flake8-async
-                    "C4",  # flake8-comprehensions
-                    "T10",  # flake8-debugger
-                    "PYI",  # flake8-pyi
-                    "PT",  # flake8-pytest-style
-                    "Q",  # flake8-quotes
-                    "RUF",  # Ruff-specific rules
-                    "I",  # isort
-                    "PERF",  # pylint-performance
-                ],
-                "ignore": [
-                    "E402",  # module-import-not-at-top-of-file
-                    "E501",  # line-too-long
-                    "UP037",  # quoted-annotation
-                    "RUF001",  # ambiguous-unicode-character-string
-                    "RUF002",  # ambiguous-unicode-character-docstring
-                    "RUF003",  # ambiguous-unicode-character-comment
-                ],
-            },
-        }
-    )
-    uv: dict[str, Any] = Field(
-        default_factory=lambda: {
-            "dev-dependencies": [
-                "ruff>=0.12.8",
-                "nonebot-plugin-orm[default]>=0.8.2",
-            ],
-            "package": True,
-        }
-    )
+    amrita: AmritaTool = AmritaTool()
+    ruff: RUFFTool = RUFFTool()
+    uv: UVTool = UVTool()
     pyright: dict[str, Any] = Field(
         default_factory=lambda: {"typeCheckingMode": "standard"}
     )
+    setuptools: SetupTool = SetupTool()
 
 
 class PyprojectFile(BaseModel):
     """Pyproject文件模型"""
 
-    project: Pyproject
+    project: Pyproject = Pyproject(name="amrita")
     tool: Tool = Tool()
+
+
+T = typing.TypeVar("T", bound=dict)
+
+
+def update_dict(data: T, update_data: dict[str, Any]) -> T:
+    """
+    递归更新字典
+
+    Args:
+        data: 要更新的目标字典
+        update_data: 包含更新值的源字典
+    """
+    data, update_data = deepcopy(data), deepcopy(update_data)
+    for key, value in update_data.items():
+        if key not in data:
+            data[key] = value
+        elif key in data and isinstance(data[key], dict) and isinstance(value, dict):
+            data[key] = update_dict(data[key], value)
+    return data
 
 
 def init_project(
@@ -134,18 +205,7 @@ def init_project(
     # 创建pyproject.toml
     data = PyprojectFile(
         project=Pyproject(name=project_name, description=description)
-    ).model_dump()
-    data["project"]["requires-python"] = f"{python_version}, <3.14"
-    assert isinstance(data["tool"], dict)
-    data["tool"].setdefault("setuptools", {})
-    assert isinstance(data["tool"]["setuptools"], dict)
-    data["tool"]["setuptools"].setdefault("packages", {})
-    assert isinstance(data["tool"]["setuptools"]["packages"], dict)
-    data["tool"]["setuptools"]["packages"].setdefault("find", {})
-    data["tool"]["setuptools"]["packages"]["find"]["include"] = [
-        "plugins",
-        "src/plugins",
-    ]
+    ).model_dump(by_alias=True)
 
     with open(project_dir / "pyproject.toml", "w", encoding="utf-8") as f:
         f.write(toml.dumps(data))
@@ -347,14 +407,16 @@ def run(run: bool):
 
 
 @cli.command()
-@click.option("--description", "-d", help="项目描述")
+@click.option("--description", "-d", help="项目描述", default="")
 def init(description):
     """将当前目录初始化为Amrita项目。
 
     Args:
         description: 项目描述
     """
-    cwd = Path(os.getcwd())
+    overwrite = False
+    description = description or ""
+    cwd = Path(os.getcwd()).resolve()
     project_name = cwd.name
 
     if (cwd / "pyproject.toml").exists():
@@ -374,6 +436,23 @@ def init(description):
 
     click.echo(success("项目初始化成功！"))
     click.echo(info("下一步: amrita run"))
+
+
+@cli.command()
+def fix_pyproject():
+    """修复pyproject.toml。"""
+    if not os.path.exists("pyproject.toml"):
+        click.echo(error("未找到 pyproject.toml"))
+        return
+    click.echo(info("正在修复 pyproject.toml..."))
+    with open("pyproject.toml", encoding="utf-8") as f:
+        data = toml.load(f)
+    default_config = PyprojectFile()
+    data = update_dict(data, default_config.model_dump(by_alias=True))
+    click.echo(info("正在写入 pyproject.toml..."))
+    with open("pyproject.toml", "w", encoding="utf-8") as f:
+        f.write(tomli_w.dumps(data))
+        click.echo(success("pyproject.toml 已写入。"))
 
 
 @cli.command()
@@ -423,7 +502,12 @@ def orm(orm_args):
     Args:
         orm_args: 传递给orm的参数
     """
-    nb(["orm", *list(orm_args)])
+    amrita.init()
+    amrita.load_plugins()
+    nonebot.require("nonebot_plugin_orm")
+    from nonebot_plugin_orm import __main__
+
+    __main__.main(orm_args)
 
 
 @cli.command()
@@ -473,7 +557,7 @@ def nb(nb_args):
         nb_args: 传递给nb-cli的参数
     """
     if not check_nb_cli_available():
-        click.echo(error("nb-cli 不可用。请使用 'pip install nb-cli' 安装"))
+        click.echo(error("nb-cli 不可用。请使用 'uv add nb-cli' 安装"))
         return
 
     try:
@@ -482,7 +566,7 @@ def nb(nb_args):
         run_proc(["nb", *list(nb_args)])
     except subprocess.CalledProcessError as e:
         if e.returncode == 127:
-            click.echo(error("nb-cli 不可用。请使用 'pip install nb-cli' 安装"))
+            click.echo(error("nb-cli 不可用。请使用 'uv add nb-cli' 安装"))
         elif e.returncode == 2:
             click.echo(error(bytes(e.stdout).decode("utf-8")))
             click.echo(error("nb-cli 命令失败，您的命令是否正确？"))

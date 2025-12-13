@@ -6,7 +6,7 @@ import typing
 from copy import deepcopy
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, TypeVar
 
 import aiofiles
 import nonebot_plugin_localstore as store
@@ -26,11 +26,14 @@ __kernel_version__ = "unknown"
 CONFIG_DIR: Path = store.get_plugin_config_dir()
 driver = get_driver()
 nb_config = driver.config
+STRDICT = dict[str, Any]
+
+T = TypeVar("T", STRDICT, list[str | STRDICT], str)
 
 
 def replace_env_vars(
-    data: dict[str, Any] | list[Any] | str | Any,
-) -> dict[str, Any] | list[Any] | str | Any:
+    data: T,
+) -> T:
     """递归替换环境变量占位符，但不修改原始数据"""
     data_copy = copy.deepcopy(data)  # 创建原始数据的深拷贝[4,5](@ref)
     if isinstance(data_copy, dict):
@@ -388,14 +391,20 @@ class ConfigManager:
     ins_config: Config = field(default_factory=Config)
     models: list[tuple[ModelPreset, str]] = field(default_factory=list)
     prompts: Prompts = field(default_factory=Prompts)
+    _config_id: int | None = None
+    _cached_env_config: Config | None = None
 
     @property
     def config(self) -> Config:
+        conf_id = id(self.ins_config)
+        if conf_id == self._config_id:
+            assert self._cached_env_config
+            return self._cached_env_config
+        self._config_id = conf_id
         conf_data: dict[str, Any] = self.ins_config.model_dump()
         result = replace_env_vars(conf_data)
-        if not isinstance(result, dict):
-            raise TypeError("Expected replace_env_vars to return a dict")
-        return Config.model_validate(result)
+        self._cached_env_config = Config.model_validate(result)
+        return self._cached_env_config
 
     async def load(self):
         """_初始化配置目录_"""
