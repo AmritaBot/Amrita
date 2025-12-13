@@ -503,6 +503,7 @@ def orm(orm_args):
         orm_args: 传递给orm的参数
     """
     amrita.init()
+    amrita.load_plugins()
     nonebot.require("nonebot_plugin_orm")
     from nonebot_plugin_orm import __main__
 
