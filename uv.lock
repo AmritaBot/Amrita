@@ -199,6 +199,7 @@ dependencies = [
     { name = "tomli-w" },
     { name = "typing-extensions" },
     { name = "uv" },
+    { name = "zipp" },
 ]
 
 [package.optional-dependencies]
@@ -268,6 +269,7 @@ requires-dist = [
     { name = "uv", specifier = ">=0.8.12" },
     { name = "uvicorn", marker = "extra == 'full'", specifier = ">=0.35.0" },
     { name = "watchfiles", marker = "extra == 'full'", specifier = "<1.0.0" },
+    { name = "zipp", specifier = ">=3.23.0" },
 ]
 provides-extras = ["full"]
 
