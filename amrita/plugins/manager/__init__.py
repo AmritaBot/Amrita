@@ -17,6 +17,7 @@ from . import (
     send,
     status,
 )
+from .status_manager import StatusManager
 
 __plugin_meta__ = PluginMetadata(
     name="机器人管理插件",
@@ -26,6 +27,7 @@ __plugin_meta__ = PluginMetadata(
 )
 
 __all__ = [
+    "StatusManager",
     "add",
     "amrita",
     "apicall_insight",

@@ -391,16 +391,16 @@ class ConfigManager:
     ins_config: Config = field(default_factory=Config)
     models: list[tuple[ModelPreset, str]] = field(default_factory=list)
     prompts: Prompts = field(default_factory=Prompts)
-    _config_hash: int | None = None
+    _config_id: int | None = None
     _cached_env_config: Config | None = None
 
     @property
     def config(self) -> Config:
-        conf_hash = hash(self.ins_config)
-        if conf_hash == self._config_hash:
+        conf_id = id(self.ins_config)
+        if conf_id == self._config_id:
             assert self._cached_env_config
             return self._cached_env_config
-        self._config_hash = conf_hash
+        self._config_id = conf_id
         conf_data: dict[str, Any] = self.ins_config.model_dump()
         result = replace_env_vars(conf_data)
         self._cached_env_config = Config.model_validate(result)
