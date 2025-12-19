@@ -12,6 +12,7 @@ import bcrypt
 from fastapi import HTTPException, Request
 from nonebot import logger
 from pydantic import BaseModel, Field
+from pytz import utc
 from typing_extensions import Self
 
 from amrita.plugins.webui.service.config import get_webui_config
@@ -37,7 +38,7 @@ class NOT_GIVEN(ABC):
 class TokenData(BaseModel):
     username: str
     expire: datetime = Field(
-        default_factory=lambda: datetime.utcnow() + timedelta(minutes=30)
+        default_factory=lambda: datetime.now(utc) + timedelta(minutes=30)
     )
     onetime_token: str | None = None
 
@@ -45,8 +46,58 @@ class TokenData(BaseModel):
 class OnetimeTokenData(BaseModel):
     token: str
     expire: datetime = Field(
-        default_factory=lambda: datetime.utcnow() + timedelta(minutes=10)
+        default_factory=lambda: datetime.now(utc) + timedelta(minutes=10)
     )
+
+
+class LoginRateLimiter:
+    """
+    登录速率限制器，防止暴力破解
+    """
+
+    _instance = None
+    __limiter_lock: Lock
+    # 存储IP地址和对应的请求时间列表
+    __requests: dict[str, list[datetime]]
+
+    def __new__(cls) -> Self:
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+            cls.__limiter_lock = Lock()
+            cls.__requests = {}
+        return cls._instance
+
+    async def is_allowed(self, ip: str, count: int = 10) -> bool:
+        """
+        检查指定IP是否允许登录请求
+        1秒内最多允许10次请求
+        """
+        async with self.__limiter_lock:
+            now = datetime.now(utc)
+            # 清理1秒前的请求记录
+            if ip in self.__requests:
+                self.__requests[ip] = [
+                    req_time
+                    for req_time in self.__requests[ip]
+                    if req_time > now - timedelta(seconds=1)
+                ]
+            else:
+                self.__requests[ip] = []
+
+            # 检查请求数量
+            if len(self.__requests[ip]) >= count:
+                return False
+
+            # 记录本次请求
+            self.__requests[ip].append(now)
+            return True
+
+    async def clear_ip_records(self, ip: str) -> None:
+        """
+        清除指定IP的所有记录
+        """
+        async with self.__limiter_lock:
+            self.__requests.pop(ip, None)
 
 
 class TokenManager:
@@ -72,7 +123,7 @@ class TokenManager:
             if token in self.__onetime_token_index:
                 auth: bool = False
                 otk_data = self.__onetime_token_index[token]
-                if not otk_data.expire < datetime.utcnow():
+                if not otk_data.expire < datetime.now(utc):
                     auth = True
                 self.__onetime_token_index.pop(token, None)
                 self.__tokens[otk_data.token].onetime_token = None
@@ -105,7 +156,7 @@ class TokenManager:
                 return self.__tokens.pop(token)
 
     async def _expire_token_waiter(self, token: str, expire_at: datetime):
-        await asyncio.sleep((expire_at - datetime.utcnow()).total_seconds())
+        await asyncio.sleep((expire_at - datetime.now(utc)).total_seconds())
 
         if data := await self.pop_token_data(token, None):
             async with self.__tokens_lock:
@@ -113,7 +164,7 @@ class TokenManager:
                     self.__onetime_token_index.pop(data.onetime_token, None)
 
     async def _expire_onetime_token_waiter(self, token: str, expire_at: datetime):
-        await asyncio.sleep((expire_at - datetime.utcnow()).total_seconds())
+        await asyncio.sleep((expire_at - datetime.now(utc)).total_seconds())
         if otk_data := self.__onetime_token_index.pop(token, None):
             self.__tokens[otk_data.token].onetime_token = None
 
@@ -122,7 +173,7 @@ class TokenManager:
         token = secrets.token_urlsafe(32)
         async with self.__tokens_lock:
             self.__tokens[token_id].onetime_token = token
-            expire_at = datetime.utcnow() + timedelta(minutes=10)
+            expire_at = datetime.now(utc) + timedelta(minutes=10)
             self.__onetime_token_index[token] = OnetimeTokenData(
                 token=token_id, expire=expire_at
             )
@@ -135,9 +186,9 @@ class TokenManager:
         logger.debug(f"Creating access token for {data}")
         to_encode = data.copy()
         if expires_delta:
-            expire = datetime.utcnow() + expires_delta
+            expire = datetime.now(utc) + expires_delta
         else:
-            expire = datetime.utcnow() + timedelta(minutes=30)
+            expire = datetime.now(utc) + timedelta(minutes=30)
         to_encode.update({"exp": expire})
         encoded_jwt = secrets.token_urlsafe(32)
 
@@ -189,7 +240,7 @@ class AuthManager:
         if not token or (not await token_manager.has_token(token)):
             raise HTTPException(status_code=401, detail="未认证")
         token_data = await token_manager.get_token_data(token)
-        if token_data.expire < datetime.utcnow():
+        if token_data.expire < datetime.now(utc):
             await token_manager.pop_token_data(token, None)
             raise HTTPException(status_code=401, detail="认证已过期")
 
@@ -204,9 +255,25 @@ class AuthManager:
             plain_password.encode("utf-8"), hashed_password.encode("utf-8")
         )
 
-    def authenticate_user(self, username: str, password: str) -> bool:
+    async def authenticate_user(
+        self, request: Request, username: str, password: str
+    ) -> bool:
+        # 检查速率限制
+        client_ip = request.client.host if request.client else "unknown"
+        rate_limiter = LoginRateLimiter()
+        if not await rate_limiter.is_allowed(client_ip):
+            logger.warning(f"Login rate limit exceeded for {client_ip}")
+            raise HTTPException(
+                status_code=403,
+                detail="请求过于频繁，请稍后再试，重启Amrita以解除限制。",
+            )
+
         if username in self.__users:
-            return self._verify_password(password, self.__users[username])
+            result = self._verify_password(password, self.__users[username])
+            # 如果认证成功，清除该IP的记录
+            if result:
+                await rate_limiter.clear_ip_records(client_ip)
+            return result
         return False
 
     async def create_token(self, username: str, expire: timedelta) -> str:

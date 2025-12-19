@@ -10,6 +10,7 @@ from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from nonebot import logger
+from pytz import utc
 from typing_extensions import Self
 
 from .authlib import AuthManager, TokenManager
@@ -84,7 +85,7 @@ async def _(request: Request, exc: HTTPException):
 @app.exception_handler(403)
 @app.exception_handler(405)
 @app.exception_handler(500)
-async def _(request: Request, exc: Exception):
+async def handle_exc(request: Request, exc: Exception):
     if isinstance(exc, HTTPException):
         response = TemplatesManager().TemplateResponse(
             "error.html",
@@ -156,7 +157,7 @@ async def auth_middleware(request: Request, call_next):
                 is not None
             ):
                 expire = token_data.expire
-                if expire - datetime.utcnow() < timedelta(minutes=10):
+                if expire - datetime.now(utc) < timedelta(minutes=10):
                     access_token = await AuthManager().refresh_token(request)
                     response.set_cookie(
                         key="access_token",

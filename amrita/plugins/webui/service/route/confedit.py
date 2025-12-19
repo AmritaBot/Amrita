@@ -1,0 +1,357 @@
+from __future__ import annotations
+
+import hashlib
+import json
+from ast import literal_eval
+from typing import Any
+
+from fastapi import Request
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel
+
+from amrita.config_manager import UniConfigManager
+from amrita.plugins.webui.API import PageContext, PageResponse, on_page
+
+
+def flatten_config_fields(
+    config_dict: dict, parent_key: str = "", sep: str = "."
+) -> dict:
+    """
+    将嵌套的配置字典递归展平为一级字典
+    例如: {'a': {'b': 1}} -> {'a.b': 1}
+    """
+    items = []
+    for key, value in config_dict.items():
+        new_key = f"{parent_key}{sep}{key}" if parent_key else key
+        if isinstance(value, dict):
+            # 递归处理嵌套字典
+            items.extend(flatten_config_fields(value, new_key, sep).items())
+        else:
+            items.append((new_key, value))
+    return dict(items)
+
+
+def get_field_info(
+    model: type[BaseModel], field_path: str, sep: str = "."
+) -> tuple[str, Any]:
+    """
+    根据字段路径获取Pydantic模型字段的描述信息和默认值
+    例如: 对于路径 "autoreply.enable"，会递归查找autoreply字段，然后查找enable字段的描述和默认值
+    返回元组：(描述信息, 默认值)
+    """
+    field_parts = field_path.split(sep)
+    current_model = model
+    current_field_info = None
+
+    try:
+        for i, part in enumerate(field_parts):
+            # 获取当前模型的字段信息
+            if not hasattr(current_model, "model_fields"):
+                return "", None
+
+            model_fields = current_model.model_fields
+
+            # 检查字段是否存在
+            if part not in model_fields:
+                return "", None
+
+            current_field_info = model_fields[part]
+
+            # 如果不是最后一个字段且字段类型是Pydantic模型，则继续深入
+            if i < len(field_parts) - 1:
+                field_annotation = current_field_info.annotation
+                if hasattr(field_annotation, "__origin__"):  # 处理typing.Generic类型
+                    # 简化处理，跳过复杂泛型类型
+                    description = (
+                        current_field_info.description
+                        if current_field_info.description
+                        else ""
+                    )
+                    default = (
+                        current_field_info.default
+                        if current_field_info.default
+                        else None
+                    )
+                    return description, default
+
+                if issubclass(field_annotation, BaseModel):
+                    current_model = field_annotation
+                else:
+                    # 如果不是Pydantic模型，无法继续深入
+                    description = (
+                        current_field_info.description
+                        if current_field_info.description
+                        else ""
+                    )
+                    default = (
+                        current_field_info.default
+                        if current_field_info.default
+                        else None
+                    )
+                    return description, default
+
+        # 返回最终字段的描述和默认值
+        description = (
+            current_field_info.description
+            if current_field_info and current_field_info.description
+            else ""
+        )
+        default = (
+            current_field_info.default
+            if current_field_info and current_field_info.default
+            else None
+        )
+        return description, default
+    except Exception:
+        # 出现任何异常都返回空描述和None默认值
+        return "", None
+
+
+def try_parse_value(value_str: str) -> Any:
+    """
+    尝试解析字符串值为适当的Python类型
+    """
+    if not isinstance(value_str, str):
+        return value_str
+
+    # 去除首尾空白
+    value_str = value_str.strip()
+
+    # 尝试解析为Python字面量（包括列表、字典、布尔值等）
+    try:
+        return literal_eval(value_str)
+    except (ValueError, SyntaxError):
+        pass
+
+    # 尝试解析为数字
+    if value_str.isdigit():
+        return int(value_str)
+    else:
+        try:
+            return float(value_str)
+        except ValueError:
+            pass
+
+    # 检查是否为布尔值
+    if value_str.lower() in ("true", "false"):
+        return value_str.lower() == "true"
+
+    # 默认返回原字符串
+    return value_str
+
+
+def unflatten_config_fields(flat_dict: dict, sep: str = ".") -> dict:
+    """
+    将展平的配置字典还原为嵌套字典
+    例如: {'a.b': 1} -> {'a': {'b': 1}}
+    """
+    result = {}
+    for key, value in flat_dict.items():
+        keys = key.split(sep)
+        d = result
+        for k in keys[:-1]:
+            if k not in d:
+                d[k] = {}
+            d = d[k]
+
+        # 解析值的类型
+        if isinstance(value, str):
+            parsed_value = try_parse_value(value)
+        else:
+            parsed_value = value
+
+        d[keys[-1]] = parsed_value
+    return result
+
+
+@on_page(
+    path="/system/confedit",
+    page_name="配置文件修改",
+    category="系统管理",
+    icon="fa fa-cog",
+)
+async def system_config_editor(ctx: PageContext):
+    """
+    系统配置文件编辑页面
+    从配置类的Field读取description作为字段描述信息
+    """
+    # 获取所有已注册的配置类
+    config_manager = UniConfigManager()
+    config_classes = config_manager._config_classes
+
+    # 准备配置字段信息
+    config_fields_info = {}
+
+    for plugin_name, config_class in config_classes.items():
+        # 获取当前配置实例
+        if plugin_name in config_manager._config_instances:
+            config_instance = config_manager._config_instances[plugin_name]
+            config_data = config_instance.model_dump()
+        else:
+            # 如果还没有配置实例，则创建默认实例
+            config_instance = config_class()
+            config_data = config_instance.model_dump()
+
+        # 展平配置数据
+        flat_config_data = flatten_config_fields(config_data)
+
+        # 获取模型字段信息
+        fields_info = []
+        for flat_key, flat_value in flat_config_data.items():
+            # 获取字段类型信息（如果可能的话）
+            type_name = type(flat_value).__name__
+
+            # 获取字段描述信息和默认值
+            description, default_value = get_field_info(config_class, flat_key)
+
+            fields_info.append(
+                {
+                    "name": flat_key,
+                    "description": description,
+                    "type": type_name,
+                    "default": default_value,
+                    "current_value": flat_value,
+                }
+            )
+
+        config_fields_info[plugin_name] = {
+            "class_name": config_class.__name__,
+            "fields": fields_info,
+        }
+
+    return PageResponse(
+        name="system_confedit.html",
+        context={"request": ctx.request, "config_fields_info": config_fields_info},
+    )
+
+
+async def get_plugin_config_data(plugin_name: str) -> dict[str, Any]:
+    """
+    获取插件当前配置数据
+    """
+    config_manager = UniConfigManager()
+
+    # 获取当前配置实例
+    if plugin_name in config_manager._config_instances:
+        config_instance = config_manager._config_instances[plugin_name]
+        config_data = config_instance.model_dump()
+    else:
+        # 如果还没有配置实例，则加载
+        config_instance = await config_manager.get_config(plugin_name)
+        config_data = config_instance.model_dump()
+
+    # 展平嵌套配置
+    flat_config_data = flatten_config_fields(config_data)
+    return flat_config_data
+
+
+def calculate_config_hash(config_data: dict[str, Any]) -> str:
+    """
+    计算配置数据的哈希值
+    """
+    # 将配置数据转换为排序后的JSON字符串，确保一致性
+    config_str = json.dumps(config_data, sort_keys=True, separators=(",", ":"))
+    # 计算SHA256哈希
+    return hashlib.sha256(config_str.encode("utf-8")).hexdigest()
+
+
+from ..main import app
+
+
+@app.get("/api/confedit/{owner_name}")
+async def get_plugin_config(owner_name: str):
+    """
+    获取指定插件的配置数据和哈希值
+    """
+    try:
+        # 获取插件配置数据
+        config_data = await get_plugin_config_data(owner_name)
+
+        # 计算配置哈希
+        config_hash = calculate_config_hash(config_data)
+
+        return JSONResponse(
+            {
+                "code": 200,
+                "data": config_data,
+                "hash": config_hash,
+                "message": "success",
+            }
+        )
+    except Exception as e:
+        return JSONResponse(
+            {
+                "code": 500,
+                "message": f"获取配置失败: {e!s}",
+                "data": None,
+                "hash": None,
+            },
+            status_code=500,
+        )
+
+
+@app.post("/api/confedit/{owner_name}")
+async def save_plugin_config(owner_name: str, request: Request):
+    """
+    保存指定插件的配置数据
+    """
+    try:
+        # 解析请求数据
+        request_data = await request.json()
+        new_config_data = request_data.get("config", {})
+        provided_hash = request_data.get("hash", "")
+
+        # 还原嵌套配置结构
+        nested_config_data = unflatten_config_fields(new_config_data)
+
+        # 获取当前配置数据
+        config_manager = UniConfigManager()
+        if owner_name in config_manager._config_instances:
+            current_config_instance = config_manager._config_instances[owner_name]
+            current_config_data = current_config_instance.model_dump()
+        else:
+            # 如果还没有配置实例，则加载
+            current_config_instance = await config_manager.get_config(owner_name)
+            current_config_data = current_config_instance.model_dump()
+
+        current_flat_config_data = flatten_config_fields(current_config_data)
+        current_hash = calculate_config_hash(current_flat_config_data)
+
+        # 检查哈希是否匹配，防止并发冲突
+        if provided_hash != current_hash:
+            return JSONResponse(
+                {
+                    "code": 409,
+                    "message": "配置已被其他用户修改，请刷新页面后重试",
+                    "current_hash": current_hash,
+                },
+                status_code=409,
+            )
+
+        # 获取配置类
+        if owner_name not in config_manager._config_classes:
+            return JSONResponse(
+                {"code": 404, "message": f"插件 {owner_name} 未注册配置类"},
+                status_code=404,
+            )
+
+        config_class = config_manager._config_classes[owner_name]
+
+        # 验证并创建新的配置实例
+        new_config_instance = config_class.model_validate(nested_config_data)
+
+        # 保存配置实例
+        await config_manager.loads_config(new_config_instance, owner_name)
+
+        # 保存到文件
+        await config_manager.save_config(owner_name)
+
+        # 计算新的哈希值
+        new_hash = calculate_config_hash(new_config_data)
+
+        return JSONResponse({"code": 200, "message": "配置保存成功", "hash": new_hash})
+
+    except Exception as e:
+        return JSONResponse(
+            {"code": 500, "message": f"保存配置失败: {e!s}"}, status_code=500
+        )

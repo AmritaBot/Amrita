@@ -1,0 +1,959 @@
+{% extends "base.html" %}
+
+{% block title %}Amrita Dashboard - 配置文件修改{% endblock %}
+{% block topbar_title %}配置文件修改{% endblock %}
+
+{% block extra_css %}
+<style>
+.config-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.config-section {
+    background: var(--card-bg);
+    border-radius: 8px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+body.dark-mode .config-section {
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+}
+
+.config-header {
+    border-bottom: 1px solid var(--border-color);
+    padding: 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+}
+
+body.dark-mode .config-header {
+    border-bottom: 1px solid var(--dark-border-color);
+}
+
+.config-header:hover {
+    background-color: var(--hover-bg);
+}
+
+body.dark-mode .config-header:hover {
+    background-color: var(--dark-hover-bg);
+}
+
+.config-title {
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--text-color);
+    margin: 0;
+    flex-grow: 1;
+}
+
+body.dark-mode .config-title {
+    color: var(--dark-text-color);
+}
+
+.config-actions-header {
+    display: flex;
+    gap: 10px;
+    margin-left: 10px;
+}
+
+.collapse-icon {
+    margin-right: 10px;
+    transition: transform 0.3s ease;
+}
+
+.collapsed .collapse-icon {
+    transform: rotate(-90deg);
+}
+
+.config-content {
+    padding: 0 20px 20px 20px;
+    display: block;
+}
+
+.config-section.collapsed .config-content {
+    display: none;
+}
+
+.field-item {
+    display: flex;
+    flex-wrap: wrap;
+    padding: 15px 0;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.field-item:last-child {
+    border-bottom: none;
+}
+
+body.dark-mode .field-item {
+    border-bottom: 1px solid var(--dark-border-color);
+}
+
+.field-label {
+    flex: 0 0 250px;
+    padding-right: 20px;
+}
+
+.field-name {
+    font-weight: 600;
+    color: var(--text-color);
+    margin-bottom: 5px;
+    word-break: break-all;
+}
+
+body.dark-mode .field-name {
+    color: var(--dark-text-color);
+}
+
+.field-description {
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 8px;
+}
+
+body.dark-mode .field-description {
+    color: #aaa;
+}
+
+.field-default {
+    font-size: 12px;
+    color: #888;
+    font-style: italic;
+    margin-bottom: 8px;
+}
+
+body.dark-mode .field-default {
+    color: #999;
+}
+
+.field-value {
+    flex: 1;
+    min-width: 300px;
+}
+
+.field-input {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background: var(--input-bg);
+    color: var(--text-color);
+    font-family: monospace;
+}
+
+body.dark-mode .field-input {
+    border: 1px solid var(--dark-border-color);
+    background: var(--dark-input-bg);
+    color: var(--dark-text-color);
+}
+
+.field-input-select {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background: var(--input-bg);
+    color: var(--text-color);
+}
+
+body.dark-mode .field-input-select {
+    border: 1px solid var(--dark-border-color);
+    background: var(--dark-input-bg);
+    color: var(--dark-text-color);
+}
+
+.field-type {
+    font-size: 12px;
+    color: #888;
+    margin-top: 5px;
+}
+
+body.dark-mode .field-type {
+    color: #999;
+}
+
+.list-editor {
+    width: 100%;
+}
+
+.list-items {
+    margin-bottom: 10px;
+}
+
+.list-item {
+    display: flex;
+    margin-bottom: 5px;
+    cursor: move;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 5px;
+}
+
+body.dark-mode .list-item {
+    background: var(--dark-card-bg);
+    border: 1px solid var(--dark-border-color);
+}
+
+.list-item:hover {
+    background: var(--hover-bg);
+}
+
+body.dark-mode .list-item:hover {
+    background: var(--dark-hover-bg);
+}
+
+.list-item-input {
+    flex: 1;
+    padding: 6px 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background: var(--input-bg);
+    color: var(--text-color);
+    font-family: monospace;
+    margin-right: 5px;
+}
+
+body.dark-mode .list-item-input {
+    border: 1px solid var(--dark-border-color);
+    background: var(--dark-input-bg);
+    color: var(--dark-text-color);
+}
+
+.list-item-actions {
+    display: flex;
+    gap: 5px;
+}
+
+.drag-handle {
+    padding: 6px 10px;
+    cursor: move;
+    color: #666;
+    display: flex;
+    align-items: center;
+}
+
+.drag-handle:hover {
+    color: #000;
+}
+
+body.dark-mode .drag-handle:hover {
+    color: #fff;
+}
+
+.list-item-btn {
+    padding: 6px 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background: var(--input-bg);
+    color: var(--text-color);
+    cursor: pointer;
+}
+
+body.dark-mode .list-item-btn {
+    border: 1px solid var(--dark-border-color);
+    background: var(--dark-input-bg);
+    color: var(--dark-text-color);
+}
+
+.list-add-btn {
+    padding: 6px 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background: var(--input-bg);
+    color: var(--text-color);
+    cursor: pointer;
+    font-size: 14px;
+}
+
+body.dark-mode .list-add-btn {
+    border: 1px solid var(--dark-border-color);
+    background: var(--dark-input-bg);
+    color: var(--dark-text-color);
+}
+
+.config-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border-color);
+}
+
+body.dark-mode .config-actions {
+    border-top: 1px solid var(--dark-border-color);
+}
+
+.btn {
+    padding: 10px 20px;
+    border-radius: 4px;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.3s;
+}
+
+.btn-primary {
+    background: var(--primary-color);
+    color: white;
+}
+
+.btn-primary:hover {
+    opacity: 0.9;
+}
+
+.btn-secondary {
+    background: #6c757d;
+    color: white;
+}
+
+.btn-secondary:hover {
+    background: #5a6268;
+}
+
+.btn-success {
+    background: #28a745;
+    color: white;
+}
+
+.btn-warning {
+    background: #ffc107;
+    color: #212529;
+}
+
+.btn-danger {
+    background: #dc3545;
+    color: white;
+}
+
+.alert {
+    padding: 15px;
+    border-radius: 4px;
+    margin-bottom: 20px;
+}
+
+.alert-success {
+    background: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.alert-error {
+    background: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+.alert-warning {
+    background: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeaa7;
+}
+
+.status-indicator {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-right: 5px;
+}
+
+.status-modified {
+    background-color: #ffc107;
+}
+
+.status-saved {
+    background-color: #28a745;
+}
+
+.status-unmodified {
+    background-color: #6c757d;
+}
+
+.nested-field {
+    padding-left: 20px;
+}
+
+@media (max-width: 768px) {
+    .field-item {
+        flex-direction: column;
+    }
+    
+    .field-label {
+        flex: 0 0 auto;
+        margin-bottom: 10px;
+    }
+    
+    .field-value {
+        flex: 0 0 auto;
+        min-width: auto;
+    }
+    
+    .config-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    
+    .field-label {
+        flex: 0 0 auto;
+    }
+    
+    .config-actions-header {
+        align-self: stretch;
+        justify-content: center;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="config-container">
+    <div class="alert alert-success" id="success-alert" style="display: none;">
+        配置已成功保存！
+    </div>
+    
+    <div class="alert alert-error" id="error-alert" style="display: none;">
+        保存配置时出错，请重试。
+    </div>
+    
+    <div class="alert alert-warning" id="warning-alert" style="display: none;">
+        警告信息
+    </div>
+    
+    <h2>插件配置管理</h2>
+    <p>在此页面可以查看和修改各个插件的配置项。系统会自动检测配置变化并仅提交已修改的配置。<br>
+       嵌套配置项将以 <code>parent.child</code> 的形式显示。<br>
+       点击插件标题可以展开/折叠配置项。</p>
+    
+    <div class="config-actions">
+        <button class="btn btn-secondary" onclick="resetAllConfigs()">重置所有</button>
+        <button class="btn btn-primary" onclick="saveModifiedConfigs()">保存修改</button>
+    </div>
+    
+    {% for plugin_name, plugin_info in config_fields_info.items() %}
+    <div class="config-section collapsed" data-plugin="{{ plugin_name }}" id="section-{{ plugin_name }}">
+        <div class="config-header" onclick="toggleSection('{{ plugin_name }}')">
+            <div class="collapse-icon">▼</div>
+            <h3 class="config-title">{{ plugin_name }} ({{ plugin_info.class_name }})</h3>
+            <div class="config-actions-header">
+                <span class="status-indicator status-unmodified" id="status-{{ plugin_name }}"></span>
+                <button class="btn btn-secondary" onclick="resetPluginConfig('{{ plugin_name }}', event)">重置</button>
+                <button class="btn btn-primary" onclick="savePluginConfig('{{ plugin_name }}', event)">保存</button>
+            </div>
+        </div>
+        <div class="config-content">
+            {% if plugin_info.fields %}
+                {% for field in plugin_info.fields %}
+                <div class="field-item {% if '.' in field.name %}nested-field{% endif %}" data-field="{{ field.name }}" data-type="{{ field.type }}">
+                    <div class="field-label">
+                        <div class="field-name">{{ field.name }}</div>
+                        <div class="field-description">{{ field.description or '无描述' }}</div>
+                        {% if field.default != None %}
+                        <div class="field-default">默认: {{ field.default }}</div>
+                        {% endif %}
+                        <div class="field-type">{{ field.type }}</div>
+                    </div>
+                    <div class="field-value">
+                        {% if field.type == 'bool' %}
+                        <select class="field-input-select" 
+                                id="{{ plugin_name }}.{{ field.name | replace('.', '_DOT_') }}" 
+                                name="{{ plugin_name }}.{{ field.name }}" 
+                                data-original-value="{{ field.current_value | string }}"
+                                onchange="markFieldAsModified('{{ plugin_name }}', '{{ field.name }}')">
+                            <option value="True" {% if field.current_value == true %}selected{% endif %}>True</option>
+                            <option value="False" {% if field.current_value == false %}selected{% endif %}>False</option>
+                        </select>
+                        {% elif field.type == 'list' %}
+                        <div class="list-editor" id="{{ plugin_name }}.{{ field.name | replace('.', '_DOT_') }}_editor">
+                            <div class="list-items" id="{{ plugin_name }}.{{ field.name | replace('.', '_DOT_') }}_items">
+                                <!-- 列表项将通过JavaScript动态生成 -->
+                            </div>
+                            <button class="list-add-btn" type="button" onclick="addListItem('{{ plugin_name }}', '{{ field.name }}', event)">+ 添加项</button>
+                            <input type="hidden" 
+                                   id="{{ plugin_name }}.{{ field.name | replace('.', '_DOT_') }}" 
+                                   name="{{ plugin_name }}.{{ field.name }}" 
+                                   value="{{ field.current_value | string }}"
+                                   data-original-value="{{ field.current_value | string }}">
+                        </div>
+                        {% else %}
+                        <input type="text" class="field-input" 
+                               id="{{ plugin_name }}.{{ field.name | replace('.', '_DOT_') }}" 
+                               name="{{ plugin_name }}.{{ field.name }}" 
+                               value="{{ field.current_value | string }}" 
+                               placeholder="{{ field.default | string }}"
+                               data-original-value="{{ field.current_value | string }}"
+                               onchange="markFieldAsModified('{{ plugin_name }}', '{{ field.name }}')">
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <p>该插件暂无配置项。</p>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+    
+    <div class="config-actions">
+        <button class="btn btn-secondary" onclick="resetAllConfigs()">重置所有</button>
+        <button class="btn btn-primary" onclick="saveModifiedConfigs()">保存修改</button>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// 存储各插件的配置哈希值
+const pluginHashes = {};
+
+// 页面加载完成后获取各插件的当前配置哈希
+document.addEventListener('DOMContentLoaded', async function() {
+    {% for plugin_name in config_fields_info.keys() %}
+    try {
+        const response = await fetch(`/api/confedit/{{ plugin_name }}`);
+        if (response.ok) {
+            const data = await response.json();
+            if (data.code === 200) {
+                pluginHashes['{{ plugin_name }}'] = data.hash;
+                updatePluginStatus('{{ plugin_name }}', 'unmodified');
+                // 初始化列表字段
+                initializeListFields('{{ plugin_name }}');
+            }
+        }
+    } catch (error) {
+        console.error('获取 {{ plugin_name }} 配置哈希失败:', error);
+    }
+    {% endfor %}
+});
+
+// 切换插件配置块的展开/折叠状态
+function toggleSection(pluginName) {
+    const section = document.getElementById(`section-${pluginName}`);
+    section.classList.toggle('collapsed');
+}
+
+// 初始化列表字段
+function initializeListFields(pluginName) {
+    const section = document.querySelector(`.config-section[data-plugin="${pluginName}"]`);
+    const listFields = section.querySelectorAll('[data-type="list"]');
+    
+    listFields.forEach(fieldItem => {
+        const fieldName = fieldItem.dataset.field;
+        const fieldId = `${pluginName}.${fieldName.replace(/\./g, '_DOT_')}`;
+        const hiddenInput = document.getElementById(fieldId);
+        const itemsContainer = document.getElementById(`${fieldId}_items`);
+        
+        if (hiddenInput && itemsContainer) {
+            try {
+                const currentValue = hiddenInput.value;
+                const listValue = currentValue ? JSON.parse(currentValue.replace(/'/g, '"')) : [];
+                renderListItems(pluginName, fieldName, listValue, itemsContainer);
+                initDragAndDrop(itemsContainer);
+            } catch (e) {
+                // 如果解析失败，使用原始值
+                renderListItems(pluginName, fieldName, [], itemsContainer);
+                initDragAndDrop(itemsContainer);
+            }
+        }
+    });
+}
+
+// 初始化拖拽功能
+function initDragAndDrop(container) { // 这里好像写的有问题，不管了下次再改吧2333
+    let draggedItem = null;
+    container.addEventListener('dragstart', function(e) {
+        if (e.target.classList.contains('list-item')) {
+            draggedItem = e.target;
+            e.target.style.opacity = '0.5';
+        }
+    }, false);
+
+    container.addEventListener('dragend', function(e) {
+        if (e.target.classList.contains('list-item')) {
+            e.target.style.opacity = '1';
+            draggedItem = null;
+        }
+    }, false);
+
+    container.addEventListener('dragover', function(e) {
+        e.preventDefault();
+    }, false);
+
+    container.addEventListener('dragenter', function(e) {
+        if (e.target.classList.contains('list-item') && e.target !== draggedItem) {
+            e.target.style.backgroundColor = 'var(--hover-bg)';
+        }
+    }, false);
+
+    container.addEventListener('dragleave', function(e) {
+        if (e.target.classList.contains('list-item') && e.target !== draggedItem) {
+            e.target.style.backgroundColor = '';
+        }
+    }, false);
+
+    container.addEventListener('drop', function(e) {
+        e.preventDefault();
+        if (e.target.classList.contains('list-item') && draggedItem && e.target !== draggedItem) {
+            e.target.style.backgroundColor = '';
+            
+            const rect = e.target.getBoundingClientRect();
+            const midpoint = (rect.top + rect.bottom) / 2;
+            
+            if (e.clientY < midpoint) {
+                e.target.parentNode.insertBefore(draggedItem, e.target);
+            } else {
+                e.target.parentNode.insertBefore(draggedItem, e.target.nextSibling);
+            }
+            
+            // 更新隐藏输入框的值
+            const containerId = e.target.parentNode.id;
+            const fieldName = containerId.replace('_items', '').split('.').pop();
+            const pluginName = containerId.replace('_items', '').split('.')[0];
+            updateListValue(pluginName, fieldName);
+            markFieldAsModified(pluginName, fieldName);
+        } else if (e.target === container) {
+            // 如果拖拽到容器本身而不是某个项目上
+            e.target.appendChild(draggedItem);
+            
+            // 更新隐藏输入框的值
+            const containerId = e.target.id;
+            const fieldName = containerId.replace('_items', '').split('.').pop();
+            const pluginName = containerId.replace('_items', '').split('.')[0];
+            updateListValue(pluginName, fieldName);
+            markFieldAsModified(pluginName, fieldName);
+        }
+    }, false);
+}
+
+// 渲染列表项
+function renderListItems(pluginName, fieldName, listValue, container) {
+    const fieldId = `${pluginName}.${fieldName.replace(/\./g, '_DOT_')}`;
+    container.innerHTML = '';
+    
+    listValue.forEach((item, index) => {
+        const listItem = document.createElement('div');
+        listItem.className = 'list-item';
+        listItem.draggable = true;
+        listItem.innerHTML = `
+            <div class="drag-handle">≡</div>
+            <input type="text" class="list-item-input" value="${item}" 
+                   onchange="updateListValue('${pluginName}', '${fieldName}')">
+            <div class="list-item-actions">
+                <button class="list-item-btn btn-danger" type="button" onclick="removeListItem('${pluginName}', '${fieldName}', ${index}, event)">×</button>
+            </div>
+        `;
+        container.appendChild(listItem);
+    });
+    
+    // 更新隐藏输入框的值
+    updateListValue(pluginName, fieldName);
+    
+    // 重新初始化拖拽功能，确保新添加的元素也能拖拽
+    initDragAndDrop(container);
+}
+
+// 添加列表项
+function addListItem(pluginName, fieldName, event) {
+    // 阻止事件冒泡，避免触发折叠/展开
+    if (event) event.stopPropagation();
+    
+    const fieldId = `${pluginName}.${fieldName.replace(/\./g, '_DOT_')}`;
+    const itemsContainer = document.getElementById(`${fieldId}_items`);
+    const hiddenInput = document.getElementById(fieldId);
+    
+    if (itemsContainer && hiddenInput) {
+        const listItem = document.createElement('div');
+        listItem.className = 'list-item';
+        listItem.draggable = true;
+        listItem.innerHTML = `
+            <div class="drag-handle">≡</div>
+            <input type="text" class="list-item-input" value="" 
+                   onchange="updateListValue('${pluginName}', '${fieldName}')">
+            <div class="list-item-actions">
+                <button class="list-item-btn btn-danger" type="button" onclick="removeListItem('${pluginName}', '${fieldName}', ${itemsContainer.children.length}, event)">×</button>
+            </div>
+        `;
+        itemsContainer.appendChild(listItem);
+        updateListValue(pluginName, fieldName);
+        markFieldAsModified(pluginName, fieldName);
+    }
+}
+
+// 删除列表项
+function removeListItem(pluginName, fieldName, index, event) {
+    // 阻止事件冒泡，避免触发折叠/展开
+    if (event) event.stopPropagation();
+    
+    const fieldId = `${pluginName}.${fieldName.replace(/\./g, '_DOT_')}`;
+    const itemsContainer = document.getElementById(`${fieldId}_items`);
+    
+    if (itemsContainer && itemsContainer.children[index]) {
+        itemsContainer.removeChild(itemsContainer.children[index]);
+        updateListValue(pluginName, fieldName);
+        markFieldAsModified(pluginName, fieldName);
+    }
+}
+
+
+// 更新列表值
+function updateListValue(pluginName, fieldName) {
+    const fieldId = `${pluginName}.${fieldName.replace(/\./g, '_DOT_')}`;
+    const itemsContainer = document.getElementById(`${fieldId}_items`);
+    const hiddenInput = document.getElementById(fieldId);
+    
+    if (itemsContainer && hiddenInput) {
+        const values = [];
+        const inputs = itemsContainer.querySelectorAll('.list-item-input');
+        inputs.forEach(input => {
+            if (input.value.trim() !== '') {
+                values.push(input.value);
+            }
+        });
+        
+        // 将数组转换为字符串格式保存
+        hiddenInput.value = JSON.stringify(values);
+    }
+}
+
+// 标记字段为已修改
+function markFieldAsModified(pluginName, fieldName) {
+    const fieldId = `${pluginName}.${fieldName.replace(/\./g, '_DOT_')}`;
+    const fieldElement = document.getElementById(fieldId);
+    const originalValue = fieldElement ? fieldElement.getAttribute('data-original-value') : null;
+    const currentValue = fieldElement ? fieldElement.value : null;
+    
+    // 更新插件状态为已修改
+    updatePluginStatus(pluginName, 'modified');
+}
+
+// 更新插件状态指示器
+function updatePluginStatus(pluginName, status) {
+    var indicator = document.getElementById(`status-${pluginName}`);
+    if (indicator) {
+        indicator.className = 'status-indicator';
+        indicator.classList.add(`status-${status}`);
+    }
+}
+
+// 重置插件配置
+function resetPluginConfig(pluginName, event) {
+    // 阻止事件冒泡，避免触发折叠/展开
+    if (event) event.stopPropagation();
+    
+    const section = document.querySelector(`.config-section[data-plugin="${pluginName}"]`);
+    const inputs = section.querySelectorAll('.field-input, .field-input-select, .list-editor input[type="hidden"]');
+    
+    inputs.forEach(input => {
+        const originalValue = input.getAttribute('data-original-value');
+        if (input.tagName === 'INPUT' && input.type === 'hidden') {
+            // 处理列表字段
+            const fieldId = input.id;
+            const fieldName = input.name.split('.').slice(1).join('.');
+            try {
+                const listValue = originalValue ? JSON.parse(originalValue.replace(/'/g, '"')) : [];
+                const itemsContainer = document.getElementById(`${fieldId}_items`);
+                if (itemsContainer) {
+                    renderListItems(pluginName, fieldName, listValue, itemsContainer);
+                }
+            } catch (e) {
+                // 如果解析失败，使用原始值
+            }
+            input.value = originalValue;
+        } else if (input.tagName === 'SELECT') {
+            // 处理布尔字段
+            input.value = originalValue;
+        } else {
+            // 处理普通文本字段
+            input.value = originalValue;
+        }
+    });
+    
+    updatePluginStatus(pluginName, 'unmodified');
+    showAlert('success', `插件 ${pluginName} 的配置已重置`);
+}
+
+// 重置所有配置
+function resetAllConfigs() {
+    {% for plugin_name in config_fields_info.keys() %}
+    resetPluginConfig('{{ plugin_name }}');
+    {% endfor %}
+    showAlert('success', '所有配置已重置');
+}
+
+// 保存单个插件配置
+async function savePluginConfig(pluginName, event) {
+    // 阻止事件冒泡，避免触发折叠/展开
+    if (event) event.stopPropagation();
+    
+    showLoading();
+    
+    try {
+        // 收集插件配置数据
+        const section = document.querySelector(`.config-section[data-plugin="${pluginName}"]`);
+        const inputs = section.querySelectorAll('.field-input, .field-input-select, .list-editor input[type="hidden"]');
+        const configData = {};
+        
+        inputs.forEach(input => {
+            const fieldName = input.name.split('.').slice(1).join('.');
+            configData[fieldName] = input.value;
+        });
+        
+        // 获取当前哈希值
+        const currentHash = pluginHashes[pluginName];
+        
+        // 发送保存请求
+        const response = await fetch(`/api/confedit/${pluginName}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                config: configData,
+                hash: currentHash
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.code === 200) {
+            // 更新哈希值
+            pluginHashes[pluginName] = result.hash;
+            
+            // 更新原始值
+            inputs.forEach(input => {
+                input.setAttribute('data-original-value', input.value);
+            });
+            
+            // 更新状态
+            updatePluginStatus(pluginName, 'saved');
+            
+            showAlert('success', `插件 ${pluginName} 配置保存成功`);
+        } else if (result.code === 409) {
+            window.location.reload();
+        } else {
+            showAlert('error', `插件 ${pluginName} 配置保存失败: ${result.message}`);
+        }
+    } catch (error) {
+        showAlert('error', `保存插件 ${pluginName} 配置时发生错误: ${error.message}`);
+    } finally {
+        hideLoading();
+    }
+}
+
+// 保存所有已修改的配置
+async function saveModifiedConfigs() {
+    showLoading();
+    
+    let savedCount = 0;
+    let errorCount = 0;
+    
+    try {
+        {% for plugin_name in config_fields_info.keys() %}
+        // 检查插件是否已修改
+        var indicator = document.getElementById(`status-{{ plugin_name }}`);
+        if (indicator && indicator.classList.contains('status-modified')) {
+            try {
+                // 收集插件配置数据
+                const section = document.querySelector(`.config-section[data-plugin="{{ plugin_name }}"]`);
+                const inputs = section.querySelectorAll('.field-input, .field-input-select, .list-editor input[type="hidden"]');
+                const configData = {};
+                
+                inputs.forEach(input => {
+                    const fieldName = input.name.split('.').slice(1).join('.');
+                    configData[fieldName] = input.value;
+                });
+                
+                // 获取当前哈希值
+                const currentHash = pluginHashes['{{ plugin_name }}'];
+                
+                // 发送保存请求
+                const response = await fetch(`/api/confedit/{{ plugin_name }}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        config: configData,
+                        hash: currentHash
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.code === 200) {
+                    // 更新哈希值
+                    pluginHashes['{{ plugin_name }}'] = result.hash;
+                    
+                    // 更新原始值
+                    inputs.forEach(input => {
+                        input.setAttribute('data-original-value', input.value);
+                    });
+                    
+                    // 更新状态
+                    updatePluginStatus('{{ plugin_name }}', 'saved');
+                    savedCount++;
+                } else {
+                    errorCount++;
+                    console.error(`保存 {{ plugin_name }} 配置失败:`, result.message);
+                }
+            } catch (error) {
+                errorCount++;
+                console.error(`保存 {{ plugin_name }} 配置时发生错误:`, error);
+            }
+        }
+        {% endfor %}
+        
+        if (errorCount === 0 && savedCount > 0) {
+            showAlert('success', `成功保存 ${savedCount} 个插件的配置`);
+        } else if (errorCount > 0) {
+            showAlert('error', `保存配置完成，${savedCount} 个成功，${errorCount} 个失败`);
+        } else {
+            showAlert('success', '没有需要保存的配置修改');
+        }
+    } catch (error) {
+        showAlert('error', `保存配置时发生错误: ${error.message}`);
+    } finally {
+        hideLoading();
+    }
+}
+
+// 显示提示信息
+function showAlert(type, message) {
+    const successAlert = document.getElementById('success-alert');
+    const errorAlert = document.getElementById('error-alert');
+    const warningAlert = document.getElementById('warning-alert');
+    
+    // 隐藏所有提示
+    successAlert.style.display = 'none';
+    errorAlert.style.display = 'none';
+    warningAlert.style.display = 'none';
+    
+    // 显示对应提示
+    if (type === 'success') {
+        successAlert.textContent = message;
+        successAlert.style.display = 'block';
+    } else if (type === 'error') {
+        errorAlert.textContent = message;
+        errorAlert.style.display = 'block';
+    } else if (type === 'warning') {
+        warningAlert.textContent = message;
+        warningAlert.style.display = 'block';
+    }
+    
+    // 3秒后自动隐藏
+    setTimeout(() => {
+        successAlert.style.display = 'none';
+        errorAlert.style.display = 'none';
+        warningAlert.style.display = 'none';
+    }, 3000);
+}
+
+</script>
+{% endblock %}

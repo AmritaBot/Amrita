@@ -16,11 +16,12 @@ dependencies = [
     "nonebot-plugin-localstore>=0.7.4",
     "typing-extensions>=4.6.0",
     "uv>=0.8.12",
-    "requests>=2.0",                    # See https://github.com/twindb/backup/pull/465
+    "requests>=2.0", # See https://github.com/twindb/backup/pull/465
     "python-multipart>=0.0.20",
     "aiofiles>=24.1.0",
     "packaging>=25.0",
     "zipp>=3.23.0",
+    "pytz>=2025.2",
 ]
 
 [project.optional-dependencies]

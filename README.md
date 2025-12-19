@@ -1,7 +1,7 @@
 # PROJ.Amrita 🌸 - 基于 NoneBot 的 LLM 聊天机器人框架
 
 <p align= "center">
-  <img src="https://github.com/user-attachments/assets/ebffcd0a-f491-4952-bfc0-61fc288180e2" width=600 height=600>
+  <img src="./Amrita.png" width=400 height=400>
 </p>
 <p align="center">
   <img src="https://img.shields.io/badge/Python-3.10+-blue?logo=python" alt="Python">
