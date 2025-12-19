@@ -32,7 +32,7 @@ class SideBar(BaseModel):
             children=[
                 SideBarItem(name="状态监控", url="/bot/status", active=False),
                 SideBarItem(name="插件管理", url="/bot/plugins", active=False),
-                SideBarItem(name="配置管理", url="/bot/config", active=False),
+                SideBarItem(name="Dotenv编辑", url="/bot/config", active=False),
             ],
         ),
         SideBarCategory(

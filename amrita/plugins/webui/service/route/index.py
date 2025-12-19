@@ -65,9 +65,9 @@ async def index(request: Request):
 
 
 @app.post("/login", response_class=RedirectResponse)
-async def login(username: str = Form(...), password: str = Form(...)):
+async def login(request: Request, username: str = Form(...), password: str = Form(...)):
     # 验证用户名和密码
-    if not AuthManager().authenticate_user(username, password):
+    if not await AuthManager().authenticate_user(request, username, password):
         # 认证失败，返回登录页面并显示错误
         response = RedirectResponse(url="/?error=invalid_credentials", status_code=303)
         return response
