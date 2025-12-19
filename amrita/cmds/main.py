@@ -14,14 +14,11 @@ from typing import Any
 
 import click
 import nonebot
-import packaging
-import packaging.version
 import toml
 import tomli_w
 from pydantic import BaseModel, Field
 
 import amrita
-from amrita.cmds.plugin import get_package_metadata
 
 from ..cli import (
     IS_IN_VENV,
@@ -354,21 +351,6 @@ def run(run: bool):
     Args:
         run: 是否直接运行项目而不安装依赖
     """
-    if metadata := get_package_metadata("amrita"):
-        if metadata["releases"] != {} and packaging.version.parse(
-            max(list(metadata["releases"].keys()), key=packaging.version.parse)
-        ) > packaging.version.parse(get_amrita_version()):
-            click.echo(
-                warn(f"新版本的Amrita已就绪: {list(metadata['releases'].keys())[-1]}")
-            )
-        else:
-            click.echo(
-                success(
-                    "虚拟环境Amrita已是最新版本。"
-                    if IS_IN_VENV
-                    else "主环境Amrita已是最新版本。"
-                )
-            )
     if run:
         try:
             # 添加当前目录到sys.path以确保插件能被正确导入

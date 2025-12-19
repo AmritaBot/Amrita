@@ -1,10 +1,12 @@
 import nonebot
 from nonebot.plugin import PluginMetadata, require
 
+from .service.route import confedit
+
 require("amrita.plugins.manager")
 require("amrita.plugins.perm")
 
-from .service import config, models
+from .service import config
 from .service.config import get_webui_config
 
 __plugin_meta__ = PluginMetadata(
@@ -14,18 +16,25 @@ __plugin_meta__ = PluginMetadata(
     config=config.Config,
 )
 
-__all__ = ["config", "models"]
+__all__ = ["config"]
 
 webui_config = get_webui_config()
 if webui_config.webui_enable:
     nonebot.logger.info("Mounting webui......")
     from .service import main
-    from .service.route import api, bot, index, user
+    from .service.route import (
+        api,
+        bot,
+        confedit,
+        index,
+        user,
+    )
     from .service.route import config as route_config
 
     __all__ += [
         "api",
         "bot",
+        "confedit",
         "index",
         "main",
         "route_config",
