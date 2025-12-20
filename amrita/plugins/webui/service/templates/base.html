@@ -198,7 +198,7 @@
         if (theme === "dark") {
           document.body.classList.add("dark-mode");
           document.getElementById("themeToggle").innerHTML =
-            '<i class="fas fa-sun"</i>';
+            '<i class="fas fa-sun"></i>';
           document.getElementById("githubButton").innerHTML =
             '<img src="/static/images/github-mark-white.svg" alt="GitHub" width="32" height="32">';
           
@@ -206,7 +206,7 @@
         } else {
           document.body.classList.remove("dark-mode");
           document.getElementById("themeToggle").innerHTML =
-            '<i class="fas fa-moon"</i>';
+            '<i class="fas fa-moon"></i>';
           document.getElementById("githubButton").innerHTML =
             '<img src="/static/images/github-mark.svg" alt="GitHub" width="32" height="32">';
           localStorage.setItem("theme", "light");
