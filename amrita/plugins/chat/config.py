@@ -30,6 +30,9 @@ STRDICT = dict[str, Any]
 
 T = TypeVar("T", STRDICT, list[str | STRDICT], str)
 
+# 缓存的正则表达式
+_re_hash: int = 0
+_cached_pattern: re.Pattern[str] | None = None
 
 def replace_env_vars(
     data: T,
@@ -170,7 +173,10 @@ class FunctionConfig(BaseModel):
         default=True, description="是否解析合并转发消息"
     )
     nature_chat_style: bool = Field(
-        default=True, description="是否启用自然对话风格优化"
+        default=True, description="是否启用自然对话风格优化(自动分句)"
+    )
+    nature_chat_cut_pattern: str = Field(
+        default=r'([。！？!?;；\n]+)[""\'\'"\s]*', description="分句功能的正则表达式"
     )
     poke_reply: bool = Field(default=True, description="是否响应戳一戳事件")
     enable_group_chat: bool = Field(default=True, description="是否启用群聊功能")
@@ -181,6 +187,18 @@ class FunctionConfig(BaseModel):
     use_user_nickname: bool = Field(
         default=False, description="在群聊中使用QQ昵称而非群名片"
     )
+
+    @property
+    def pattern(self) -> re.Pattern:
+        """
+        获取分句的正则表达式
+        """
+        global _cached_pattern, _re_hash
+        pattern_hash = hash(self.nature_chat_cut_pattern)
+        if pattern_hash != _re_hash or _cached_pattern is None:
+            _cached_pattern = re.compile(self.nature_chat_cut_pattern)
+            _re_hash = pattern_hash
+        return _cached_pattern
 
 
 class PresetSwitch(BaseModel):
@@ -262,7 +280,7 @@ class UsageLimitConfig(BaseModel):
     )
     total_daily_limit: int = Field(default=1500, description="总使用次数限制")
     total_daily_token_limit: int = Field(default=1000000, description="总使用token限制")
-    global_insights_expire_days: int = Field(default=7, description="全局洞察过期天数")
+    global_insights_expire_days: int = Field(default=7, description="全局统计过期天数")
 
 
 class LLM_Config(BaseModel):

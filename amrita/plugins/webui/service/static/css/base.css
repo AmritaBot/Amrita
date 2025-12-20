@@ -350,6 +350,8 @@ body.dark-mode .alert {
   transition: background 0.3s;
   margin-right: 10px;
   font-size: 18px;
+  width: 30px;
+  height: 30px;
 }
 
 .theme-toggle:hover {
