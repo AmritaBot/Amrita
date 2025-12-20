@@ -199,18 +199,16 @@ async def system_config_editor(ctx: PageContext):
 
             # 获取字段描述信息和默认值
             description, default_value = get_field_info(config_class, flat_key)
-            default_value = str(default_value)
+            if default_value is not None:
+                dv_str = str(default_value)
+                default_value = dv_str if len(dv_str) <= 20 else dv_str[:20] + "..."
 
             fields_info.append(
                 {
                     "name": flat_key,
                     "description": description,
                     "type": type_name,
-                    "default": (
-                        default_value
-                        if len(default_value) <= 20
-                        else default_value[0:20] + "..."
-                    ),
+                    "default": default_value,
                     "current_value": flat_value,
                 }
             )
