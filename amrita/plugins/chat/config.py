@@ -78,7 +78,7 @@ class ModelPreset(BaseModel):
     multimodal: bool = Field(
         default=False, description="是否支持多模态输入（如图片识别）"
     )
-    extra: dict[str, Any] = field(default_factory=dict)
+    extra: dict[str, Any] = Field(default_factory=dict)
 
     @classmethod
     def load(cls, path: Path):
