@@ -224,14 +224,20 @@ class UniConfigManager:
         return self._config_instances.get(plugin_name)
 
     def get_config_instance_not_none(self, plugin_name: str) -> BaseModel:
-        """获取配置实例，如果为None则抛出异常
+        """
+        获取指定插件的配置实例（非空）
 
         Args:
             plugin_name (str): 插件名称
 
         Returns:
             BaseModel: 配置实例
+
+        Raises:
+            KeyError: 如果插件名称不存在
         """
+        if plugin_name not in self._config_instances:
+            raise KeyError(f"Configuration instance for '{plugin_name}' not found")
         return self._config_instances[plugin_name]
 
     def get_config_class_by_name(self, plugin_name: str) -> type[BaseModel] | None:

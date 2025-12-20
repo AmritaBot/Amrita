@@ -108,9 +108,11 @@ def get_field_info(
         return "", None
 
 
-def try_parse_value(value_str: str) -> Any:
+def try_parse_value(value_str: Any) -> Any:
     """
-    尝试解析字符串值为适当的Python类型
+    尝试解析字符串值为适当的Python类型。
+    本函数旨在尽可能地进行无害转换，所有解析失败的情况都返回原始字符串，
+    最终的类型验证由 Pydantic 的 model_validate 负责。
     """
     if not isinstance(value_str, str):
         return value_str
@@ -118,27 +120,16 @@ def try_parse_value(value_str: str) -> Any:
     # 去除首尾空白
     value_str = value_str.strip()
 
-    # 尝试解析为Python字面量（包括列表、字典、布尔值等）
+    # 如果字符串为空，则返回空字符串
+    if not value_str:
+        return ""
+
+    # 尝试解析为Python字面量（包括列表、字典、布尔值、数字等）
     try:
         return literal_eval(value_str)
     except (ValueError, SyntaxError):
-        pass
-
-    # 尝试解析为数字
-    if value_str.isdigit():
-        return int(value_str)
-    else:
-        try:
-            return float(value_str)
-        except ValueError:
-            pass
-
-    # 检查是否为布尔值
-    if value_str.lower() in ("true", "false"):
-        return value_str.lower() == "true"
-
-    # 默认返回原字符串
-    return value_str
+        # 解析失败，返回原始字符串，让后续的 model_validate 处理
+        return value_str
 
 
 def unflatten_config_fields(flat_dict: dict, sep: str = ".") -> dict:

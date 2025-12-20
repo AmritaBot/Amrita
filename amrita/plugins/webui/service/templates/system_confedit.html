@@ -62,6 +62,7 @@ body.dark-mode .config-title {
 }
 
 .collapse-icon {
+    display: inline-block;
     font-size: 12px;
     transition: transform 0.3s ease;
     width: 20px;
@@ -169,12 +170,108 @@ body.dark-mode .field-input {
     border-radius: 4px;
     background: var(--input-bg);
     color: var(--text-color);
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 1rem center;
+    background-size: 1em;
+    transition: all 0.3s ease;
+}
+
+.field-input-select:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25);
 }
 
 body.dark-mode .field-input-select {
     border: 1px solid var(--dark-border-color);
     background: var(--dark-input-bg);
     color: var(--dark-text-color);
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+}
+
+.field-input-bool-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: normal;
+    margin: 0;
+    cursor: pointer;
+    color: var(--text-color);
+    transition: color 0.3s ease;
+}
+
+body.dark-mode .field-input-bool-label {
+    color: var(--dark-text-color);
+}
+
+.field-input-bool-container {
+    display: flex;
+    align-items: center;
+    height: 100%;
+}
+
+.bool-switch {
+    position: relative;
+    display: inline-block;
+    width: 50px;
+    height: 24px;
+}
+
+.bool-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.bool-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    transition: .4s;
+    border-radius: 24px;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.bool-slider:before {
+    position: absolute;
+    content: "";
+    height: 18px;
+    width: 18px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: .4s;
+    border-radius: 50%;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.bool-switch input:checked + .bool-slider {
+    background-color: var(--primary-color);
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.bool-switch input:checked + .bool-slider:before {
+    transform: translateX(26px);
+}
+
+.bool-switch input:focus + .bool-slider {
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25);
+}
+
+.bool-switch:hover .bool-slider {
+    background-color: #b3b3b3;
+}
+
+.bool-switch input:checked:hover + .bool-slider {
+    background-color: #007bff;
 }
 
 .field-type {
@@ -301,8 +398,9 @@ body.dark-mode .list-add-btn {
     display: flex;
     justify-content: flex-end;
     gap: 10px;
-    margin-top: 20px;
-    padding-top: 20px;
+    margin-top: 10px;
+    padding-top: 10px;
+    margin-bottom: 20px;
     border-top: 1px solid var(--border-color);
 }
 
@@ -488,14 +586,22 @@ body.dark-mode .config-actions {
                     </div>
                     <div class="field-value">
                         {% if field.type == 'bool' %}
-                        <select class="field-input-select" 
-                                id="{{ plugin_name }}.{{ field.name | replace('.', '_DOT_') }}" 
-                                name="{{ plugin_name }}.{{ field.name }}" 
-                                data-original-value="{{ field.current_value | string }}"
-                                onchange="markFieldAsModified('{{ plugin_name }}', '{{ field.name }}')">
-                            <option value="True" {% if field.current_value == true %}selected{% endif %}>True</option>
-                            <option value="False" {% if field.current_value == false %}selected{% endif %}>False</option>
-                        </select>
+                        <div class="field-input-bool-container">
+                            <label class="field-input-bool-label">
+                                <div class="bool-switch">
+                                    <input type="checkbox" 
+                                           id="{{ plugin_name }}.{{ field.name | replace('.', '_DOT_') }}" 
+                                           name="{{ plugin_name }}.{{ field.name }}" 
+                                           data-original-value="{{ field.current_value | string }}"
+                                           onchange="markFieldAsModified('{{ plugin_name }}', '{{ field.name }}')"
+                                           {% if field.current_value == true %}checked{% endif %}>
+                                    <span class="bool-slider"></span>
+                                </div>
+                                <span id="{{ plugin_name }}.{{ field.name | replace('.', '_DOT_') }}_text">
+                                    {% if field.current_value == true %}True{% else %}False{% endif %}
+                                </span>
+                            </label>
+                        </div>
                         {% elif field.type == 'list' %}
                         <div class="list-editor" id="{{ plugin_name }}.{{ field.name | replace('.', '_DOT_') }}_editor">
                             <div class="list-items sortable-list" id="{{ plugin_name }}.{{ field.name | replace('.', '_DOT_') }}_items"></div>
@@ -684,7 +790,17 @@ function markFieldAsModified(pluginName, fieldName) {
     const fieldId = `${pluginName}.${fieldName.replace(/\./g, '_DOT_')}`;
     const fieldElement = document.getElementById(fieldId);
     const originalValue = fieldElement ? fieldElement.getAttribute('data-original-value') : null;
-    const currentValue = fieldElement ? fieldElement.value : null;
+    let currentValue = fieldElement ? fieldElement.value : null;
+    
+    // Handle boolean switches
+    if (fieldElement && fieldElement.type === 'checkbox') {
+        currentValue = fieldElement.checked.toString();
+        // Update text label next to switch
+        const textElement = document.getElementById(`${fieldId}_text`);
+        if (textElement) {
+            textElement.textContent = fieldElement.checked ? 'True' : 'False';
+        }
+    }
     
     updatePluginStatus(pluginName, 'modified');
 }
@@ -701,7 +817,7 @@ function resetPluginConfig(pluginName, event) {
     if (event) event.stopPropagation();
     
     const section = document.querySelector(`.config-section[data-plugin="${pluginName}"]`);
-    const inputs = section.querySelectorAll(`.field-input, .field-input-select, .list-editor input[type="hidden"]`);
+    const inputs = section.querySelectorAll(`.field-input, .field-input-select, .list-editor input[type="hidden"], .bool-switch input`);
     
     inputs.forEach(input => {
         const originalValue = input.getAttribute('data-original-value');
@@ -717,6 +833,15 @@ function resetPluginConfig(pluginName, event) {
                 }
             } catch (e) {}
             input.value = originalValue;
+        } else if (input.type === 'checkbox') {
+            // Handle boolean switches
+            const isChecked = (originalValue === 'True');
+            input.checked = isChecked;
+            // Update text label next to switch
+            const textElement = document.getElementById(`${input.id}_text`);
+            if (textElement) {
+                textElement.textContent = isChecked ? 'True' : 'False';
+            }
         } else if (input.tagName === 'SELECT') {
             input.value = originalValue;
         } else {
@@ -742,12 +867,17 @@ async function savePluginConfig(pluginName, event) {
     
     try {
         const section = document.querySelector(`.config-section[data-plugin="${pluginName}"]`);
-        const inputs = section.querySelectorAll('.field-input, .field-input-select, .list-editor input[type="hidden"]');
+        const inputs = section.querySelectorAll('.field-input, .field-input-select, .list-editor input[type="hidden"], .bool-switch input');
         const configData = {};
         
         inputs.forEach(input => {
             const fieldName = input.name.split('.').slice(1).join('.');
-            configData[fieldName] = input.value;
+            if (input.type === 'checkbox') {
+                // Handle boolean switches
+                configData[fieldName] = input.checked.toString();
+            } else {
+                configData[fieldName] = input.value;
+            }
         });
         
         const currentHash = pluginHashes[pluginName];
@@ -769,7 +899,11 @@ async function savePluginConfig(pluginName, event) {
             pluginHashes[pluginName] = result.hash;
             
             inputs.forEach(input => {
-                input.setAttribute('data-original-value', input.value);
+                if (input.type === 'checkbox') {
+                    input.setAttribute('data-original-value', input.checked.toString());
+                } else {
+                    input.setAttribute('data-original-value', input.value);
+                }
             });
             
             updatePluginStatus(pluginName, 'saved');
@@ -799,12 +933,17 @@ async function saveModifiedConfigs() {
         if (indicator && indicator.classList.contains('status-modified')) {
             try {
                 const section = document.querySelector(`.config-section[data-plugin="{{ plugin_name }}"]`);
-                const inputs = section.querySelectorAll('.field-input, .field-input-select, .list-editor input[type="hidden"]`);
+                const inputs = section.querySelectorAll(`.field-input, .field-input-select, .list-editor input[type="hidden"], .bool-switch input`);
                 const configData = {};
                 
                 inputs.forEach(input => {
                     const fieldName = input.name.split('.').slice(1).join('.');
-                    configData[fieldName] = input.value;
+                    if (input.type === 'checkbox') {
+                        // Handle boolean switches
+                        configData[fieldName] = input.checked.toString();
+                    } else {
+                        configData[fieldName] = input.value;
+                    }
                 });
                 
                 const currentHash = pluginHashes['{{ plugin_name }}'];
@@ -826,7 +965,11 @@ async function saveModifiedConfigs() {
                     pluginHashes['{{ plugin_name }}'] = result.hash;
                     
                     inputs.forEach(input => {
-                        input.setAttribute('data-original-value', input.value);
+                        if (input.type === 'checkbox') {
+                            input.setAttribute('data-original-value', input.checked.toString());
+                        } else {
+                            input.setAttribute('data-original-value', input.value);
+                        }
                     });
                     
                     updatePluginStatus('{{ plugin_name }}', 'saved');
