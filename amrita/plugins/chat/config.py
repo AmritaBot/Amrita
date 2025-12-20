@@ -34,6 +34,7 @@ T = TypeVar("T", STRDICT, list[str | STRDICT], str)
 _re_hash: int = 0
 _cached_pattern: re.Pattern[str] | None = None
 
+
 def replace_env_vars(
     data: T,
 ) -> T:
