@@ -80,9 +80,13 @@
             <button class="theme-toggle" id="themeToggle" title="切换主题">
               <i class="fas fa-moon"></i>
             </button>
+            <button class="theme-toggle" id="githubButton" title="GitHub" onclick="jmpToGitHub()">
+              <img src="/static/images/github-mark.svg" alt="GitHub" width="32" height="32">
+            </button>
             <div class="user-info">
               <div class="user-avatar">A</div>
               <div class="user-name">Admin</div>
+              <!--下次再改改2333-->
             </div>
             <form action="/logout" method="post">
               <button type="submit" class="logout-btn" title="退出登录">
@@ -195,11 +199,16 @@
           document.body.classList.add("dark-mode");
           document.getElementById("themeToggle").innerHTML =
             '<i class="fas fa-sun"></i>';
+          document.getElementById("githubButton").innerHTML =
+            '<img src="/static/images/github-mark-white.svg" alt="GitHub" width="32" height="32">';
+          
           localStorage.setItem("theme", "dark");
         } else {
           document.body.classList.remove("dark-mode");
           document.getElementById("themeToggle").innerHTML =
             '<i class="fas fa-moon"></i>';
+          document.getElementById("githubButton").innerHTML =
+            '<img src="/static/images/github-mark.svg" alt="GitHub" width="32" height="32">';
           localStorage.setItem("theme", "light");
         }
       }
@@ -265,6 +274,9 @@
           });
         }
         return token;
+      }
+      function jmpToGitHub(){
+        window.open("https://github.com/AmritaBot/Amrita", "_blank")
       }
     </script>
     {% block scripts %} {% endblock %}

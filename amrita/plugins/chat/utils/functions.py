@@ -1,5 +1,4 @@
 import json
-import re
 from datetime import datetime
 from typing import Any
 
@@ -72,10 +71,6 @@ def format_datetime_timestamp(time: int) -> str:
     return f"[{formatted_date} {formatted_weekday} {formatted_time}]"
 
 
-# 在文件顶部预编译正则表达式
-SENTENCE_DELIMITER_PATTERN = re.compile(r'([。！？!?;；\n]+)[""\'\'"\s]*', re.UNICODE)
-
-
 def split_message_into_chats(text: str, max_length: int = 100) -> list[str]:
     """
     根据标点符号分割文本为句子
@@ -92,7 +87,7 @@ def split_message_into_chats(text: str, max_length: int = 100) -> list[str]:
 
     sentences = []
     start = 0
-    for match in SENTENCE_DELIMITER_PATTERN.finditer(text):
+    for match in config_manager.config.function.pattern.finditer(text):
         end = match.end()
         if sentence := text[start:end].strip():
             sentences.append(sentence)
