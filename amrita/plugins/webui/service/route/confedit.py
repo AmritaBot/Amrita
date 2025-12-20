@@ -11,6 +11,7 @@ from pydantic import BaseModel
 
 from amrita.config_manager import UniConfigManager
 from amrita.plugins.webui.API import PageContext, PageResponse, on_page
+from amrita.plugins.webui.service.sidebar import SideBarCategory, SideBarManager
 
 
 def flatten_config_fields(
@@ -164,11 +165,15 @@ def unflatten_config_fields(flat_dict: dict, sep: str = ".") -> dict:
     return result
 
 
+SideBarManager().add_sidebar_category(
+    SideBarCategory(name="系统管理", icon="fa fa-cog")
+)
+
+
 @on_page(
     path="/system/confedit",
     page_name="配置文件修改",
     category="系统管理",
-    icon="fa fa-cog",
 )
 async def system_config_editor(ctx: PageContext):
     """
@@ -177,15 +182,15 @@ async def system_config_editor(ctx: PageContext):
     """
     # 获取所有已注册的配置类
     config_manager = UniConfigManager()
-    config_classes = config_manager._config_classes
+    config_classes = config_manager.get_config_classes()
 
     # 准备配置字段信息
     config_fields_info = {}
 
     for plugin_name, config_class in config_classes.items():
         # 获取当前配置实例
-        if plugin_name in config_manager._config_instances:
-            config_instance = config_manager._config_instances[plugin_name]
+        if config_manager.has_config_instance(plugin_name):
+            config_instance = config_manager.get_config_instance_not_none(plugin_name)
             config_data = config_instance.model_dump()
         else:
             # 如果还没有配置实例，则创建默认实例
@@ -203,13 +208,18 @@ async def system_config_editor(ctx: PageContext):
 
             # 获取字段描述信息和默认值
             description, default_value = get_field_info(config_class, flat_key)
+            default_value = str(default_value)
 
             fields_info.append(
                 {
                     "name": flat_key,
                     "description": description,
                     "type": type_name,
-                    "default": default_value,
+                    "default": (
+                        default_value
+                        if len(default_value) <= 20
+                        else default_value[0:20] + "..."
+                    ),
                     "current_value": flat_value,
                 }
             )
@@ -232,8 +242,8 @@ async def get_plugin_config_data(plugin_name: str) -> dict[str, Any]:
     config_manager = UniConfigManager()
 
     # 获取当前配置实例
-    if plugin_name in config_manager._config_instances:
-        config_instance = config_manager._config_instances[plugin_name]
+    if config_manager.has_config_instance(plugin_name):
+        config_instance = config_manager.get_config_instance_not_none(plugin_name)
         config_data = config_instance.model_dump()
     else:
         # 如果还没有配置实例，则加载
@@ -306,8 +316,10 @@ async def save_plugin_config(owner_name: str, request: Request):
 
         # 获取当前配置数据
         config_manager = UniConfigManager()
-        if owner_name in config_manager._config_instances:
-            current_config_instance = config_manager._config_instances[owner_name]
+        if config_manager.has_config_instance(owner_name):
+            current_config_instance = config_manager.get_config_instance_not_none(
+                owner_name
+            )
             current_config_data = current_config_instance.model_dump()
         else:
             # 如果还没有配置实例，则加载
@@ -329,14 +341,14 @@ async def save_plugin_config(owner_name: str, request: Request):
             )
 
         # 获取配置类
-        if owner_name not in config_manager._config_classes:
+        if not config_manager.has_config_class(owner_name):
             return JSONResponse(
                 {"code": 404, "message": f"插件 {owner_name} 未注册配置类"},
                 status_code=404,
             )
 
-        config_class = config_manager._config_classes[owner_name]
-
+        config_class = config_manager.get_config_class_by_name(owner_name)
+        assert config_class is not None
         # 验证并创建新的配置实例
         new_config_instance = config_class.model_validate(nested_config_data)
 

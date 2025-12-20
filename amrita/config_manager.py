@@ -169,6 +169,83 @@ class UniConfigManager:
                     tomli_w.dumps(self._config_instances[owner_name].model_dump())
                 )
 
+    def get_config_classes(self) -> dict[str, type[BaseModel]]:
+        """
+        获取所有已注册的配置类
+
+        Returns:
+            dict[str, type[BaseModel]]: 插件名到配置类的映射
+        """
+        return self._config_classes
+
+    def get_config_instances(self) -> dict[str, BaseModel]:
+        """
+        获取所有配置实例
+
+        Returns:
+            dict[str, BaseModel]: 插件名到配置实例的映射
+        """
+        return self._config_instances
+
+    def has_config_class(self, plugin_name: str) -> bool:
+        """
+        检查是否存在指定插件的配置类
+
+        Args:
+            plugin_name (str): 插件名称
+
+        Returns:
+            bool: 如果存在配置类则返回True，否则返回False
+        """
+        return plugin_name in self._config_classes
+
+    def has_config_instance(self, plugin_name: str) -> bool:
+        """
+        检查是否存在指定插件的配置实例
+
+        Args:
+            plugin_name (str): 插件名称
+
+        Returns:
+            bool: 如果存在配置实例则返回True，否则返回False
+        """
+        return plugin_name in self._config_instances
+
+    def get_config_instance(self, plugin_name: str) -> BaseModel | None:
+        """
+        获取指定插件的配置实例
+
+        Args:
+            plugin_name (str): 插件名称
+
+        Returns:
+            BaseModel | None: 配置实例，如果不存在则返回None
+        """
+        return self._config_instances.get(plugin_name)
+
+    def get_config_instance_not_none(self, plugin_name: str) -> BaseModel:
+        """获取配置实例，如果为None则抛出异常
+
+        Args:
+            plugin_name (str): 插件名称
+
+        Returns:
+            BaseModel: 配置实例
+        """
+        return self._config_instances[plugin_name]
+
+    def get_config_class_by_name(self, plugin_name: str) -> type[BaseModel] | None:
+        """
+        根据插件名称获取配置类
+
+        Args:
+            plugin_name (str): 插件名称
+
+        Returns:
+            type[BaseModel] | None: 配置类，如果不存在则返回None
+        """
+        return self._config_classes.get(plugin_name)
+
     async def _get_config_by_file(self, plugin_name: str) -> BaseModel:
         config_dir = get_config_dir(plugin_name)
         await self._init_config_or_nothing(plugin_name, config_dir)

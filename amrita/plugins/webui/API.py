@@ -38,9 +38,7 @@ class PageContext:
     token_manager: TokenManager
 
 
-def on_page(
-    path: str, page_name: str, category: str = "其他功能", icon: str | None = None
-):
+def on_page(path: str, page_name: str, category: str = "其他功能"):
     """
     页面路由装饰器，用于注册Web UI页面
 
@@ -51,7 +49,6 @@ def on_page(
         path (str): 页面的URL路径
         page_name (str): 页面名称，将显示在侧边栏中
         category (str, optional): 页面所属的分类，分类不存在时将创建一个分类
-        icon (str | None, optional): 页面图标，用于在侧边栏中显示
 
     Returns:
         Callable: 返回一个装饰器函数
@@ -64,7 +61,7 @@ def on_page(
                 SideBarCategory(name=category, icon="fa fa-question", url="#")
             )
         SideBarManager().add_sidebar_item(
-            category, SideBarItem(name=page_name, url=path, icon=icon)
+            category, SideBarItem(name=page_name, url=path)
         )
         page_path = path
 

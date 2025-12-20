@@ -3,6 +3,10 @@
 {% block title %}Amrita Dashboard - 配置文件修改{% endblock %}
 {% block topbar_title %}配置文件修改{% endblock %}
 
+{% block extra_head %}
+<link href="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.css" rel="stylesheet">
+{% endblock %}
+
 {% block extra_css %}
 <style>
 .config-container {
@@ -26,7 +30,6 @@ body.dark-mode .config-section {
     border-bottom: 1px solid var(--border-color);
     padding: 15px;
     display: flex;
-    justify-content: space-between;
     align-items: center;
     cursor: pointer;
 }
@@ -49,25 +52,32 @@ body.dark-mode .config-header:hover {
     color: var(--text-color);
     margin: 0;
     flex-grow: 1;
+    display: flex;
+    align-items: center;
+    gap: 10px;
 }
 
 body.dark-mode .config-title {
     color: var(--dark-text-color);
 }
 
+.collapse-icon {
+    font-size: 12px;
+    transition: transform 0.3s ease;
+    width: 20px;
+    text-align: center;
+}
+
+.config-section.collapsed .collapse-icon {
+    transform: rotate(-90deg);
+}
+
 .config-actions-header {
     display: flex;
     gap: 10px;
-    margin-left: 10px;
-}
-
-.collapse-icon {
-    margin-right: 10px;
-    transition: transform 0.3s ease;
-}
-
-.collapsed .collapse-icon {
-    transform: rotate(-90deg);
+    align-items: center;
+    margin-left: auto;
+    white-space: nowrap;
 }
 
 .config-content {
@@ -185,14 +195,18 @@ body.dark-mode .field-type {
     margin-bottom: 10px;
 }
 
+.sortable-list {
+    min-height: 20px;
+}
+
 .list-item {
     display: flex;
+    align-items: center;
     margin-bottom: 5px;
-    cursor: move;
     background: var(--card-bg);
     border: 1px solid var(--border-color);
     border-radius: 4px;
-    padding: 5px;
+    padding: 8px;
 }
 
 body.dark-mode .list-item {
@@ -200,11 +214,15 @@ body.dark-mode .list-item {
     border: 1px solid var(--dark-border-color);
 }
 
-.list-item:hover {
+.list-item.sortable-ghost {
+    opacity: 0.4;
+}
+
+.list-item.sortable-chosen {
     background: var(--hover-bg);
 }
 
-body.dark-mode .list-item:hover {
+body.dark-mode .list-item.sortable-chosen {
     background: var(--dark-hover-bg);
 }
 
@@ -232,10 +250,11 @@ body.dark-mode .list-item-input {
 
 .drag-handle {
     padding: 6px 10px;
-    cursor: move;
+    cursor: grab;
     color: #666;
     display: flex;
     align-items: center;
+    user-select: none;
 }
 
 .drag-handle:hover {
@@ -253,6 +272,7 @@ body.dark-mode .drag-handle:hover {
     background: var(--input-bg);
     color: var(--text-color);
     cursor: pointer;
+    line-height: 1;
 }
 
 body.dark-mode .list-item-btn {
@@ -388,26 +408,30 @@ body.dark-mode .config-actions {
     .field-label {
         flex: 0 0 auto;
         margin-bottom: 10px;
+        padding-right: 0;
     }
     
     .field-value {
         flex: 0 0 auto;
         min-width: auto;
+        width: 100%;
     }
     
     .config-header {
         flex-direction: column;
-        align-items: flex-start;
+        align-items: stretch;
         gap: 10px;
     }
     
-    .field-label {
-        flex: 0 0 auto;
+    .config-title {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 5px;
     }
     
     .config-actions-header {
         align-self: stretch;
-        justify-content: center;
+        justify-content: flex-start;
     }
 }
 </style>
@@ -440,8 +464,10 @@ body.dark-mode .config-actions {
     {% for plugin_name, plugin_info in config_fields_info.items() %}
     <div class="config-section collapsed" data-plugin="{{ plugin_name }}" id="section-{{ plugin_name }}">
         <div class="config-header" onclick="toggleSection('{{ plugin_name }}')">
-            <div class="collapse-icon">▼</div>
-            <h3 class="config-title">{{ plugin_name }} ({{ plugin_info.class_name }})</h3>
+            <h3 class="config-title">
+                <span class="collapse-icon">▼</span>
+                {{ plugin_name }} ({{ plugin_info.class_name }})
+            </h3>
             <div class="config-actions-header">
                 <span class="status-indicator status-unmodified" id="status-{{ plugin_name }}"></span>
                 <button class="btn btn-secondary" onclick="resetPluginConfig('{{ plugin_name }}', event)">重置</button>
@@ -472,9 +498,7 @@ body.dark-mode .config-actions {
                         </select>
                         {% elif field.type == 'list' %}
                         <div class="list-editor" id="{{ plugin_name }}.{{ field.name | replace('.', '_DOT_') }}_editor">
-                            <div class="list-items" id="{{ plugin_name }}.{{ field.name | replace('.', '_DOT_') }}_items">
-                                <!-- 列表项将通过JavaScript动态生成 -->
-                            </div>
+                            <div class="list-items sortable-list" id="{{ plugin_name }}.{{ field.name | replace('.', '_DOT_') }}_items"></div>
                             <button class="list-add-btn" type="button" onclick="addListItem('{{ plugin_name }}', '{{ field.name }}', event)">+ 添加项</button>
                             <input type="hidden" 
                                    id="{{ plugin_name }}.{{ field.name | replace('.', '_DOT_') }}" 
@@ -509,11 +533,11 @@ body.dark-mode .config-actions {
 {% endblock %}
 
 {% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 <script>
-// 存储各插件的配置哈希值
 const pluginHashes = {};
+const sortableInstances = {};
 
-// 页面加载完成后获取各插件的当前配置哈希
 document.addEventListener('DOMContentLoaded', async function() {
     {% for plugin_name in config_fields_info.keys() %}
     try {
@@ -523,7 +547,6 @@ document.addEventListener('DOMContentLoaded', async function() {
             if (data.code === 200) {
                 pluginHashes['{{ plugin_name }}'] = data.hash;
                 updatePluginStatus('{{ plugin_name }}', 'unmodified');
-                // 初始化列表字段
                 initializeListFields('{{ plugin_name }}');
             }
         }
@@ -533,13 +556,11 @@ document.addEventListener('DOMContentLoaded', async function() {
     {% endfor %}
 });
 
-// 切换插件配置块的展开/折叠状态
 function toggleSection(pluginName) {
     const section = document.getElementById(`section-${pluginName}`);
     section.classList.toggle('collapsed');
 }
 
-// 初始化列表字段
 function initializeListFields(pluginName) {
     const section = document.querySelector(`.config-section[data-plugin="${pluginName}"]`);
     const listFields = section.querySelectorAll('[data-type="list"]');
@@ -555,84 +576,35 @@ function initializeListFields(pluginName) {
                 const currentValue = hiddenInput.value;
                 const listValue = currentValue ? JSON.parse(currentValue.replace(/'/g, '"')) : [];
                 renderListItems(pluginName, fieldName, listValue, itemsContainer);
-                initDragAndDrop(itemsContainer);
+                initSortableList(pluginName, fieldName, itemsContainer);
             } catch (e) {
-                // 如果解析失败，使用原始值
                 renderListItems(pluginName, fieldName, [], itemsContainer);
-                initDragAndDrop(itemsContainer);
+                initSortableList(pluginName, fieldName, itemsContainer);
             }
         }
     });
 }
 
-// 初始化拖拽功能
-function initDragAndDrop(container) { // 这里好像写的有问题，不管了下次再改吧2333
-    let draggedItem = null;
-    container.addEventListener('dragstart', function(e) {
-        if (e.target.classList.contains('list-item')) {
-            draggedItem = e.target;
-            e.target.style.opacity = '0.5';
-        }
-    }, false);
-
-    container.addEventListener('dragend', function(e) {
-        if (e.target.classList.contains('list-item')) {
-            e.target.style.opacity = '1';
-            draggedItem = null;
-        }
-    }, false);
-
-    container.addEventListener('dragover', function(e) {
-        e.preventDefault();
-    }, false);
-
-    container.addEventListener('dragenter', function(e) {
-        if (e.target.classList.contains('list-item') && e.target !== draggedItem) {
-            e.target.style.backgroundColor = 'var(--hover-bg)';
-        }
-    }, false);
-
-    container.addEventListener('dragleave', function(e) {
-        if (e.target.classList.contains('list-item') && e.target !== draggedItem) {
-            e.target.style.backgroundColor = '';
-        }
-    }, false);
-
-    container.addEventListener('drop', function(e) {
-        e.preventDefault();
-        if (e.target.classList.contains('list-item') && draggedItem && e.target !== draggedItem) {
-            e.target.style.backgroundColor = '';
-            
-            const rect = e.target.getBoundingClientRect();
-            const midpoint = (rect.top + rect.bottom) / 2;
-            
-            if (e.clientY < midpoint) {
-                e.target.parentNode.insertBefore(draggedItem, e.target);
-            } else {
-                e.target.parentNode.insertBefore(draggedItem, e.target.nextSibling);
-            }
-            
-            // 更新隐藏输入框的值
-            const containerId = e.target.parentNode.id;
-            const fieldName = containerId.replace('_items', '').split('.').pop();
-            const pluginName = containerId.replace('_items', '').split('.')[0];
-            updateListValue(pluginName, fieldName);
-            markFieldAsModified(pluginName, fieldName);
-        } else if (e.target === container) {
-            // 如果拖拽到容器本身而不是某个项目上
-            e.target.appendChild(draggedItem);
-            
-            // 更新隐藏输入框的值
-            const containerId = e.target.id;
-            const fieldName = containerId.replace('_items', '').split('.').pop();
-            const pluginName = containerId.replace('_items', '').split('.')[0];
+function initSortableList(pluginName, fieldName, container) {
+    const fieldId = `${pluginName}.${fieldName.replace(/\./g, '_DOT_')}`;
+    
+    if (sortableInstances[fieldId]) {
+        sortableInstances[fieldId].destroy();
+    }
+    
+    sortableInstances[fieldId] = new Sortable(container, {
+        animation: 150,
+        ghostClass: 'sortable-ghost',
+        chosenClass: 'sortable-chosen',
+        dragClass: 'sortable-drag',
+        handle: '.drag-handle',
+        onEnd: function() {
             updateListValue(pluginName, fieldName);
             markFieldAsModified(pluginName, fieldName);
         }
-    }, false);
+    });
 }
 
-// 渲染列表项
 function renderListItems(pluginName, fieldName, listValue, container) {
     const fieldId = `${pluginName}.${fieldName.replace(/\./g, '_DOT_')}`;
     container.innerHTML = '';
@@ -640,7 +612,6 @@ function renderListItems(pluginName, fieldName, listValue, container) {
     listValue.forEach((item, index) => {
         const listItem = document.createElement('div');
         listItem.className = 'list-item';
-        listItem.draggable = true;
         listItem.innerHTML = `
             <div class="drag-handle">≡</div>
             <input type="text" class="list-item-input" value="${item}" 
@@ -652,26 +623,18 @@ function renderListItems(pluginName, fieldName, listValue, container) {
         container.appendChild(listItem);
     });
     
-    // 更新隐藏输入框的值
     updateListValue(pluginName, fieldName);
-    
-    // 重新初始化拖拽功能，确保新添加的元素也能拖拽
-    initDragAndDrop(container);
 }
 
-// 添加列表项
 function addListItem(pluginName, fieldName, event) {
-    // 阻止事件冒泡，避免触发折叠/展开
     if (event) event.stopPropagation();
     
     const fieldId = `${pluginName}.${fieldName.replace(/\./g, '_DOT_')}`;
     const itemsContainer = document.getElementById(`${fieldId}_items`);
-    const hiddenInput = document.getElementById(fieldId);
     
-    if (itemsContainer && hiddenInput) {
+    if (itemsContainer) {
         const listItem = document.createElement('div');
         listItem.className = 'list-item';
-        listItem.draggable = true;
         listItem.innerHTML = `
             <div class="drag-handle">≡</div>
             <input type="text" class="list-item-input" value="" 
@@ -686,9 +649,7 @@ function addListItem(pluginName, fieldName, event) {
     }
 }
 
-// 删除列表项
 function removeListItem(pluginName, fieldName, index, event) {
-    // 阻止事件冒泡，避免触发折叠/展开
     if (event) event.stopPropagation();
     
     const fieldId = `${pluginName}.${fieldName.replace(/\./g, '_DOT_')}`;
@@ -701,8 +662,6 @@ function removeListItem(pluginName, fieldName, index, event) {
     }
 }
 
-
-// 更新列表值
 function updateListValue(pluginName, fieldName) {
     const fieldId = `${pluginName}.${fieldName.replace(/\./g, '_DOT_')}`;
     const itemsContainer = document.getElementById(`${fieldId}_items`);
@@ -717,23 +676,19 @@ function updateListValue(pluginName, fieldName) {
             }
         });
         
-        // 将数组转换为字符串格式保存
         hiddenInput.value = JSON.stringify(values);
     }
 }
 
-// 标记字段为已修改
 function markFieldAsModified(pluginName, fieldName) {
     const fieldId = `${pluginName}.${fieldName.replace(/\./g, '_DOT_')}`;
     const fieldElement = document.getElementById(fieldId);
     const originalValue = fieldElement ? fieldElement.getAttribute('data-original-value') : null;
     const currentValue = fieldElement ? fieldElement.value : null;
     
-    // 更新插件状态为已修改
     updatePluginStatus(pluginName, 'modified');
 }
 
-// 更新插件状态指示器
 function updatePluginStatus(pluginName, status) {
     var indicator = document.getElementById(`status-${pluginName}`);
     if (indicator) {
@@ -742,18 +697,15 @@ function updatePluginStatus(pluginName, status) {
     }
 }
 
-// 重置插件配置
 function resetPluginConfig(pluginName, event) {
-    // 阻止事件冒泡，避免触发折叠/展开
     if (event) event.stopPropagation();
     
     const section = document.querySelector(`.config-section[data-plugin="${pluginName}"]`);
-    const inputs = section.querySelectorAll('.field-input, .field-input-select, .list-editor input[type="hidden"]');
+    const inputs = section.querySelectorAll(`.field-input, .field-input-select, .list-editor input[type="hidden"]`);
     
     inputs.forEach(input => {
         const originalValue = input.getAttribute('data-original-value');
         if (input.tagName === 'INPUT' && input.type === 'hidden') {
-            // 处理列表字段
             const fieldId = input.id;
             const fieldName = input.name.split('.').slice(1).join('.');
             try {
@@ -761,16 +713,13 @@ function resetPluginConfig(pluginName, event) {
                 const itemsContainer = document.getElementById(`${fieldId}_items`);
                 if (itemsContainer) {
                     renderListItems(pluginName, fieldName, listValue, itemsContainer);
+                    initSortableList(pluginName, fieldName, itemsContainer);
                 }
-            } catch (e) {
-                // 如果解析失败，使用原始值
-            }
+            } catch (e) {}
             input.value = originalValue;
         } else if (input.tagName === 'SELECT') {
-            // 处理布尔字段
             input.value = originalValue;
         } else {
-            // 处理普通文本字段
             input.value = originalValue;
         }
     });
@@ -779,7 +728,6 @@ function resetPluginConfig(pluginName, event) {
     showAlert('success', `插件 ${pluginName} 的配置已重置`);
 }
 
-// 重置所有配置
 function resetAllConfigs() {
     {% for plugin_name in config_fields_info.keys() %}
     resetPluginConfig('{{ plugin_name }}');
@@ -787,15 +735,12 @@ function resetAllConfigs() {
     showAlert('success', '所有配置已重置');
 }
 
-// 保存单个插件配置
 async function savePluginConfig(pluginName, event) {
-    // 阻止事件冒泡，避免触发折叠/展开
     if (event) event.stopPropagation();
     
     showLoading();
     
     try {
-        // 收集插件配置数据
         const section = document.querySelector(`.config-section[data-plugin="${pluginName}"]`);
         const inputs = section.querySelectorAll('.field-input, .field-input-select, .list-editor input[type="hidden"]');
         const configData = {};
@@ -805,10 +750,8 @@ async function savePluginConfig(pluginName, event) {
             configData[fieldName] = input.value;
         });
         
-        // 获取当前哈希值
         const currentHash = pluginHashes[pluginName];
         
-        // 发送保存请求
         const response = await fetch(`/api/confedit/${pluginName}`, {
             method: 'POST',
             headers: {
@@ -823,15 +766,12 @@ async function savePluginConfig(pluginName, event) {
         const result = await response.json();
         
         if (result.code === 200) {
-            // 更新哈希值
             pluginHashes[pluginName] = result.hash;
             
-            // 更新原始值
             inputs.forEach(input => {
                 input.setAttribute('data-original-value', input.value);
             });
             
-            // 更新状态
             updatePluginStatus(pluginName, 'saved');
             
             showAlert('success', `插件 ${pluginName} 配置保存成功`);
@@ -847,7 +787,6 @@ async function savePluginConfig(pluginName, event) {
     }
 }
 
-// 保存所有已修改的配置
 async function saveModifiedConfigs() {
     showLoading();
     
@@ -856,13 +795,11 @@ async function saveModifiedConfigs() {
     
     try {
         {% for plugin_name in config_fields_info.keys() %}
-        // 检查插件是否已修改
         var indicator = document.getElementById(`status-{{ plugin_name }}`);
         if (indicator && indicator.classList.contains('status-modified')) {
             try {
-                // 收集插件配置数据
                 const section = document.querySelector(`.config-section[data-plugin="{{ plugin_name }}"]`);
-                const inputs = section.querySelectorAll('.field-input, .field-input-select, .list-editor input[type="hidden"]');
+                const inputs = section.querySelectorAll('.field-input, .field-input-select, .list-editor input[type="hidden"]`);
                 const configData = {};
                 
                 inputs.forEach(input => {
@@ -870,10 +807,8 @@ async function saveModifiedConfigs() {
                     configData[fieldName] = input.value;
                 });
                 
-                // 获取当前哈希值
                 const currentHash = pluginHashes['{{ plugin_name }}'];
                 
-                // 发送保存请求
                 const response = await fetch(`/api/confedit/{{ plugin_name }}`, {
                     method: 'POST',
                     headers: {
@@ -888,15 +823,12 @@ async function saveModifiedConfigs() {
                 const result = await response.json();
                 
                 if (result.code === 200) {
-                    // 更新哈希值
                     pluginHashes['{{ plugin_name }}'] = result.hash;
                     
-                    // 更新原始值
                     inputs.forEach(input => {
                         input.setAttribute('data-original-value', input.value);
                     });
                     
-                    // 更新状态
                     updatePluginStatus('{{ plugin_name }}', 'saved');
                     savedCount++;
                 } else {
@@ -924,18 +856,15 @@ async function saveModifiedConfigs() {
     }
 }
 
-// 显示提示信息
 function showAlert(type, message) {
     const successAlert = document.getElementById('success-alert');
     const errorAlert = document.getElementById('error-alert');
     const warningAlert = document.getElementById('warning-alert');
     
-    // 隐藏所有提示
     successAlert.style.display = 'none';
     errorAlert.style.display = 'none';
     warningAlert.style.display = 'none';
     
-    // 显示对应提示
     if (type === 'success') {
         successAlert.textContent = message;
         successAlert.style.display = 'block';
@@ -947,13 +876,11 @@ function showAlert(type, message) {
         warningAlert.style.display = 'block';
     }
     
-    // 3秒后自动隐藏
     setTimeout(() => {
         successAlert.style.display = 'none';
         errorAlert.style.display = 'none';
         warningAlert.style.display = 'none';
     }, 3000);
 }
-
 </script>
 {% endblock %}
