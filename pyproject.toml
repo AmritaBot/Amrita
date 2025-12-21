@@ -39,6 +39,7 @@ full = [
     "dotenv>=0.9.9",
     "importlib>=1.0.4",
     "watchfiles<1.0.0",
+    "python-telegram-bot>=20.0",
     "openai>=1.66.3, <=1.99.0",
     "pydantic>=2.4.2",
     "jieba>=0.42.1",
