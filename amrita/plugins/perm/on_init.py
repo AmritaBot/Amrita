@@ -1,6 +1,7 @@
-from nonebot import get_driver
+from nonebot import get_driver, logger
 
-from .config import data_manager
+from amrita.config_manager import UniConfigManager
+from amrita.plugins.perm.config import Config, DataManager, search_perm
 
 banner_template = """\033[34m▗▖   ▗▄▄▖
 ▐▌   ▐▌ ▐▌  \033[96mLitePerm\033[34m  \033[1;4;34mV2-Amrita\033[0m\033[34m
@@ -9,6 +10,54 @@ banner_template = """\033[34m▗▖   ▗▄▄▖
 
 
 @get_driver().on_startup
-async def load_config():
+async def load():
     print(banner_template)
-    await data_manager.init()
+    if DataManager().config.update_from_json:
+        logger.info("Migrating from JSON...")
+        from .legacy import Data_Manager, GroupData, PermissionGroupData, UserData
+        from .models import (
+            MemberPermissionPydantic,
+            PermissionGroupPydantic,
+            PermissionStroage,
+        )
+
+        dm = Data_Manager()
+        store = PermissionStroage()
+        await dm.init()
+        logger.info("Migrating permission groups...")
+        for file in dm.permission_groups_path.iterdir():
+            if file.is_file():
+                data = PermissionGroupData.model_validate_json(file.read_text("utf-8"))
+                await store.update_permission_group(
+                    PermissionGroupPydantic(
+                        permissions=search_perm(data.permissions), group_name=file.stem
+                    )
+                )
+        logger.info("Migrating chat group data to database...")
+        for file in dm.group_data_path.iterdir():
+            if file.is_file():
+                group_data = GroupData.model_validate_json(file.read_text("utf-8"))
+                await store.update_member_permission(
+                    MemberPermissionPydantic(
+                        permissions=search_perm(group_data.permissions),
+                        permission_groups=group_data.permission_groups,
+                        any_id=file.stem,
+                        type="group",
+                    )
+                )
+        logger.info("Migrating user data to database...")
+        for file in dm.user_data_path.iterdir():
+            if file.is_file():
+                user_data = UserData.model_validate_json(file.read_text("utf-8"))
+                await store.update_member_permission(
+                    MemberPermissionPydantic(
+                        permissions=search_perm(user_data.permissions),
+                        permission_groups=user_data.permission_groups,
+                        any_id=file.stem,
+                        type="user",
+                    )
+                )
+        logger.info("更新权限成功")
+        conf: Config = await UniConfigManager().get_config()
+        conf.update_from_json = False
+        await UniConfigManager().save_config()

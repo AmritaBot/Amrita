@@ -1,149 +1,185 @@
 import json
-from copy import deepcopy
-from typing import Any
 
 from typing_extensions import Self
 
 
 class Permissions:
-    permissions_data: dict[str, str | dict | bool]
-    node_dict: dict[str, bool]
+    permissions_data: dict[str, bool]
     __permissions_str: str = ""
 
-    def __init__(
-        self, permissions_data: dict[str, str | dict | bool] | None = None
-    ) -> None:
+    def __init__(self, permissions_data: dict[str, bool] | None = None) -> None:
+        """
+        初始化 Permissions 对象
+
+        Args:
+            permissions_data: 权限数据字典，键为权限节点路径，值为布尔值表示是否拥有权限
+        """
         if permissions_data is None:
             permissions_data = {}
         self.permissions_data = permissions_data
-        self.node_dict = {}
-        self.__dump()
+        self.__write_to_string()
 
     def __str__(self):
         return json.dumps(self.permissions_data)
 
-    def __search_perm(
-        self, data: dict[str, Any], parent_key="", result=None
-    ) -> list[tuple[str, bool]]:
-        if result is None:
-            result = []
+    def __write_to_string(self, overwrite: bool = False):
+        """
+        将权限数据转储为字符串形式
 
-        for key, node in data.items():
-            current_path = f"{parent_key}.{key}" if parent_key else key
-
-            # 检查当前节点权限
-            if node.get("has_permission", False):
-                result.append((current_path, True))
-            elif node.get("explicit_hasnt", False):
-                result.append((current_path, False))
-            if node.get("children", {}) != {}:
-                children = node.get("children", {})
-                self.__search_perm(children, current_path, result)
-        return result
-
-    def __dump(
-        self,
-        overwrite: bool = False,
-    ):
+        Args:
+            overwrite: 是否覆盖现有字符串
+        """
         if overwrite:
             self.__permissions_str = ""
-        data = self.permissions_data
-        data = deepcopy(data)
-        node_dict = {}
-        for n, v in self.__search_perm(data):
-            self.__permissions_str += f"{n} {'true' if v else 'false'}\n"
-            node_dict[n] = v
-        self.node_dict = node_dict
+
+        permissions_str = ""
+        for node, permission in self.permissions_data.items():
+            permissions_str += f"{node} {'true' if permission else 'false'}\n"
+        self.__permissions_str = permissions_str
 
     def del_permission(self, node: str) -> Self:
-        node_parts = node.split(".")
-        current_children: dict[str, Any] = self.permissions_data  # 当前层级的子节点字典
-        try:
-            for i, part in enumerate(node_parts):
-                if part not in current_children:
-                    return self  # 节点不存在，无法删除
-                current_node = current_children[part]
-                if i == len(node_parts) - 1:
-                    del current_children[part]
-                current_children = current_node["children"]
-        finally:
-            self.__dump(overwrite=True)
+        """
+        删除指定节点的权限
+
+        Args:
+            node: 权限节点路径
+
+        Returns:
+            Self: 返回自身以支持链式调用
+        """
+        if node in self.permissions_data:
+            del self.permissions_data[node]
+            self.__write_to_string(overwrite=True)
         return self
 
-    def set_permission(
-        self, node: str, has_permission: bool, has_parent: bool = False
-    ) -> Self:
-        node_parts = node.split(".")
-        current_children: dict[str, Any] = self.permissions_data  # 当前层级的子节点字典
+    def set_permission(self, node: str, has_permission: bool) -> Self:
+        """
+        设置指定节点的权限
 
-        for i, part in enumerate(node_parts):
-            # 不存在创建新节点
-            if part not in current_children:
-                current_children[part] = {
-                    "has_permission": has_parent,
-                    "children": {},
-                    "explicit_hasnt": False,
-                }
-            current_node = current_children[part]
-            # 最后一个部分设权
-            if i == len(node_parts) - 1:
-                current_node["has_permission"] = has_permission
-                current_node["explicit_hasnt"] = not has_permission
-            # 下一层
-            current_children = current_node["children"]
-        self.__dump(overwrite=True)
+        Args:
+            node: 权限节点路径
+            has_permission: 是否拥有权限
+
+        Returns:
+            Self: 返回自身以支持链式调用
+        """
+        self.permissions_data[node] = has_permission
+        self.__write_to_string(overwrite=True)
         return self
 
     def check_permission(self, node: str) -> bool:
+        """
+        检查是否拥有指定节点的权限
+
+        Args:
+            node: 权限节点路径
+
+        Returns:
+            bool: 是否拥有权限
+        """
         node = node.strip()
-        node_dict = self.node_dict
-        if node_dict.get(node):
+        if self.permissions_data.get(node):
             return True
+
         current_node = ""
         for part in node.split("."):
-            if node_dict.get(f"{current_node}.*"):
+            if self.permissions_data.get(f"{current_node}.*"):
                 return True
             current_node += ("." if current_node else "") + part
-            if node_dict.get(current_node):
+            if self.permissions_data.get(current_node):
                 return True
         return False
 
     def dump_to_file(self, filename: str):
+        """
+        将权限数据导出到文件
+
+        Args:
+            filename: 文件名
+        """
         with open(filename, "w", encoding="utf-8") as f:
             json.dump(self.permissions_data, f, indent=4)
-        self.__dump(overwrite=True)
+        self.__write_to_string(overwrite=True)
 
     def load_from_json(self, filename: str):
+        """
+        从 JSON 文件加载权限数据
+
+        Args:
+            filename: 文件名
+        """
         with open(filename, encoding="utf-8") as f:
             self.permissions_data = json.load(f)
-        self.__dump(overwrite=True)
+        self.__write_to_string(overwrite=True)
 
     def from_perm_str(self, perm_str: str):
+        """
+        从权限字符串加载权限数据
+
+        Args:
+            perm_str: 权限字符串
+        """
+        self.permissions_data = {}
         for line in perm_str.split("\n"):
             if line.strip() == "":
                 continue
-            node, permission = line.split(" ")
-            self.set_permission(node.strip(), permission.strip().lower() == "true")
+            parts = line.split(" ")
+            if len(parts) >= 2:
+                node, permission = parts[0], parts[1]
+                self.permissions_data[node.strip()] = (
+                    permission.strip().lower() == "true"
+                )
+        self.__write_to_string(overwrite=True)
 
-    def dump_data(self) -> dict[str, Any]:
+    def dump_data(self) -> dict[str, bool]:
+        """
+        导出权限数据
+
+        Returns:
+            dict: 权限数据副本
+        """
         return self.permissions_data.copy()
 
     @property
-    def data(self) -> dict[str, Any]:
+    def data(self) -> dict[str, bool]:
+        """
+        获取权限数据
+
+        Returns:
+            dict: 权限数据副本
+        """
         return self.permissions_data.copy()
 
     @data.setter
-    def data(self, data: dict[str, Any]):
+    def data(self, data: dict[str, bool]):
+        """
+        设置权限数据
+
+        Args:
+            data: 新的权限数据
+        """
         self.permissions_data = data
-        self.__dump(overwrite=True)
+        self.__write_to_string(overwrite=True)
 
     @property
     def perm_str(self) -> str:
+        """
+        获取权限字符串表示
+
+        Returns:
+            str: 权限字符串
+        """
         return self.permissions_str
 
     @property
     def permissions_str(self) -> str:
-        self.__dump(True)
+        """
+        获取权限字符串表示
+
+        Returns:
+            str: 权限字符串
+        """
+        self.__write_to_string(True)
         return self.__permissions_str
 
 
@@ -154,4 +190,3 @@ if __name__ == "__main__":
     print(permissions.check_permission("user.a"))
     print(permissions.permissions_str)
     print(json.dumps(permissions.dump_data(), indent=4))
-    print(permissions.node_dict)

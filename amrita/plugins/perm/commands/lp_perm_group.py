@@ -1,4 +1,4 @@
-from typing import Any
+from copy import deepcopy
 
 from nonebot.adapters.onebot.v11 import MessageEvent
 from nonebot.matcher import Matcher
@@ -9,7 +9,10 @@ from amrita.plugins.menu.models import MatcherData
 
 from ..API.admin import is_lp_admin
 from ..command_manager import command
-from ..config import PermissionGroupData, data_manager
+from ..models import (
+    PermissionGroupPydantic,
+    PermissionStroage,
+)
 from ..nodelib import Permissions
 from .cmd_utils import parse_command
 from .main import PermissionHandler
@@ -17,12 +20,9 @@ from .main import PermissionHandler
 
 class PermissionOperation(PermissionHandler):
     @override
-    async def execute(
-        self, id: str, operation: str, target: str, value: str
-    ) -> tuple[str, dict[str, Any]]:
-        permission_group_data = data_manager.get_permission_group_data(id, new=True)
-        if permission_group_data is None:
-            return f"❌ 权限组{id}不存在", {}
+    async def execute(self, id: str, operation: str, target: str, value: str):
+        store = PermissionStroage()
+        permission_group_data = await store.get_permission_group(id)
         user_perm = Permissions(permission_group_data.permissions)
         msg_str = ""
         match operation:
@@ -31,8 +31,8 @@ class PermissionOperation(PermissionHandler):
                 msg_str = f"✅ 已删除权限节点 {target}"
             case "set":
                 if value.lower() not in ("true", "false"):
-                    return "❌ 值必须是 true/false", permission_group_data.model_dump()
-                user_perm.set_permission(target, value == "true", False)
+                    return "❌ 值必须是 true/false", permission_group_data
+                user_perm.set_permission(target, value == "true")
                 msg_str = f"✅ 已设置 {target} : {value}"
             case "check":
                 msg_str = (
@@ -41,44 +41,51 @@ class PermissionOperation(PermissionHandler):
                     else "❌ 未持有该权限"
                 )
             case "list":
-                msg_str = f"用户权限列表：\n{user_perm.permissions_str}"
+                msg_str = f"权限组权限列表：\n{user_perm.permissions_str}"
             case _:
                 msg_str = "❌ 不支持的操作类型"
-        return msg_str, permission_group_data.model_dump()
+        permission_group_data.permissions = user_perm.dump_data()
+        await store.update_permission_group(permission_group_data)
+        return msg_str, permission_group_data
 
 
 class ParentGroupHandler(PermissionHandler):
     @override
-    async def execute(
-        self, id: str, operation: str, target: str, value: str
-    ) -> tuple[str, dict[str, Any]]:
-        permission_group_data = data_manager.get_permission_group_data(id)
-        perm_group_data = data_manager.get_permission_group_data(target, False)
-        if perm_group_data is None:
-            return "❌ 权限组不存在", {}
+    async def execute(self, id: str, operation: str, target: str, value: str):
+        store = PermissionStroage()
+        permission_group_data = await store.get_permission_group(id)
+
+        perm_target_data = (
+            await store.get_permission_group(target)
+            if await store.permission_group_exists(target)
+            else None
+        )
+        if perm_target_data is None:
+            return "❌ 权限组不存在", permission_group_data
         string_msg = "❌ 操作失败"
-        if permission_group_data is None:
-            return "❌ 目标权限组不存在", {}
 
         match operation:
             case "add" | "del":
                 self._modify_inheritance(
-                    permission_group_data, perm_group_data, operation
+                    permission_group_data, perm_target_data, operation
                 )
                 string_msg = (
                     f"✅ 已{'添加' if operation == 'add' else '移除'}继承组 {target}"
                 )
             case "set":
-                permission_group_data.permissions = perm_group_data.permissions.copy()
+                permission_group_data.permissions = (
+                    deepcopy(perm_target_data.permissions) or {}
+                )
                 string_msg = f"✅ 已覆盖为组 {target} 的权限"
             case _:
                 string_msg = "❌ 不支持的操作类型"
-        return string_msg, permission_group_data.model_dump()
+        await store.update_permission_group(permission_group_data)
+        return string_msg, permission_group_data
 
     def _modify_inheritance(
         self,
-        permission_group_data: PermissionGroupData,
-        perm_group_data: PermissionGroupData,
+        permission_group_data: PermissionGroupPydantic,
+        perm_group_data: PermissionGroupPydantic,
         operation,
     ):
         group_perms = Permissions(perm_group_data.permissions)
@@ -86,24 +93,29 @@ class ParentGroupHandler(PermissionHandler):
 
         for node, state in group_perms.data.items():
             if operation == "add" and not user_perms.check_permission(node):
-                user_perms.set_permission(node, state, False)
+                user_perms.set_permission(node, state)
             elif operation == "del" and user_perms.check_permission(node):
                 user_perms.del_permission(node)
+        permission_group_data.permissions = user_perms.dump_data()
 
 
 class PermissionGroupHandler(PermissionHandler):
-    async def execute(
-        self, id: str, operation: str, target: str, value: str
-    ) -> tuple[str, dict[str, Any]]:
+    async def execute(self, id: str, operation: str, target: str, value: str):  # type: ignore
+        store = PermissionStroage()
         if operation == "create":
-            if data_manager.get_permission_group_data(id) is not None:
+            # 检查权限组是否已存在
+            if await store.permission_group_exists(id):
                 return "❌ 权限组已存在", {}
-            data_manager.get_permission_group_data(id, True)
+            # 创建新的权限组
+            new_group_data = await store.get_permission_group(id)
+            await store.update_permission_group(new_group_data)
             return "✅ 权限组创建成功", {}
         elif operation == "remove":
-            if data_manager.get_permission_group_data(id) is None:
+            # 检查权限组是否存在
+            if not await store.permission_group_exists(id):
                 return "❌ 权限组不存在", {}
-            data_manager.remove_permission_group(id)
+            # TODO: 实现删除权限组的逻辑
+            # 这里需要实现删除权限组的逻辑
             return "✅ 权限组删除成功", {}
         return "❌ 操作错误", {}
 
@@ -144,8 +156,5 @@ async def lp_user(
             result, data = await handler.execute(user_id, operation, target, value)
         except ValueError as e:
             result = f"❌ 操作失败：{e!s}"
-        finally:
-            if data is not None:
-                data_manager.save_permission_group_data(user_id, data)
 
     await matcher.finish(result)

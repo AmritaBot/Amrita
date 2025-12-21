@@ -10,12 +10,6 @@ driver = get_driver()
 __LOGO = "\033[34mLoading SuggarChat \033[33m {version}-Amrita......\033[0m"
 
 
-@driver.on_bot_connect
-async def hook():
-    logger.debug("运行钩子...")
-    await run_hooks()
-
-
 @driver.on_startup
 async def onEnable():
     kernel_version = "V3"
@@ -23,6 +17,8 @@ async def onEnable():
     logger.info(__LOGO.format(version=kernel_version))
     logger.debug("加载配置文件...")
     await config_manager.load()
+    await run_hooks()
+    await config_manager.save_config()
     if (conf := config.config_manager.config).llm_config.tools.agent_mcp_client_enable:
         logger.info("正在初始化MCP Client......")
         mcp_servers = conf.llm_config.tools.agent_mcp_server_scripts

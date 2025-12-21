@@ -462,9 +462,6 @@ class Prompts:
 class ConfigManager:
     config_dir: Path = CONFIG_DIR
     _initialized = False
-
-    toml_config: Path = config_dir / "config.toml"
-
     private_prompts: Path = config_dir / "private_prompts"
     group_prompts: Path = config_dir / "group_prompts"
     custom_models_dir: Path = config_dir / "models"
@@ -475,6 +472,7 @@ class ConfigManager:
     prompts: Prompts = field(default_factory=Prompts)
     _config_id: int | None = None
     _cached_env_config: Config | None = None
+    _owner_name = store._try_get_caller_plugin().name
 
     @property
     def config(self) -> Config:
@@ -662,7 +660,7 @@ class ConfigManager:
 
     async def save_config(self):
         """保存配置"""
-        await UniConfigManager().save_config()
+        await UniConfigManager().save_config(self._owner_name)
 
     async def set_config(self, key: str, value: str):
         """
@@ -711,7 +709,6 @@ class ConfigManager:
             default_value = "null"
         if key not in self.ins_config.default_preset.extra:
             self.ins_config.default_preset.extra.setdefault(key, default_value)
-            self.ins_config.save_to_toml(self.toml_config)
         for model, name in self.models:
             model.extra.setdefault(key, default_value)
             model.save(self.custom_models_dir / f"{name}.json")
