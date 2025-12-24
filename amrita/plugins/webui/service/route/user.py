@@ -1,10 +1,11 @@
+# 重构
 from __future__ import annotations
 
 from fastapi import Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 
 from amrita.plugins.manager.blacklist.black import BL_Manager
-from amrita.plugins.perm.config import data_manager
+from amrita.plugins.perm.models import PermissionStroage
 from amrita.plugins.perm.nodelib import Permissions
 
 from ..main import TemplatesManager, app
@@ -52,7 +53,7 @@ async def _(request: Request):
 @app.get("/users/permissions", response_class=HTMLResponse)
 async def permissions_page(request: Request):
     side_bar = SideBarManager().get_sidebar_dump()
-
+    dt = PermissionStroage()
     for bar in side_bar:
         if bar["name"] == "用户管理":
             bar["active"] = True

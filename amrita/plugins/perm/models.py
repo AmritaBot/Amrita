@@ -283,14 +283,14 @@ class PermissionStroage:
                 return data
 
     async def refresh_member_permission(
-        self, member_id: str, member_type: Literal["user", "group"]
+        self, member_id: str, member_type: PERM_TYPE
     ) -> MemberPermissionPydantic:
         """
         刷新成员权限缓存
 
         Args:
             member_id (str): 成员ID
-            member_type (Literal["user", "group"]): 成员类型
+            member_type (PERM_TYPE): 成员类型
 
         Returns:
             MemberPermissionPydantic: 刷新后的成员权限信息
@@ -404,6 +404,32 @@ class PermissionStroage:
                     member_permission.permission_groups = data.permission_groups
                 await session.commit()
             self._cached_any_permission_data[(data.any_id, data.type)] = data
+
+    async def get_all_perm_groups(
+        self, no_cache: bool = False
+    ) -> list[PermissionGroupPydantic]:
+        if no_cache:
+            async with get_session() as session:
+                stmt = select(PermissionGroup)
+                result = (await session.execute(stmt)).scalars().all()
+                return [
+                    PermissionGroupPydantic.model_validate(it, from_attributes=True)
+                    for it in result
+                ]
+        return list(self._cached_permission_group_data.values())
+
+    async def get_all_member_permission(
+        self, type: PERM_TYPE, no_cache: bool = False
+    ) -> list[MemberPermissionPydantic]:
+        if no_cache:
+            async with get_session() as session:
+                stmt = select(MemberPermission).where(MemberPermission.type == type)
+                result = (await session.execute(stmt)).scalars().all()
+                return [
+                    MemberPermissionPydantic.model_validate(it, from_attributes=True)
+                    for it in result
+                ]
+        return [v for k, v in self._cached_any_permission_data.items() if k[1] == type]
 
     async def init_cache_from_database(self):
         """
