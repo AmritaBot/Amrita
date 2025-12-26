@@ -2,7 +2,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from amrita.config_manager import BaseDataStorage
+from amrita.config_manager import BaseDataManager
 
 
 def search_perm(data: dict[str, Any], parent_key="", result=None) -> dict[str, Any]:
@@ -38,5 +38,6 @@ class Config(BaseModel):
     )
 
 
-class DataManager(BaseDataStorage):
+class DataManager(BaseDataManager[Config]):
     config: Config
+    config_class: type[Config]

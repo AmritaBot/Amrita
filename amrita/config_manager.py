@@ -5,7 +5,7 @@ from collections import defaultdict
 from collections.abc import Awaitable, Callable
 from io import StringIO
 from pathlib import Path
-from typing import Generic, TypeVar
+from typing import Generic, TypeVar, get_type_hints
 
 import aiofiles
 import tomli
@@ -21,46 +21,76 @@ CALLBACK_TYPE = Callable[[str, Path], Awaitable]
 FILTER_TYPE = Callable[[watchfiles.main.FileChange], bool]
 
 
-class BaseDataStorage(ABC, Generic[T]):
+class BaseDataManager(ABC, Generic[T]):
     """
-    基础数据存储抽象类
+    配置数据管理器基类，实现基于类型注解的自动配置类推导
 
-    为插件提供基础的数据存储功能抽象基类，确保子类实现必要的方法。
-    使用单例模式确保每个子类只有一个实例。
+    该类实现了灵活的配置管理机制，开发者只需声明 config 或 config_class
+    中的任意一个类型注解，系统将自动推导另一个，实现类型安全的配置管理。
 
-    泛型参数:
-        T: BaseModel的子类，表示具体的配置模型类型
+    使用方式：
+    - 方式1：class MyDataManager(BaseDataManager[MyConfig]): config: MyConfig
+    - 方式2：class MyDataManager(BaseDataManager[MyConfig]): config_class: Type[MyConfig]
     """
 
-    _instance = None
-    config: T
-    config_class: type[T]
+    config: T  # 配置实例，延迟初始化
+    config_class: type[T]  # 配置类类型，用于创建配置实例
+    _task: asyncio.Task  # 配置加载任务
+    _owner_name: str  # 拥有者插件名称
+    _inited: bool = False  # 是否已初始化
+    _instance = None  # 单例实例
 
     def __new__(cls, *args, **kwargs):
-        """
-        实现单例模式，确保每个子类只有一个实例
-
-        Returns:
-            BaseDataStorage: 类实例
-        """
+        """实现单例模式，确保每个配置类只有一个实例"""
         if cls._instance is None:
             cls._instance = super().__new__(cls)
+            cls._owner_name = _try_get_caller_plugin().name
             cls.__init_classvars__()
+            cls._instance._init()
         return cls._instance
 
     @classmethod
-    def __init_classvars__(cls) -> None:
-        """初始化类变量"""
-        ...
-
-    def _config_on_reload(self) -> CALLBACK_TYPE:
+    def __init_classvars__(cls):
         """
-        返回一个回调函数，用于处理配置文件重载事件
+        初始化类变量的方法
+
+        该方法用于在子类中进行类级别的变量初始化。
+        在 BaseDataManager 的 __new__ 方法中被调用，允许子类在实例创建前
+        执行必要的类变量设置和初始化操作。
+        子类可以根据需要重写此方法来实现特定的类级别初始化逻辑。
+
+        Args:
+            cls: 当前类对象
 
         Returns:
-            CALLBACK_TYPE: 配置重载回调函数
+            None: 该方法不返回任何值，用于初始化类变量
         """
+        ...
 
+    async def __apost_init__(self):
+        """
+        异步初始化后置处理方法
+
+        该方法用于在实例创建后执行异步初始化操作。
+        子类可以根据需要重写此方法来实现特定的异步初始化逻辑，
+        例如异步加载配置、初始化网络连接等操作。
+        此方法通常在配置管理器完全构造后被调用。
+
+        Args:
+            self: 当前实例对象
+
+        Returns:
+            None: 该方法不返回任何值，用于执行异步初始化任务
+        """
+        ...
+
+    async def safe_get_config(self) -> T:
+        """安全获取配置，等待配置加载完成"""
+        if not self._task.done():
+            await self._task
+        return self.config
+
+    def _init(self):
         async def callback(owner_name: str, path: Path):
             """
             配置重载回调函数
@@ -74,7 +104,32 @@ class BaseDataStorage(ABC, Generic[T]):
             )
             logger.debug(f"{owner_name} config reloaded")
 
-        return callback
+        async def init():
+            """初始化函数"""
+            await UniConfigManager().add_config(
+                self.config_class, owner_name=self._owner_name, on_reload=callback
+            )
+            await self.__apost_init__()
+
+        if not self._inited:
+            # 使用 get_type_hints 获取实际类型，正确处理前向引用
+            hints = get_type_hints(self)
+
+            # 如果 config_class 尚未设置，则从类型注解中推导
+            if not getattr(self, "config_class", None):
+                if "config" in hints:
+                    # 子类只声明了 config 注解，将其类型用作 config_class
+                    self.config_class = hints["config"]
+                else:
+                    # 注解没有声明，抛出错误
+                    raise AttributeError(
+                        "`config_class` and type of config is not defined"
+                    )
+
+            # 创建配置加载任务
+            self._task = asyncio.create_task(init())
+
+            self._inited = True
 
 
 class UniConfigManager(Generic[T]):
@@ -156,8 +211,10 @@ class UniConfigManager(Generic[T]):
                 owner_name,
                 config_class,
             )
-        if init_now:
             await self._init_config_or_nothing(owner_name, config_dir)
+        if init_now:
+            self._config_instances[owner_name] = await self.get_config(owner_name)
+
         if watch:
             callbacks = (
                 self._config_reload_callback,
@@ -169,6 +226,8 @@ class UniConfigManager(Generic[T]):
                 lambda change: Path(change[1]).name == "config.toml",
                 *callbacks,
             )
+        if on_reload:
+            await on_reload(owner_name, config_dir / "config.toml")
 
     async def add_file(
         self, name: str, data: str, watch=True, owner_name: str | None = None
@@ -453,7 +512,8 @@ class UniConfigManager(Generic[T]):
             config_dir (Path): 配置目录路径
         """
         config_file = config_dir / "config.toml"
-        if not config_file.exists():
+        config_dir.mkdir(parents=True, exist_ok=True)
+        if not config_file.exists() or not config_file.is_file():
             if (config_instance := self._config_instances.get(plugin_name)) is None:
                 config_instance = self._config_classes[plugin_name]()
                 self._config_instances[plugin_name] = config_instance

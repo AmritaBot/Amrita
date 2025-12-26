@@ -1,7 +1,8 @@
 from nonebot import get_driver, logger
 
 from amrita.config_manager import UniConfigManager
-from amrita.plugins.perm.config import Config, DataManager, search_perm
+from amrita.plugins.perm.config import Config, search_perm
+from amrita.plugins.perm.config import DataManager as DT
 
 banner_template = """\033[34m▗▖   ▗▄▄▖
 ▐▌   ▐▌ ▐▌  \033[96mLitePerm\033[34m  \033[1;4;34mV2-Amrita\033[0m\033[34m
@@ -12,7 +13,7 @@ banner_template = """\033[34m▗▖   ▗▄▄▖
 @get_driver().on_startup
 async def load():
     print(banner_template)
-    if DataManager().config.update_from_json:
+    if (await DT().safe_get_config()).update_from_json:
         logger.info("Migrating from JSON...")
         from .legacy import Data_Manager, GroupData, PermissionGroupData, UserData
         from .models import (
