@@ -208,6 +208,7 @@ class PermissionStorage:
             cls._instance = super().__new__(cls)
             cls._cached_permission_group_data = {}
             cls._cached_member_permission_data = {}
+            cls._cached_member_to_permission_group_data = {}
             cls._action_lock = defaultdict(Lock)
         return cls._instance
 
