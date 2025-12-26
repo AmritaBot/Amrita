@@ -110,39 +110,6 @@ class Admin:
         """
         return int(user_id) in self.config.admin.admins
 
-    def add_admin(self, user_id: int) -> Admin:
-        """添加新的管理员用户ID到配置中。
-
-        参数:
-        - user_id (int): 要添加的用户ID。
-
-        返回:
-        - Admin: 返回Admin实例，支持链式调用。
-        """
-        self.config.admin.admins.append(user_id)
-        return self._save_config_to_toml()
-
-    def set_admin_group(self, group_id: int) -> Admin:
-        """设置管理员群组（在Amrita中不适用）。
-
-        参数:
-        - group_id (int): 群组ID。
-
-        返回:
-        - Admin: 返回Admin实例，支持链式调用。
-        """
-        return self
-
-    def _save_config_to_toml(self) -> Admin:
-        """保存配置到TOML文件。
-
-        返回:
-        - Admin: 返回Admin实例，支持链式调用。
-        """
-        self.config.save_to_toml(config_manager.toml_config)
-        self.config = config_manager.ins_config
-        return self
-
 
 class Chat:
     """聊天处理类
