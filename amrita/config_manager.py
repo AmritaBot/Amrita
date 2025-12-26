@@ -21,7 +21,7 @@ CALLBACK_TYPE = Callable[[str, Path], Awaitable]
 FILTER_TYPE = Callable[[watchfiles.main.FileChange], bool]
 
 
-class BaseDataStroage(ABC, Generic[T]):
+class BaseDataStorage(ABC, Generic[T]):
     """
     基础数据存储抽象类
 
@@ -41,7 +41,7 @@ class BaseDataStroage(ABC, Generic[T]):
         实现单例模式，确保每个子类只有一个实例
 
         Returns:
-            BaseDataStroage: 类实例
+            BaseDataStorage: 类实例
         """
         if cls._instance is None:
             cls._instance = super().__new__(cls)

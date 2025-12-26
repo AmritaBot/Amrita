@@ -1,16 +1,40 @@
 from abc import ABC
 from asyncio import Lock
 from collections import defaultdict
+from dataclasses import dataclass
+from enum import Enum
 from typing import Any, Literal
 
 from nonebot_plugin_orm import Model, get_session
 from pydantic import BaseModel as B_Model
-from sqlalchemy import JSON, Index, Integer, String, UniqueConstraint, select
+from sqlalchemy import (
+    JSON,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    UniqueConstraint,
+    delete,
+    select,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from amrita.plugins.perm import nodelib
 
 PERM_TYPE = Literal["group", "user"]
+
+class OnDeleteEnum(str, Enum):
+    CASCADE = "CASCADE"
+    RESTRICT = "RESTRICT"
+    NO_ACTION = "NO ACTION"
+    SET_NULL = "SET NULL"
+    SET_DEFAULT = "SET DEFAULT"
+
+
+class PermTypeEnum(str, Enum):
+    type: PERM_TYPE
+    group = "group"
+    user = "user"
 
 
 class PermissionGroup(Model):
@@ -30,6 +54,43 @@ class PermissionGroup(Model):
     )
 
 
+class Member2PermissionGroup(Model):
+    """
+    成员权限组数据库模型
+
+    用于在数据库中存储成员（用户或群组）所属的权限组信息。
+    """
+
+    __tablename__ = "lp_member_to_permission_group"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    member_id: Mapped[str] = mapped_column(
+        String(255),
+        ForeignKey(
+            "lp_member_permission.member_id", ondelete=OnDeleteEnum.CASCADE.value
+        ),
+        nullable=False,
+    )
+    member_type: Mapped[PERM_TYPE] = mapped_column(String(255), nullable=False)
+    group_name: Mapped[str] = mapped_column(
+        String(255),
+        ForeignKey(
+            "lp_permission_group.group_name", ondelete=OnDeleteEnum.CASCADE.value
+        ),
+        nullable=False,
+    )
+    __table_args__ = (
+        UniqueConstraint(
+            "member_id",
+            "group_name",
+            "member_type",
+            name="uq_lp_member_to_permission_group_and_member",
+        ),
+        Index("idx_lp_member_to_permission_group_member_id", "member_id"),
+        Index("idx_lp_member_to_permission_group_group_name", "group_name"),
+        Index("idx_lp_member_to_permission_group_member_type", "member_type"),
+    )
+
+
 class MemberPermission(Model):
     """
     成员权限数据库模型
@@ -39,13 +100,14 @@ class MemberPermission(Model):
 
     __tablename__ = "lp_member_permission"
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    any_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    member_id: Mapped[str] = mapped_column(String(255), nullable=False)
     type: Mapped[PERM_TYPE] = mapped_column(String(255), nullable=False)
     permissions: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
-    permission_groups: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
     __table_args__ = (
-        UniqueConstraint("any_id", "type", name="uq_lp_member_permission_any_id_type"),
-        Index("idx_lp_member_permission_any_id_type", "any_id", "type"),
+        UniqueConstraint(
+            "member_id", "type", name="uq_lp_member_permission_member_id_type"
+        ),
+        Index("idx_lp_member_permission_member_id_type", "member_id", "type"),
     )
 
 
@@ -56,7 +118,7 @@ class BaseModel(B_Model, ABC):
     所有权限相关模型的基类，提供权限数据的基本结构和转换方法。
     """
 
-    permissions: dict[str, Any] | None
+    permissions: dict[str, Any] | None = {}
 
     def to_node(self):
         """
@@ -85,12 +147,36 @@ class MemberPermissionPydantic(BaseModel):
     用于表示成员（用户或群组）的权限信息。
     """
 
-    any_id: str
+    member_id: str
     type: PERM_TYPE
-    permission_groups: list[str] | None
 
 
-class PermissionStroage:
+class Member2PermissionGroupPydantic(BaseModel):
+    """
+    成员和权限组关联Pydantic模型
+
+    用于表示成员和权限组之间的关联关系。
+    """
+
+    member_id: str
+    type: PERM_TYPE
+    group_name: str
+
+
+@dataclass
+class MemberPermissionGroupsMeta:
+    """
+    成员权限组元数据类
+
+    用于存储成员和权限组之间的关联关系。
+    """
+
+    member_id: str
+    type: PERM_TYPE
+    groups: list[str]
+
+
+class PermissionStorage:
     """
     权限存储管理类
 
@@ -100,20 +186,27 @@ class PermissionStroage:
 
     _instance = None
     _action_lock: defaultdict[str, Lock]
-    _cached_permission_group_data: dict[str, PermissionGroupPydantic]
-    _cached_any_permission_data: dict[tuple[str, PERM_TYPE], MemberPermissionPydantic]
+    _cached_permission_group_data: dict[
+        str, PermissionGroupPydantic
+    ]  # 缓存的权限组数据
+    _cached_member_permission_data: dict[
+        tuple[str, PERM_TYPE], MemberPermissionPydantic
+    ]  # 缓存的成员权限数据
+    _cached_member_to_permission_group_data: dict[
+        tuple[str, PERM_TYPE], set[str]
+    ]  # 权限拥有者实体ID -> 权限组名称
 
     def __new__(cls, *args, **kwargs):
         """
-        创建PermissionStroage单例实例
+        创建PermissionStorage单例实例
 
         Returns:
-            PermissionStroage: 类的单例实例
+            PermissionStorage: 类的单例实例
         """
         if cls._instance is None:
             cls._instance = super().__new__(cls)
             cls._cached_permission_group_data = {}
-            cls._cached_any_permission_data = {}
+            cls._cached_member_permission_data = {}
             cls._action_lock = defaultdict(Lock)
         return cls._instance
 
@@ -135,24 +228,25 @@ class PermissionStroage:
         if isinstance(data, PermissionGroupPydantic):
             return self._action_lock[data.group_name]
         elif isinstance(data, MemberPermissionPydantic):
-            return self._action_lock[str((data.any_id, data.type))]
+            return self._action_lock[str((data.member_id, data.type))]
         else:
             raise ValueError("Unsupported data type")
 
-    async def expire_any_permission_cache(
+    async def expire_member_permission_cache(
         self,
-        any_id: str,
+        member_id: str,
         type: PERM_TYPE,
     ):
         """
         使指定成员权限缓存失效
 
         Args:
-            any_id (str): 成员ID
+            member_id (str): 成员ID
             type (PERM_TYPE): 成员类型（"user" 或 "group"）
         """
-        async with self._action_lock[str((any_id, type))]:
-            self._cached_any_permission_data.pop((any_id, type), None)
+        async with self._action_lock[str((member_id, type))]:
+            self._cached_member_permission_data.pop((member_id, type), None)
+            self._cached_member_to_permission_group_data.pop((member_id, type), None)
 
     async def expire_permission_group_cache(
         self,
@@ -167,13 +261,14 @@ class PermissionStroage:
         async with self._action_lock[group_name]:
             self._cached_permission_group_data.pop(group_name, None)
 
-    async def expire_any_permission_cache_all(
+    async def expire_member_permission_cache_all(
         self,
     ):
         """
         使所有成员权限缓存失效
         """
-        self._cached_any_permission_data.clear()
+        self._cached_member_permission_data.clear()
+        self._cached_member_to_permission_group_data.clear()
 
     async def expire_permission_group_cache_all(
         self,
@@ -187,7 +282,7 @@ class PermissionStroage:
         """
         使所有缓存失效
         """
-        await self.expire_any_permission_cache_all()
+        await self.expire_member_permission_cache_all()
         await self.expire_permission_group_cache_all()
 
     async def permission_group_exists(self, group_name: str) -> bool:
@@ -201,39 +296,38 @@ class PermissionStroage:
             return (await session.execute(stmt)).scalar_one_or_none() is not None
 
     async def get_member_permission(
-        self, any_id: str, type: PERM_TYPE, no_cache: bool = False
+        self, member_id: str, type: PERM_TYPE, no_cache: bool = False
     ) -> MemberPermissionPydantic:
         """
         获取成员权限信息
 
         Args:
-            any_id (str): 成员ID
+            member_id (str): 成员ID
             type (PERM_TYPE): 成员类型（"user" 或 "group"）
             no_cache (bool, optional): 是否跳过缓存直接从数据库获取. 默认为False
 
         Returns:
             MemberPermissionPydantic: 成员权限信息
         """
-        async with self._action_lock[str((any_id, type))]:
+        async with self._action_lock[str((member_id, type))]:
             if (
                 not no_cache
-                and (data := self._cached_any_permission_data.get((any_id, type)))
+                and (data := self._cached_member_permission_data.get((member_id, type)))
                 is not None
             ):
                 return data
             async with get_session() as session:
                 stmt = select(MemberPermission).where(
-                    MemberPermission.any_id == any_id,
+                    MemberPermission.member_id == member_id,
                     MemberPermission.type == type,
                 )
                 if (
                     result := (await session.execute(stmt)).scalar_one_or_none()
                 ) is None:
                     result = MemberPermission(
-                        any_id=any_id,
+                        member_id=member_id,
                         type=type,
                         permissions={},
-                        permission_groups=[],
                     )
                     session.add(result)
                     await session.commit()
@@ -241,9 +335,162 @@ class PermissionStroage:
                 data = MemberPermissionPydantic.model_validate(
                     result, from_attributes=True
                 )
-                if not no_cache:
-                    self._cached_any_permission_data[(any_id, type)] = data
+                self._cached_member_permission_data[(member_id, type)] = data
                 return data
+
+    async def create_permission_group(self, group_name: str) -> None:
+        """
+        创建权限组(不设置任何权限)
+
+        Args:
+            group_name (str): 权限组名称
+
+
+        Raises:
+            ValueError: 权限组存在时抛出
+        """
+        async with self._action_lock[group_name]:
+            if (
+                group_name in self._cached_permission_group_data
+                or await self.permission_group_exists(group_name)
+            ):
+                raise ValueError(f"权限组`{group_name}`已存在")
+            async with get_session() as session:
+                session.add(PermissionGroup(group_name=group_name, permissions={}))
+                await session.commit()
+
+    async def delete_permission_group(self, group_name: str) -> None:
+        """删除权限组
+
+        Args:
+            group_name (str): 权限组名
+
+        Raises:
+            ValueError: 不存在则抛出
+        """
+        async with self._action_lock[group_name]:
+            if not (
+                group_name in self._cached_permission_group_data
+                or await self.permission_group_exists(group_name)
+            ):
+                raise ValueError(f"权限组`{group_name}`不存在")
+            if group_name in self._cached_permission_group_data:
+                del self._cached_permission_group_data[group_name]
+            async with get_session() as session:
+                stmt = delete(PermissionGroup).where(
+                    PermissionGroup.group_name == group_name
+                )
+                await session.execute(stmt)
+                await session.commit()
+
+    async def get_member_related_permission_groups(
+        self,
+        member_id: str,
+        member_type: PERM_TYPE,
+        no_cache: bool = False,
+    ) -> MemberPermissionGroupsMeta:
+        if (not no_cache) and (
+            member_id,
+            member_type,
+        ) in self._cached_member_to_permission_group_data:
+            return MemberPermissionGroupsMeta(
+                member_id,
+                member_type,
+                list(
+                    self._cached_member_to_permission_group_data[
+                        (member_id, member_type)
+                    ]
+                ),
+            )
+        async with get_session() as session:
+            stmt = select(Member2PermissionGroup).where(
+                Member2PermissionGroup.member_id == member_id,
+                Member2PermissionGroup.member_type == member_type,
+            )
+            result = await session.execute(stmt)
+            data = result.scalars()
+            groups = [i.group_name for i in data]
+            self._cached_member_to_permission_group_data[(member_id, member_type)] = (
+                set(groups)
+            )
+            return MemberPermissionGroupsMeta(member_id, member_type, groups)
+
+    async def is_member_in_permission_group(
+        self,
+        member_id: str,
+        member_type: PERM_TYPE,
+        group_name: str,
+        no_cache: bool = False,
+    ) -> bool:
+        """
+        检查成员是否在权限组中
+
+        Args:
+            member_id (str): 成员id
+            member_type (PERM_TYPE): 成员类型
+            group_name (str): 权限组名称
+
+        Returns:
+            bool: 成员是否在权限组中
+        """
+        if (
+            (not no_cache)
+            and (member_id, member_type) in self._cached_member_to_permission_group_data
+            and group_name
+            in self._cached_member_to_permission_group_data[(member_id, member_type)]
+        ):
+            return True
+        async with get_session() as session:
+            stmt = select(Member2PermissionGroup).where(
+                Member2PermissionGroup.member_id == member_id,
+                Member2PermissionGroup.member_type == member_type,
+                Member2PermissionGroup.group_name == group_name,
+            )
+            result = await session.execute(stmt)
+            return len(result.scalars().all()) != 0
+
+    async def del_member_related_permission_group(
+        self, member_id: str, member_type: PERM_TYPE, group_name: str
+    ) -> None:
+        async with self._action_lock[str((member_id, member_type))]:
+            if not await self.is_member_in_permission_group(
+                member_id, member_type, group_name
+            ):
+                raise ValueError(f"{member_id} {member_type} {group_name} 不在权限组中")
+            self._cached_member_to_permission_group_data.pop(
+                (member_id, member_type), None
+            )
+            async with get_session() as session:
+                stmt = delete(Member2PermissionGroup).where(
+                    Member2PermissionGroup.group_name == group_name,
+                    Member2PermissionGroup.member_id == member_id,
+                    Member2PermissionGroup.member_type == member_type,
+                )
+                await session.execute(stmt)
+                await session.commit()
+
+    async def add_member_related_permission_group(
+        self, member_id: str, member_type: PERM_TYPE, group_name: str
+    ) -> None:
+        async with self._action_lock[str((member_id, member_type))]:
+            if not await self.is_member_in_permission_group(
+                member_id, member_type, group_name
+            ):
+                self._cached_member_to_permission_group_data.pop(
+                    (member_id, member_type), None
+                )
+                async with get_session() as session:
+                    data = Member2PermissionGroup(
+                        member_id=member_id,
+                        member_type=member_type,
+                        group_name=group_name,
+                    )
+                    session.add(data)
+                    await session.commit()
+            else:
+                raise ValueError(
+                    f"`{member_id}@{member_type}` 已经存在于 `{group_name}`"
+                )
 
     async def get_permission_group(
         self, group_name: str, no_cache: bool = False
@@ -278,8 +525,7 @@ class PermissionStroage:
                 data = PermissionGroupPydantic.model_validate(
                     result, from_attributes=True
                 )
-                if not no_cache:
-                    self._cached_permission_group_data[group_name] = data
+                self._cached_permission_group_data[group_name] = data
                 return data
 
     async def refresh_member_permission(
@@ -299,10 +545,10 @@ class PermissionStroage:
             ValueError: 当找不到指定成员时
         """
         async with self._action_lock[str((member_id, member_type))]:
-            self._cached_any_permission_data.pop((member_id, member_type), None)
+            self._cached_member_permission_data.pop((member_id, member_type), None)
             async with get_session() as session:
                 stmt = select(MemberPermission).where(
-                    MemberPermission.any_id == member_id,
+                    MemberPermission.member_id == member_id,
                     MemberPermission.type == member_type,
                 )
                 if (
@@ -314,7 +560,7 @@ class PermissionStroage:
                 data = MemberPermissionPydantic.model_validate(
                     result, from_attributes=True
                 )
-                self._cached_any_permission_data[(member_id, member_type)] = data
+                self._cached_member_permission_data[(member_id, member_type)] = data
                 return data
 
     async def refresh_permission_group(
@@ -386,24 +632,22 @@ class PermissionStroage:
                 member_permission = (
                     await session.execute(
                         select(MemberPermission).where(
-                            MemberPermission.any_id == data.any_id,
+                            MemberPermission.member_id == data.member_id,
                             MemberPermission.type == data.type,
                         )
                     )
                 ).scalar_one_or_none()
                 if member_permission is None:
                     member_permission = MemberPermission(
-                        any_id=data.any_id,
+                        member_id=data.member_id,
                         type=data.type,
                         permissions=data.permissions,
-                        permission_groups=data.permission_groups,
                     )
                     session.add(member_permission)
                 else:
                     member_permission.permissions = data.permissions
-                    member_permission.permission_groups = data.permission_groups
                 await session.commit()
-            self._cached_any_permission_data[(data.any_id, data.type)] = data
+            self._cached_member_permission_data[(data.member_id, data.type)] = data
 
     async def get_all_perm_groups(
         self, no_cache: bool = False
@@ -429,7 +673,9 @@ class PermissionStroage:
                     MemberPermissionPydantic.model_validate(it, from_attributes=True)
                     for it in result
                 ]
-        return [v for k, v in self._cached_any_permission_data.items() if k[1] == type]
+        return [
+            v for k, v in self._cached_member_permission_data.items() if k[1] == type
+        ]
 
     async def init_cache_from_database(self):
         """
@@ -448,10 +694,25 @@ class PermissionStroage:
             del permission_groups
             members = await session.execute(select(MemberPermission))
             for member in members.scalars():
-                mbid, mbtype = member.any_id, member.type
+                mbid, mbtype = member.member_id, member.type
                 async with self._action_lock[str((mbid, mbtype))]:
-                    self._cached_any_permission_data[(mbid, mbtype)] = (
+                    self._cached_member_permission_data[(mbid, mbtype)] = (
                         MemberPermissionPydantic.model_validate(
                             member, from_attributes=True
                         )
                     )
+            del members
+            perm_group_mapping = await session.execute(select(Member2PermissionGroup))
+            for mapp in perm_group_mapping.scalars():
+                member_type, member_id, perm_group_name = (
+                    mapp.member_type,
+                    mapp.member_id,
+                    mapp.group_name,
+                )
+                if member_id not in self._cached_member_to_permission_group_data:
+                    self._cached_member_to_permission_group_data[
+                        (member_id, member_type)
+                    ] = set()
+                self._cached_member_to_permission_group_data[
+                    (member_id, member_type)
+                ].add(perm_group_name)

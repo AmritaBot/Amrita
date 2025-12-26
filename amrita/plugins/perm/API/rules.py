@@ -18,7 +18,7 @@ from nonebot.log import logger
 from typing_extensions import override
 
 from ..models import (
-    PermissionStroage,
+    PermissionStorage,
 )
 from ..nodelib import Permissions
 
@@ -73,7 +73,7 @@ class UserPermissionChecker(PermissionChecker):
     @override
     async def _check_permission(self, event: Event, perm: str) -> bool:
         user_id = event.get_user_id()
-        store = PermissionStroage()
+        store = PermissionStorage()
         user_data = await store.get_member_permission(user_id, "user")
         logger.debug(f"checking user permission {user_id}:{perm}")
         if perm_groups := user_data.permission_groups:
@@ -105,9 +105,9 @@ class GroupPermissionChecker(PermissionChecker):
             return False
         else:
             g_event: GroupEvent = event
-        store = PermissionStroage()
+        store = PermissionStorage()
         group_id: str = str(g_event.group_id)
-        group_data = await store.get_member_permission(any_id=group_id, type="group")
+        group_data = await store.get_member_permission(member_id=group_id, type="group")
         logger.debug(f"checking group permission {group_id} {perm}")
         perm_groups = group_data.permission_groups or []
         for permg in perm_groups:

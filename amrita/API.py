@@ -1,10 +1,10 @@
-from .config_manager import BaseDataStroage, UniConfigManager
+from .config_manager import BaseDataStorage, UniConfigManager
 from .utils.admin import send_forward_msg_to_admin, send_to_admin
 from .utils.send import send_forward_msg
 from .utils.system_health import calculate_system_health, calculate_system_usage
 
 __all__ = [
-    "BaseDataStroage",
+    "BaseDataStorage",
     "UniConfigManager",
     "calculate_system_health",
     "calculate_system_usage",

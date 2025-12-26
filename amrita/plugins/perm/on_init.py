@@ -18,11 +18,11 @@ async def load():
         from .models import (
             MemberPermissionPydantic,
             PermissionGroupPydantic,
-            PermissionStroage,
+            PermissionStorage,
         )
 
         dm = Data_Manager()
-        store = PermissionStroage()
+        store = PermissionStorage()
         await dm.init()
         logger.info("Migrating permission groups...")
         for file in dm.permission_groups_path.iterdir():
@@ -40,11 +40,20 @@ async def load():
                 await store.update_member_permission(
                     MemberPermissionPydantic(
                         permissions=search_perm(group_data.permissions),
-                        permission_groups=group_data.permission_groups,
-                        any_id=file.stem,
+                        member_id=file.stem,
                         type="group",
                     )
                 )
+                for g in group_data.permission_groups:
+                    logger.info(
+                        f"Add member related permission group for {file.stem}@group on {g}"
+                    )
+                    try:
+                        await store.add_member_related_permission_group(
+                            file.stem, "group", g
+                        )
+                    except Exception as e:
+                        logger.opt(colors=True, exception=e).error(e)
         logger.info("Migrating user data to database...")
         for file in dm.user_data_path.iterdir():
             if file.is_file():
@@ -52,11 +61,20 @@ async def load():
                 await store.update_member_permission(
                     MemberPermissionPydantic(
                         permissions=search_perm(user_data.permissions),
-                        permission_groups=user_data.permission_groups,
-                        any_id=file.stem,
+                        member_id=file.stem,
                         type="user",
                     )
                 )
+                for g in user_data.permission_groups:
+                    logger.info(
+                        f"Add member related permission group for {file.stem}@user on {g}"
+                    )
+                    try:
+                        await store.add_member_related_permission_group(
+                            file.stem, "user", g
+                        )
+                    except Exception as e:
+                        logger.opt(colors=True, exception=e).error(e)
         logger.info("更新权限成功")
         conf: Config = await UniConfigManager().get_config()
         conf.update_from_json = False
