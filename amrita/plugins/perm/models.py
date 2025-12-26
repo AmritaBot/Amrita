@@ -23,6 +23,7 @@ from amrita.plugins.perm import nodelib
 
 PERM_TYPE = Literal["group", "user"]
 
+
 class OnDeleteEnum(str, Enum):
     CASCADE = "CASCADE"
     RESTRICT = "RESTRICT"
