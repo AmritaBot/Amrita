@@ -12,7 +12,7 @@ from ..command_manager import command
 class PermissionHandler(Protocol):
     async def execute(
         self, id: str, operation: str, target: str, value: str
-    ) -> tuple[str, dict[str, Any]]:
+    ) -> tuple[str, Any]:
         raise NotImplementedError("Not Implemented")
 
 
@@ -27,6 +27,6 @@ class PermissionHandler(Protocol):
 async def lp(event: MessageEvent, matcher: Matcher, args: Message = CommandArg()):
     args_list = args.extract_plain_text().strip().split()
     if not args_list:
-        lp_0_help = "LP LitePerm\n请输入参数\nlp user\nlp chat_group\nlp perm_group\nlp command\n"
+        lp_0_help = "LP LitePerm\n请输入参数\nlp.user\nlp.chat_group\nlp.perm_group"
 
         await matcher.finish(lp_0_help)

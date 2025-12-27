@@ -33,35 +33,6 @@ from .utils.models import InsightsModel
 from .utils.tokenizer import Tokenizer, hybrid_token_count
 
 
-class Menu:
-    """菜单管理类
-
-    Menu 类用于通过注册菜单项来构建菜单，提供友好的用户命令界面。
-    """
-
-    def reg_menu(self, cmd_name: str, describe: str, args: str = "") -> Menu:
-        """注册一个新的菜单项。
-
-        参数:
-        - cmd_name (str): 菜单项的命令名称。
-        - describe (str): 菜单项的描述。
-        - args (str): 命令参数（可选）。
-
-        返回:
-        - Menu: 返回 Menu 类的实例，支持方法链式调用。
-        """
-        return self
-
-    @property
-    def menu(self) -> str:
-        """获取当前菜单内容。
-
-        返回:
-        - str: 完整的菜单字符串。
-        """
-        return "nil"
-
-
 class Admin:
     """管理员管理类
 
@@ -109,39 +80,6 @@ class Admin:
         - bool: 用户是否是管理员。
         """
         return int(user_id) in self.config.admin.admins
-
-    def add_admin(self, user_id: int) -> Admin:
-        """添加新的管理员用户ID到配置中。
-
-        参数:
-        - user_id (int): 要添加的用户ID。
-
-        返回:
-        - Admin: 返回Admin实例，支持链式调用。
-        """
-        self.config.admin.admins.append(user_id)
-        return self._save_config_to_toml()
-
-    def set_admin_group(self, group_id: int) -> Admin:
-        """设置管理员群组（在Amrita中不适用）。
-
-        参数:
-        - group_id (int): 群组ID。
-
-        返回:
-        - Admin: 返回Admin实例，支持链式调用。
-        """
-        return self
-
-    def _save_config_to_toml(self) -> Admin:
-        """保存配置到TOML文件。
-
-        返回:
-        - Admin: 返回Admin实例，支持链式调用。
-        """
-        self.config.save_to_toml(config_manager.toml_config)
-        self.config = config_manager.ins_config
-        return self
 
 
 class Chat:
@@ -213,7 +151,6 @@ __all__ = [
     "FunctionPropertySchema",
     "InsightsModel",
     "MCPClient",
-    "Menu",
     "ModelAdapter",
     "Tokenizer",
     "ToolContext",

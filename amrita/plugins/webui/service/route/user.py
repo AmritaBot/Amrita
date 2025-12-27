@@ -1,10 +1,11 @@
+# 重构
 from __future__ import annotations
 
 from fastapi import Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 
 from amrita.plugins.manager.blacklist.black import BL_Manager
-from amrita.plugins.perm.config import data_manager
+from amrita.plugins.perm.models import PermissionStorage
 from amrita.plugins.perm.nodelib import Permissions
 
 from ..main import TemplatesManager, app
@@ -52,7 +53,7 @@ async def _(request: Request):
 @app.get("/users/permissions", response_class=HTMLResponse)
 async def permissions_page(request: Request):
     side_bar = SideBarManager().get_sidebar_dump()
-
+    dt = PermissionStorage()
     for bar in side_bar:
         if bar["name"] == "用户管理":
             bar["active"] = True
@@ -63,18 +64,16 @@ async def permissions_page(request: Request):
 
     # 获取所有权限组
     permission_groups = []
-    permission_groups_path = data_manager.permission_groups_path
-    if permission_groups_path.exists():
-        for file_path in permission_groups_path.glob("*.json"):
-            group_name = file_path.stem
-            group_data = Permissions()
-            group_data.load_from_json(str(file_path))
-            permission_groups.append(
-                {
-                    "name": group_name,
-                    "permissions": group_data.perm_str,
-                }
-            )
+    groups = await dt.get_all_perm_groups()
+    for group in groups:
+        group_name = group.group_name
+        group_data = Permissions(group.permissions)
+        permission_groups.append(
+            {
+                "name": group_name,
+                "permissions": group_data.perm_str,
+            }
+        )
 
     return TemplatesManager().TemplateResponse(
         "permissions.html",
@@ -90,8 +89,15 @@ async def permissions_page(request: Request):
 async def delete_perm_group(request: Request):
     group_name = (await request.json()).get("group_name")
     if not group_name:
-        return {"code": 400, "error": "请选择要删除的权限组"}
-    data_manager.remove_permission_group(group_name)
+        return JSONResponse(
+            {"code": 400, "error": "Invalid request"},
+            status_code=400,
+        )
+    dt = PermissionStorage()
+    try:
+        await dt.delete_permission_group(group_name)
+    except Exception as e:
+        return JSONResponse({"code": 500, "error": str(e)}, status_code=500)
     return JSONResponse({"code": 200, "error": None})
 
 
@@ -129,7 +135,10 @@ async def user_permissions_page(request: Request, user_id: str):
             break
 
     # 获取用户权限数据
-    user_data = data_manager.get_user_data(user_id)
+    user_data = await PermissionStorage().get_member_permission(user_id, "user")
+    user_permission_groups: list[str] = (
+        await PermissionStorage().get_member_related_permission_groups(user_id, "user")
+    ).groups
     perm = Permissions(user_data.permissions)
     permissions_str = perm.permissions_str
 
@@ -141,7 +150,7 @@ async def user_permissions_page(request: Request, user_id: str):
             "user_id": user_id,
             "user_data": {
                 "permissions": permissions_str,
-                "permission_groups": user_data.permission_groups,
+                "permission_groups": user_permission_groups,
             },
         },
     )
@@ -160,7 +169,10 @@ async def group_permissions_page(request: Request, group_id: str):
             break
 
     # 获取群组权限数据
-    group_data = data_manager.get_group_data(group_id)
+    group_data = await PermissionStorage().get_member_permission(group_id, "group")
+    permission_groups = await PermissionStorage().get_member_related_permission_groups(
+        group_id, "group"
+    )
     perm = Permissions(group_data.permissions)
     permissions_str = perm.permissions_str
 
@@ -172,7 +184,7 @@ async def group_permissions_page(request: Request, group_id: str):
             "group_id": group_id,
             "group_data": {
                 "permissions": permissions_str,
-                "permission_groups": group_data.permission_groups,
+                "permission_groups": permission_groups,
             },
         },
     )
@@ -191,15 +203,12 @@ async def perm_group_permissions_page(request: Request, group_name: str):
             break
 
     # 获取权限组权限数据
-    if not data_manager.get_permission_group_data(group_name):
+    if not await PermissionStorage().permission_group_exists(group_name):
         raise HTTPException(status_code=404, detail="权限组不存在")
 
-    perm = Permissions()
-    permission_groups_path = data_manager.permission_groups_path
-    group_file_path = permission_groups_path / f"{group_name}.json"
-
-    if group_file_path.exists():
-        perm.load_from_json(str(group_file_path))
+    perm = Permissions(
+        (await PermissionStorage().get_permission_group(group_name)).permissions
+    )
 
     permissions_str = perm.permissions_str
 
@@ -217,13 +226,12 @@ async def perm_group_permissions_page(request: Request, group_name: str):
 @app.post("/api/users/permissions/user/{user_id}")
 async def update_user_permissions(user_id: str, permissions: str = Form(...)):
     try:
-        user_data = data_manager.get_user_data(user_id)
+        dt = PermissionStorage()
+        user_data = await dt.get_member_permission(user_id, "user")
         perm = Permissions()
         perm.from_perm_str(permissions)
         user_data.permissions = perm.dump_data()
-
-        # 保存用户数据
-        data_manager.save_user_data(user_id, user_data.model_dump())
+        await dt.update_member_permission(user_data)
 
         return {"success": True, "message": "用户权限已更新"}
     except Exception as e:
@@ -233,14 +241,13 @@ async def update_user_permissions(user_id: str, permissions: str = Form(...)):
 @app.post("/api/users/permissions/group/{group_id}")
 async def update_group_permissions(group_id: str, permissions: str = Form(...)):
     try:
+        st = PermissionStorage()
         perm = Permissions()
         perm.from_perm_str(permissions)
-        group_data = data_manager.get_group_data(group_id)
+        group_data = await st.get_member_permission(group_id, "group")
         group_data.permissions = perm.dump_data()
 
-        # 保存群组数据
-        data_manager.save_group_data(group_id, group_data.model_dump())
-
+        await st.update_member_permission(group_data)
         return {"success": True, "message": "群组权限已更新"}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -250,11 +257,12 @@ async def update_group_permissions(group_id: str, permissions: str = Form(...)):
 async def update_perm_group_permissions(group_name: str, permissions: str = Form(...)):
     try:
         perm = Permissions()
+        st = PermissionStorage()
         perm.from_perm_str(permissions)
         permissions_data = perm.dump_data()
-
-        data_manager.save_permission_group_data(group_name, permissions_data)
-
+        data = await st.get_permission_group(group_name)
+        data.permissions = permissions_data
+        await st.update_permission_group(data)
         return {"success": True, "message": "权限组权限已更新"}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))

@@ -17,7 +17,9 @@ from nonebot.adapters.onebot.v11 import (
 from nonebot.log import logger
 from typing_extensions import override
 
-from ..config import PermissionGroupData, data_manager
+from ..models import (
+    PermissionStorage,
+)
 from ..nodelib import Permissions
 
 GroupEvent: TypeAlias = (
@@ -42,17 +44,15 @@ class PermissionChecker:
 
     permission: str = field(default="")
 
-    def checker(self) -> Callable[[Event, str], Awaitable[bool]]:
+    def checker(self) -> Callable[[Event], Awaitable[bool]]:
         """生成可被 Rule 使用的检查器闭包
 
         Returns:
             Callable[[Event], Awaitable[bool]]: 供Rule检查的Async函数
         """
+        current_perm = self.permission
 
-        # 捕获当前权限值到闭包中
-        current_perm = self.permission or ""
-
-        async def _checker(event: Event, current_perm=current_perm) -> bool:
+        async def _checker(event: Event) -> bool:
             """实际执行检查的协程函数"""
             # 通过闭包访问类变量（self.permission）
             return await self._check_permission(event, current_perm)
@@ -73,19 +73,20 @@ class UserPermissionChecker(PermissionChecker):
     @override
     async def _check_permission(self, event: Event, perm: str) -> bool:
         user_id = event.get_user_id()
-        user_data = data_manager.get_user_data(user_id)
-        logger.debug(f"checking user permission {user_id} {perm}")
-        perm_groups = user_data.permission_groups
-
-        for permg in perm_groups:
-            group_data: PermissionGroupData | None = (
-                data_manager.get_permission_group_data(permg)
-            )
-            if group_data is None:
-                raise ValueError(f"permission group {permg} not found")
-            if Permissions(group_data.permissions).check_permission(perm):
-                return True
-        return Permissions(user_data.model_dump()).check_permission(perm)
+        store = PermissionStorage()
+        user_data = await store.get_member_permission(user_id, "user")
+        logger.debug(f"checking user permission {user_id}:{perm}")
+        if perm_groups := (
+            await store.get_member_related_permission_groups(user_id, "user")
+        ).groups:
+            for permg in perm_groups:
+                if not await store.permission_group_exists(permg):
+                    logger.warning(f"权限组{permg}不存在")
+                    continue
+                group_data = await store.get_permission_group(permg)
+                if Permissions(group_data.permissions).check_permission(perm):
+                    return True
+        return Permissions(user_data.permissions).check_permission(perm)
 
 
 @dataclass
@@ -106,13 +107,17 @@ class GroupPermissionChecker(PermissionChecker):
             return False
         else:
             g_event: GroupEvent = event
+        store = PermissionStorage()
         group_id: str = str(g_event.group_id)
-        group_data = data_manager.get_group_data(group_id)
+        group_data = await store.get_member_permission(member_id=group_id, type="group")
         logger.debug(f"checking group permission {group_id} {perm}")
-        perm_groups = group_data.permission_groups
-        for permg in perm_groups:
-            if (data := data_manager.get_permission_group_data(permg)) is not None:
-                if Permissions(data.permissions).check_permission(perm):
-                    return True
+        permd = await store.get_member_related_permission_groups(group_id, "group")
+        for permg in permd.groups:
+            if not await store.permission_group_exists(permg):
+                logger.warning(f"permission group {permg} not exists")
+                continue
+            data = await store.get_permission_group(permg)
+            if Permissions(data.permissions).check_permission(perm):
+                return True
 
-        return Permissions(group_data.model_dump()).check_permission(perm)
+        return Permissions(group_data.permissions).check_permission(perm)
