@@ -110,12 +110,12 @@ class PermissionGroupHandler(PermissionHandler):
         if operation == "add":
             if await store.permission_group_exists(target):
                 # 检查权限组是否存在
-                perm_store = PermissionStorage()
-                if not await perm_store.permission_group_exists(target):
-                    msg_str = f"❌ 权限组 {target} 不存在"
-                    return msg_str, None
+
                 await store.add_member_related_permission_group(id, "group", target)
                 msg_str = f"✅ 成功添加权限组 {target}"
+            else:
+                msg_str = f"❌ 权限组 {target} 不存在"
+                return msg_str, None
         elif operation == "del":
             if await store.is_member_in_permission_group(id, "group", target):
                 await store.del_member_related_permission_group(id, "group", target)
