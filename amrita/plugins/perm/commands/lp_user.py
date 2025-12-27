@@ -100,7 +100,7 @@ class PermissionGroupHandler(PermissionHandler):
         store = PermissionStorage()
         msg_str = ""
         if operation == "add":
-            if await store.is_member_in_permission_group(id, "user", target):
+            if not await store.is_member_in_permission_group(id, "user", target):
                 # 检查权限组是否存在
                 if not await store.permission_group_exists(target):
                     msg_str = f"❌ 权限组 {target} 不存在"
