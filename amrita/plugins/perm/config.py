@@ -21,7 +21,7 @@ def search_perm(data: dict[str, Any], parent_key="", result=None) -> dict[str, A
         current_path = f"{parent_key}.{key}" if parent_key else key
         assert isinstance(node, dict)
         # 检查当前节点权限
-        if perm := node.get("has_permission") is not None:
+        if perm := (node.get("has_permission")) is not None:
             result[current_path] = perm
         elif node.get("explicit_hasnt", False):
             result[current_path] = False
