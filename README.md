@@ -1,7 +1,7 @@
 # PROJ.Amrita 🌸 - 基于 NoneBot 的 LLM 聊天机器人框架
 
 <p align= "center">
-  <img src="./Amrita.png" width=400 height=400>
+  <img src="./logo/Amrita-nobg.png" width=400 height=400>
 </p>
 <p align="center">
   <img src="https://img.shields.io/badge/Python-3.10+-blue?logo=python" alt="Python">
@@ -33,6 +33,8 @@ Amrita 是一个基于[NoneBot2](https://nonebot.dev/)的强大聊天机器人�
 
 欢迎提交 Issue 和 Pull Request 来帮助改进 Amrita！
 
+见[贡献指南](CONTRIBUTING.md)
+
 ## 📄 许可证
 
-本项目采用 GPL-3.0 许可证，详见[LICENSE](LICENSE)文件。
+本项目采用 AGPL-3.0 许可证，详见[LICENSE](LICENSE)文件。

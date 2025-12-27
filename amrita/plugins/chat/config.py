@@ -467,6 +467,7 @@ class ConfigManager:
     custom_models_dir: Path = config_dir / "models"
     _private_train: dict[str, Any] = field(default_factory=dict)
     _group_train: dict[str, Any] = field(default_factory=dict)
+    _model_name2file: dict[str, Path] = field(default_factory=dict)
     ins_config: Config = field(default_factory=Config)
     models: list[tuple[ModelPreset, str]] = field(default_factory=list)
     prompts: Prompts = field(default_factory=Prompts)
@@ -534,6 +535,7 @@ class ConfigManager:
             try:
                 model_data = ModelPreset.load(path)
                 model_data.save(path)
+                self._model_name2file[model_data.name] = path
             except Exception as e:
                 logger.opt(colors=True).error(
                     f"Failed to validate preset '{file!s}' because '{e!s}'"
@@ -554,6 +556,7 @@ class ConfigManager:
             if not isinstance(preset_data, dict):
                 raise TypeError("Expected replace_env_vars to return a dict")
             model_preset = ModelPreset.model_validate(preset_data)
+            self._model_name2file[model_preset.name] = file
             self.models.append((model_preset, file.stem))
 
         return [model for model, _ in self.models]
