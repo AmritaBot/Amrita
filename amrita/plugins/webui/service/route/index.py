@@ -14,7 +14,7 @@ from amrita.plugins.manager.models import get_usage
 from amrita.utils.logging import LoggingData
 from amrita.utils.system_health import calculate_system_health
 
-from ..authlib import AuthManager
+from ..authlib import BOT_SESSION_ID, AuthManager
 from ..main import TemplatesManager, app, try_get_bot
 from ..sidebar import SideBarManager
 
@@ -78,7 +78,10 @@ async def login(request: Request, username: str = Form(...), password: str = For
         url += "?warn=weak_password"
     response = RedirectResponse(url=url, status_code=303)
     response.set_cookie(
-        key="access_token", value=access_token, httponly=True, samesite="lax"
+        key=f"amrita_token_{BOT_SESSION_ID}",
+        value=access_token,
+        httponly=True,
+        samesite="lax",
     )
     return response
 
@@ -148,7 +151,7 @@ async def dashboard(request: Request):
 @app.post("/logout")
 async def logout(request: Request):
     response = RedirectResponse(url="/", status_code=303)
-    if token := request.cookies.get("access_token"):
+    if token := request.cookies.get(f"amrita_token_{BOT_SESSION_ID}"):
         await AuthManager().user_log_out(token)
-    response.delete_cookie("access_token")
+    response.delete_cookie(f"amrita_token_{BOT_SESSION_ID}")
     return response
