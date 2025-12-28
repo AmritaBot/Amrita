@@ -170,7 +170,7 @@ async def auth_middleware(request: Request, call_next):
             response = RedirectResponse(url="/", status_code=303)
             if e.status_code == 401:
                 response.delete_cookie(
-                   TOKEN_KEY,
+                    TOKEN_KEY,
                 )
                 return response
             raise e
