@@ -2,7 +2,7 @@ from abc import abstractmethod
 from collections import defaultdict
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
-from typing import TypeAlias, Dict, Set, Tuple
+from typing import TypeAlias, Dict, Set, Tuple, Any
 
 from async_lru import alru_cache
 from nonebot.adapters.onebot.v11 import (
@@ -40,6 +40,10 @@ _event_permission_mapping: Dict[str, Dict[str, Set[Tuple[str, str]]]] = defaultd
     lambda: {"users": set(), "groups": set()}
 )
 
+# 缓存存储引用，用于手动清理
+_user_cache_ref: Any = None
+_group_cache_ref: Any = None
+
 
 def register_event_permission(event_id: str, user_id: str | None, group_id: str | None, permission: str):
     """注册事件使用的权限节点"""
@@ -49,6 +53,31 @@ def register_event_permission(event_id: str, user_id: str | None, group_id: str 
         _event_permission_mapping[event_id]["groups"].add((group_id, permission))
 
 
+def _expire_cache_by_key(cache_ref: Any, key: Tuple[str, ...]) -> bool:
+    """通过key过期特定缓存条目"""
+    try:
+        # 尝试使用invalidate方法
+        if hasattr(cache_ref, 'invalidate'):
+            cache_ref.invalidate(key)
+            return True
+        # 尝试使用expire方法
+        elif hasattr(cache_ref, 'expire'):
+            cache_ref.expire(key)
+            return True
+        # 尝试使用cache_expire方法
+        elif hasattr(cache_ref, 'cache_expire'):
+            cache_ref.cache_expire(key=key)
+            return True
+        else:
+            # 如果都没有，尝试直接操作内部缓存
+            if hasattr(cache_ref, '_cache'):
+                cache_ref._cache.pop(key, None)
+                return True
+    except Exception as e:
+        logger.warning(f"缓存过期操作失败: {e}")
+    return False
+
+
 async def expire_event_cache(event_id: str):
     """根据事件ID清理相关缓存"""
     if event_id not in _event_permission_mapping:
@@ -56,21 +85,35 @@ async def expire_event_cache(event_id: str):
     
     mapping = _event_permission_mapping[event_id]
     
-    # 清理用户权限缓存（使用key参数进行精确清理）
+    # 清理用户权限缓存
+    global _user_cache_ref
     for user_id, permission in mapping["users"]:
         try:
-            _check_user_permission_with_cache.cache_expire(key=(user_id, permission))
-            logger.debug(f"已清理用户权限缓存: {user_id}:{permission}")
+            if _user_cache_ref:
+                key = (user_id, permission)
+                if _expire_cache_by_key(_user_cache_ref, key):
+                    logger.debug(f"已清理用户权限缓存: {user_id}:{permission}")
+                else:
+                    logger.debug(f"用户权限缓存清理方法不支持: {user_id}:{permission}")
+            else:
+                logger.debug("用户权限缓存引用未初始化")
         except Exception as e:
             logger.warning(f"清理用户权限缓存失败: {user_id}:{permission}, 错误: {e}")
     
     # 清理群组权限缓存 (需要考虑group_only的true/false两种情况)
+    global _group_cache_ref
     for group_id, permission in mapping["groups"]:
         try:
-            # 清理两种情况缓存: only_group=True 和 only_group=False
-            _check_group_permission_with_cache.cache_expire(key=(group_id, permission, True))
-            _check_group_permission_with_cache.cache_expire(key=(group_id, permission, False))
-            logger.debug(f"已清理群组权限缓存: {group_id}:{permission}")
+            if _group_cache_ref:
+                # 清理两种情况缓存: only_group=True 和 only_group=False
+                for only_group in [True, False]:
+                    key = (group_id, permission, only_group)
+                    if _expire_cache_by_key(_group_cache_ref, key):
+                        logger.debug(f"已清理群组权限缓存: {group_id}:{permission} (only_group={only_group})")
+                    else:
+                        logger.debug(f"群组权限缓存清理方法不支持: {group_id}:{permission} (only_group={only_group})")
+            else:
+                logger.debug("群组权限缓存引用未初始化")
         except Exception as e:
             logger.warning(f"清理群组权限缓存失败: {group_id}:{permission}, 错误: {e}")
     
@@ -120,6 +163,11 @@ async def _check_group_permission_with_cache(
                 return True
 
     return Permissions(group_data.permissions).check_permission(perm)
+
+
+# 在模块初始化时设置缓存引用
+_user_cache_ref = _check_user_permission_with_cache
+_group_cache_ref = _check_group_permission_with_cache
 
 
 @dataclass

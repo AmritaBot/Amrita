@@ -1,6 +1,6 @@
 """权限缓存清理事件后处理器"""
 import asyncio
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 from nonebot import on_message, on_notice, on_request
 from nonebot.log import logger
@@ -34,19 +34,19 @@ async def cleanup_permission_cache(event: Event):
 
 
 @_message_cleanup_hook.handle()
-async def cleanup_message_permission_cache(event: Event, bot: "Bot" = None):
+async def cleanup_message_permission_cache(event: Event, bot: Optional["Bot"] = None):
     """消息事件后处理钩子：清理权限缓存"""
     await cleanup_permission_cache(event)
 
 
 @_notice_cleanup_hook.handle()
-async def cleanup_notice_permission_cache(event: Event, bot: "Bot" = None):
+async def cleanup_notice_permission_cache(event: Event, bot: Optional["Bot"] = None):
     """通知事件后处理钩子：清理权限缓存"""
     await cleanup_permission_cache(event)
 
 
 @_request_cleanup_hook.handle()
-async def cleanup_request_permission_cache(event: Event, bot: "Bot" = None):
+async def cleanup_request_permission_cache(event: Event, bot: Optional["Bot"] = None):
     """请求事件后处理钩子：清理权限缓存"""
     await cleanup_permission_cache(event)
 
