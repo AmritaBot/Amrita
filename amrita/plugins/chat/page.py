@@ -117,7 +117,7 @@ async def update_model(request: Request, name: str):
 @router.delete("/api/chat/models/{name}")
 async def delete_model(name: str):
     try:
-        preset_path = config_manager.custom_models_dir / f"{name}.json"
+        preset_path = config_manager._model_name2file[name]
 
         if not preset_path.exists():
             return JSONResponse(
@@ -130,6 +130,7 @@ async def delete_model(name: str):
 
         # 重新加载模型列表
         await config_manager.get_all_presets(cache=False)
+        del config_manager._model_name2file[name]
 
         return JSONResponse(
             {"success": True, "message": f"模型预设 {name} 删除成功"}, status_code=200
