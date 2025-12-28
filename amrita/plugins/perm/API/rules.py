@@ -2,7 +2,7 @@ from abc import abstractmethod
 from collections import defaultdict
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
-from typing import TypeAlias, Dict, Set
+from typing import TypeAlias, Dict, Set, Tuple
 
 from async_lru import alru_cache
 from nonebot.adapters.onebot.v11 import (
@@ -35,16 +35,18 @@ GroupEvent: TypeAlias = (
     | GroupUploadNoticeEvent
 )
 
-# 事件ID到权限节点的映射
-_event_permission_mapping: Dict[str, Dict[str, Set[str]]] = defaultdict(lambda: {"users": set(), "groups": set()})
+# 事件ID到权限节点的映射（使用元组避免字符串分割脆弱性）
+_event_permission_mapping: Dict[str, Dict[str, Set[Tuple[str, str]]]] = defaultdict(
+    lambda: {"users": set(), "groups": set()}
+)
 
 
 def register_event_permission(event_id: str, user_id: str | None, group_id: str | None, permission: str):
     """注册事件使用的权限节点"""
     if user_id:
-        _event_permission_mapping[event_id]["users"].add(f"{user_id}:{permission}")
+        _event_permission_mapping[event_id]["users"].add((user_id, permission))
     if group_id:
-        _event_permission_mapping[event_id]["groups"].add(f"{group_id}:{permission}")
+        _event_permission_mapping[event_id]["groups"].add((group_id, permission))
 
 
 async def expire_event_cache(event_id: str):
@@ -54,20 +56,18 @@ async def expire_event_cache(event_id: str):
     
     mapping = _event_permission_mapping[event_id]
     
-    # 清理用户权限缓存
-    for user_perm in mapping["users"]:
-        user_id, permission = user_perm.split(":", 1)
+    # 清理用户权限缓存（使用key参数进行精确清理）
+    for user_id, permission in mapping["users"]:
         try:
-            _check_user_permission_with_cache.cache_expire()
+            _check_user_permission_with_cache.cache_expire(key=(user_id, permission))
             logger.debug(f"已清理用户权限缓存: {user_id}:{permission}")
         except Exception as e:
             logger.warning(f"清理用户权限缓存失败: {user_id}:{permission}, 错误: {e}")
     
     # 清理群组权限缓存 (需要考虑group_only的true/false两种情况)
-    for group_perm in mapping["groups"]:
-        group_id, permission = group_perm.split(":", 1)
+    for group_id, permission in mapping["groups"]:
         try:
-            #下的 清理两种情况缓存: only_group=True 和 only_group=False
+            # 清理两种情况缓存: only_group=True 和 only_group=False
             _check_group_permission_with_cache.cache_expire(key=(group_id, permission, True))
             _check_group_permission_with_cache.cache_expire(key=(group_id, permission, False))
             logger.debug(f"已清理群组权限缓存: {group_id}:{permission}")
@@ -131,7 +131,6 @@ class PermissionChecker:
     """
 
     permission: str = field(default="")
-    _event_id: str = field(default="", init=False, compare=False)
 
     def __hash__(self) -> int:
         return hash(self.permission)
@@ -146,14 +145,14 @@ class PermissionChecker:
 
         async def _checker(event: Event) -> bool:
             """实际执行检查的协程函数"""
-            # 记录事件ID用于后续清理缓存
-            self._event_id = str(id(event))
-            return await self._check_permission(event, current_perm)
+            # 获取事件ID（避免在实例中存储可变状态）
+            event_id = str(id(event))
+            return await self._check_permission(event, current_perm, event_id)
 
         return _checker
 
     @abstractmethod
-    async def _check_permission(self, event: Event, perm: str) -> bool:
+    async def _check_permission(self, event: Event, perm: str, event_id: str) -> bool:
         raise NotImplementedError("Awaitable '_check_permission' not implemented")
 
 
@@ -167,10 +166,10 @@ class UserPermissionChecker(PermissionChecker):
         return hash(self.permission)
 
     @override
-    async def _check_permission(self, event: Event, perm: str) -> bool:
+    async def _check_permission(self, event: Event, perm: str, event_id: str) -> bool:
         user_id = event.get_user_id()
         # 注册权限使用记录
-        register_event_permission(self._event_id, user_id, None, perm)
+        register_event_permission(event_id, user_id, None, perm)
         result = await _check_user_permission_with_cache(user_id, perm)
         return result
 
@@ -189,7 +188,7 @@ class GroupPermissionChecker(PermissionChecker):
         return hash(self.permission + str(self.only_group))
 
     @override
-    async def _check_permission(self, event: Event, perm: str) -> bool:
+    async def _check_permission(self, event: Event, perm: str, event_id: str) -> bool:
         if not isinstance(event, GroupEvent) and not self.only_group:
             return True
         elif not isinstance(event, GroupEvent):
@@ -201,7 +200,7 @@ class GroupPermissionChecker(PermissionChecker):
         user_id = event.get_user_id()
         
         # 注册权限使用记录
-        register_event_permission(self._event_id, user_id, group_id, perm)
+        register_event_permission(event_id, user_id, group_id, perm)
         
         result = await _check_group_permission_with_cache(group_id, perm, self.only_group)
         return result
