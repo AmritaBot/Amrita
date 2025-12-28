@@ -22,6 +22,7 @@ T = TypeVar("T")
 BOT_SESSION_ID = random.randint(0, 1000000)
 TOKEN_KEY = f"amrita_token_{BOT_SESSION_ID}"
 
+
 def get_restful_auth_header(request: Request) -> str | None:
     if auth_header := request.headers.get("Authorization"):
         search = r"Bearer (.+)"

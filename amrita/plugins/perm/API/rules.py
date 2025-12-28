@@ -79,7 +79,11 @@ class UserPermissionChecker(PermissionChecker):
         if perm_groups := (
             await store.get_member_related_permission_groups(user_id, "user")
         ).groups:
+            logger.info(f"Checking user permission group for user {user_id}")
             for permg in perm_groups:
+                logger.debug(
+                    f"Checking user permission group {permg} for user {user_id}"
+                )
                 if not await store.permission_group_exists(permg):
                     logger.warning(f"权限组{permg}不存在")
                     continue
@@ -113,6 +117,7 @@ class GroupPermissionChecker(PermissionChecker):
         logger.debug(f"checking group permission {group_id} {perm}")
         permd = await store.get_member_related_permission_groups(group_id, "group")
         for permg in permd.groups:
+            logger.debug(f"checking group {group_id} permission group {permg}")
             if not await store.permission_group_exists(permg):
                 logger.warning(f"permission group {permg} not exists")
                 continue

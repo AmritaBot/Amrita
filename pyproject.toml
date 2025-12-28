@@ -1,7 +1,7 @@
 [project]
 name = "amrita"
-version = "0.4.8"
-description = "A powerful bot framework powered by NoneBot2"
+version = "0.5.0"
+description = "A powerful AI bot framework powered by NoneBot2"
 readme = "README.md"
 license = "GPL-3.0-or-later"
 requires-python = ">=3.10, <4.0"
