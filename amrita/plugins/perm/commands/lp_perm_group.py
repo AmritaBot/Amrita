@@ -18,23 +18,20 @@ from ..nodelib import Permissions
 @command.command(
     "perm_group.permission",
     permission=is_lp_admin,
-    state=MatcherData(
-        name="lp权限组权限节点操作",
-        description="操作权限组权限节点",
-        usage="/lp.perm_group.permission <权限组ID> <操作:add|del|set|check|list> <权限节点> [值]",
-    ).model_dump(),
 ).handle()
 async def lp_perm_group_permission(
     event: MessageEvent, matcher: Matcher, args: Message = CommandArg()
 ):
     args_list = args.extract_plain_text().strip().split()
 
-    if len(args_list) < 3:
-        await matcher.finish("❌ 参数不足，需要：权限组ID 操作 权限节点 [值]")
+    if len(args_list) < 2:
+        await matcher.finish(
+            "❌ 参数不足，需要：权限组ID 操作 [权限节点] [值]\n/lp.perm_group.permission <权限组ID> <操作:add|del|set|check|list> <权限节点> [值]"
+        )
 
     id = args_list[0]
     operation = args_list[1]
-    target = args_list[2]
+    target = args_list[2] if len(args_list) >= 3 else ""
     value = args_list[3] if len(args_list) >= 4 else ""
 
     store = PermissionStorage()
@@ -47,14 +44,20 @@ async def lp_perm_group_permission(
 
     match operation:
         case "del":
+            if not target:
+                await matcher.finish("❌ 请指定权限节点")
             user_perm.del_permission(target)
             msg_str = f"✅ 已删除权限节点 {target}"
         case "set":
+            if not target:
+                await matcher.finish("❌ 请指定权限节点")
             if value.lower() not in ("true", "false"):
                 await matcher.finish("❌ 值必须是 true/false")
             user_perm.set_permission(target, value == "true")
             msg_str = f"✅ 已设置 {target} : {value}"
         case "check":
+            if not target:
+                await matcher.finish("❌ 请指定权限节点")
             msg_str = (
                 "✅ 持有该权限"
                 if user_perm.check_permission(target)
@@ -74,11 +77,6 @@ async def lp_perm_group_permission(
 @command.command(
     "perm_group.parent",
     permission=is_lp_admin,
-    state=MatcherData(
-        name="lp权限组父权限组操作",
-        description="操作权限组父权限组",
-        usage="/lp.perm_group.parent <权限组ID> <操作:add|del|set> <权限组名>",
-    ).model_dump(),
 ).handle()
 async def lp_perm_group_parent(
     event: MessageEvent, matcher: Matcher, args: Message = CommandArg()
@@ -86,7 +84,9 @@ async def lp_perm_group_parent(
     args_list = args.extract_plain_text().strip().split()
 
     if len(args_list) < 3:
-        await matcher.finish("❌ 参数不足，需要：权限组ID 操作 权限组名")
+        await matcher.finish(
+            "❌ 参数不足，需要：权限组ID 操作 权限组名\n/lp.perm_group.parent <权限组ID> <操作:add|del|set> <权限组名>"
+        )
 
     id = args_list[0]
     operation = args_list[1]
@@ -139,11 +139,6 @@ async def lp_perm_group_parent(
 @command.command(
     "perm_group.to",
     permission=is_lp_admin,
-    state=MatcherData(
-        name="lp权限组管理",
-        description="权限组创建与删除",
-        usage="/lp.perm_group.to <操作:create|remove> <权限组ID>",
-    ).model_dump(),
 ).handle()
 async def lp_perm_group_to(
     event: MessageEvent, matcher: Matcher, args: Message = CommandArg()
@@ -151,7 +146,9 @@ async def lp_perm_group_to(
     args_list = args.extract_plain_text().strip().split()
 
     if len(args_list) < 2:
-        await matcher.finish("❌ 参数不足，需要：操作 权限组ID")
+        await matcher.finish(
+            "❌ 参数不足，需要：操作 权限组ID\n/lp.perm_group.to <操作:create|remove> <权限组ID>"
+        )
 
     id = args_list[1]  # 权限组ID
     operation = args_list[0]  # 操作
