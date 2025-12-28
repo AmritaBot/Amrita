@@ -1,0 +1,924 @@
+{% extends "base.html" %} {% block title %}模型预设管理 - Amrita Dashboard{%
+endblock %} {% block topbar_title %}模型预设管理{% endblock %} {% block
+extra_css %}
+<style>
+  .models-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #eee;
+  }
+
+  body.dark-mode .models-header {
+    border-bottom: 1px solid var(--dark-border-color);
+  }
+
+  .page-title {
+    font-size: 24px;
+    font-weight: 600;
+    color: var(--primary-color);
+  }
+
+  body.dark-mode .page-title {
+    color: var(--accent-color);
+  }
+
+  .actions-container {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+    margin-top: 5px;
+  }
+
+  .action-btn {
+    background: var(--primary-color);
+    color: white;
+    border: none;
+    padding: 8px 15px;
+    border-radius: 5px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    transition: background 0.3s;
+  }
+
+  .action-btn:hover {
+    background: var(--accent-color);
+  }
+
+  .action-btn i {
+    margin-right: 5px;
+  }
+
+  .action-btn.secondary {
+    background: #6c757d;
+  }
+
+  .action-btn.secondary:hover {
+    background: #5a6268;
+  }
+
+  .search-box {
+    position: relative;
+    flex-grow: 1;
+    max-width: 300px;
+  }
+
+  .search-input {
+    width: 100%;
+    padding: 8px 12px 8px 35px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+  }
+
+  body.dark-mode .search-input {
+    border: 1px solid var(--dark-border-color);
+    background: var(--dark-card-bg);
+    color: var(--dark-text-color);
+  }
+
+  .search-icon {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #777;
+  }
+
+  body.dark-mode .search-icon {
+    color: #aaa;
+  }
+
+  .models-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 20px;
+  }
+
+  .model-card {
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    padding: 20px;
+    transition: transform 0.3s, box-shadow 0.3s;
+    position: relative;
+    overflow: hidden;
+    border: 1px solid #eee;
+    margin-top: 15px;
+  }
+
+  body.dark-mode .model-card {
+    background: var(--dark-card-bg);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--dark-border-color);
+  }
+
+  .model-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+  }
+
+  .model-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 15px;
+  }
+
+  .model-name {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-color);
+    margin-bottom: 5px;
+    word-break: break-word;
+  }
+
+  body.dark-mode .model-name {
+    color: var(--accent-color);
+  }
+
+  .model-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 15px;
+    border-top: 1px solid #f0f0f0;
+    padding-top: 15px;
+  }
+
+  body.dark-mode .model-actions {
+    border-top: 1px solid var(--dark-border-color);
+  }
+
+  .model-btn {
+    flex: 1;
+    padding: 8px 12px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background 0.3s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
+  }
+
+  .model-btn i {
+    margin-right: 5px;
+  }
+
+  .btn-edit {
+    background: #3498db;
+    color: white;
+  }
+
+  .btn-edit:hover {
+    background: #2980b9;
+  }
+
+  .btn-delete {
+    background: #e74c3c;
+    color: white;
+  }
+
+  .btn-delete:hover {
+    background: #c0392b;
+  }
+
+  .field-item {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 10px;
+  }
+
+  .field-label {
+    font-weight: 500;
+    color: #555;
+    margin-bottom: 5px;
+    font-size: 14px;
+  }
+
+  body.dark-mode .field-label {
+    color: #aaa;
+  }
+
+  .field-value {
+    padding: 6px 10px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, var(--glass-opacity-light));
+    backdrop-filter: blur(var(--blur-intensity));
+    -webkit-backdrop-filter: blur(var(--blur-intensity));
+    word-break: break-all;
+  }
+
+  body.dark-mode .field-value {
+    background: rgba(37, 37, 37, var(--glass-opacity-light));
+    border: 1px solid var(--dark-border-color);
+    color: var(--dark-text-color);
+  }
+
+  .field-input {
+    width: 100%;
+    padding: 6px 10px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, var(--glass-opacity-light));
+    backdrop-filter: blur(var(--blur-intensity));
+    -webkit-backdrop-filter: blur(var(--blur-intensity));
+    color: var(--text-color);
+  }
+
+  body.dark-mode .field-input {
+    border: 1px solid var(--dark-border-color);
+    background: rgba(37, 37, 37, var(--glass-opacity-light));
+    color: var(--dark-text-color);
+  }
+
+  .bool-switch {
+    position: relative;
+    display: inline-block;
+    width: 50px;
+    height: 24px;
+  }
+
+  .bool-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+
+  .bool-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    transition: 0.4s;
+    border-radius: 24px;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+
+  .bool-slider:before {
+    position: absolute;
+    content: "";
+    height: 18px;
+    width: 18px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: 0.4s;
+    border-radius: 50%;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  }
+
+  .bool-switch input:checked + .bool-slider {
+    background-color: var(--primary-color);
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+  }
+
+  .bool-switch input:checked + .bool-slider:before {
+    transform: translateX(26px);
+  }
+
+  .bool-switch input:focus + .bool-slider {
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25);
+  }
+
+  .bool-switch:hover .bool-slider {
+    background-color: #b3b3b3;
+  }
+
+  .bool-switch input:checked:hover + .bool-slider {
+    background-color: #007bff;
+  }
+
+  .model-field-bool {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+  }
+
+  .modal.active {
+    display: block;
+  }
+
+  .modal-content {
+    background: rgba(255, 255, 255, var(--glass-opacity-light));
+    backdrop-filter: blur(var(--blur-intensity));
+    -webkit-backdrop-filter: blur(var(--blur-intensity));
+    margin: 5% auto;
+    padding: 20px;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    border-radius: 10px;
+    width: 90%;
+    max-width: 600px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+    position: relative;
+    z-index: 1001;
+  }
+
+  body.dark-mode .modal-content {
+    background: rgba(37, 37, 37, var(--glass-opacity-light));
+    border: 1px solid rgba(68, 68, 68, 0.3);
+  }
+
+  .config-container {
+    transition: filter 0.3s ease;
+  }
+
+  .config-container.blurred {
+    filter: blur(5px);
+  }
+
+  .close {
+    color: #aaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+    line-height: 1;
+    position: absolute;
+    right: 15px;
+    top: 10px;
+  }
+
+  .close:hover,
+  .close:focus {
+    color: #000;
+    text-decoration: none;
+    cursor: pointer;
+  }
+
+  body.dark-mode .close:hover,
+  body.dark-mode .close:focus {
+    color: #fff;
+  }
+
+  .form-group {
+    margin-bottom: 15px;
+  }
+
+  .form-label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 500;
+    color: #555;
+  }
+
+  body.dark-mode .form-label {
+    color: #aaa;
+  }
+
+  .form-control {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    box-sizing: border-box;
+  }
+
+  body.dark-mode .form-control {
+    border: 1px solid var(--dark-border-color);
+    background: var(--dark-card-bg);
+    color: var(--dark-text-color);
+  }
+
+  .form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 20px;
+  }
+
+  .alert {
+    padding: 12px 15px;
+    border-radius: 4px;
+    margin-bottom: 20px;
+    display: none;
+  }
+
+  .alert-success {
+    background-color: #d4edda;
+    border: 1px solid #c3e6cb;
+    color: #155724;
+  }
+
+  .alert-danger {
+    background-color: #f8d7da;
+    border: 1px solid #f5c6cb;
+    color: #721c24;
+  }
+
+  body.dark-mode .alert-success {
+    background-color: rgba(40, 167, 69, 0.1);
+    border: 1px solid rgba(40, 167, 69, 0.2);
+    color: #28a745;
+  }
+
+  body.dark-mode .alert-danger {
+    background-color: rgba(220, 53, 69, 0.1);
+    border: 1px solid rgba(220, 53, 69, 0.2);
+    color: #dc3545;
+  }
+
+  @media (max-width: 768px) {
+    .models-header {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 15px;
+      margin-bottom: 10px;
+    }
+
+    .actions-container {
+      width: 100%;
+      justify-content: space-between;
+    }
+
+    .models-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .model-actions {
+      flex-direction: column;
+    }
+
+    .model-btn {
+      width: 100%;
+    }
+  }
+</style>
+{% endblock %} {% block content %}
+<div class="config-container">
+  <div class="alert alert-success" id="success-alert" style="display: none">
+    操作成功！
+  </div>
+
+  <div class="alert alert-danger" id="error-alert" style="display: none">
+    操作失败，请重试。
+  </div>
+
+  <div class="models-header">
+    <h1 class="page-title">模型预设管理</h1>
+    <div class="actions-container">
+      <button class="action-btn" onclick="openCreateModal()">
+        <i class="fas fa-plus"></i> 创建预设
+      </button>
+      <button class="action-btn secondary" onclick="refreshModels()">
+        <i class="fas fa-sync-alt"></i> 刷新
+      </button>
+    </div>
+  </div>
+
+  <div class="search-box">
+    <i class="fas fa-search search-icon"></i>
+    <input
+      type="text"
+      class="search-input"
+      id="model-search"
+      placeholder="搜索模型预设..."
+      onkeyup="filterModels()"
+    />
+  </div>
+
+  <div class="models-grid" id="models-container">
+    {% for model in models %}
+    <div class="model-card" data-name="{{ model.name|lower }}">
+      <div class="model-header">
+        <div>
+          <h3 class="model-name">
+            {{ model.name }} {% if model.name == current_default %}
+            <span class="plugin-badge badge-local">默认</span>
+            {% endif %}
+          </h3>
+          <div class="field-value">模型: {{ model.model }}</div>
+        </div>
+      </div>
+
+      <div class="field-item">
+        <div class="field-label">API密钥</div>
+        <div class="field-value">
+          {{ model.api_key if model.api_key else '未设置' }}
+        </div>
+      </div>
+
+      <div class="field-item">
+        <div class="field-label">API基础地址</div>
+        <div class="field-value">
+          {{ model.base_url if model.base_url else '默认' }}
+        </div>
+      </div>
+
+      <div class="field-item">
+        <div class="field-label">协议</div>
+        <div class="field-value">{{ model.protocol }}</div>
+      </div>
+
+      <div class="field-item">
+        <div class="model-field-bool">
+          <span class="field-label">多模态支持:</span>
+          <label class="bool-switch">
+            <input
+              type="checkbox"
+              data-model="{{ model.name }}"
+              data-field="multimodal"
+              onchange="toggleModelField(this)"
+              {%
+              if
+              model.multimodal
+              %}checked{%
+              endif
+              %}
+            />
+            <span class="bool-slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <div class="field-item">
+        <div class="model-field-bool">
+          <span class="field-label">思维链模型:</span>
+          <label class="bool-switch">
+            <input
+              type="checkbox"
+              data-model="{{ model.name }}"
+              data-field="thought_chain_model"
+              onchange="toggleModelField(this)"
+              {%
+              if
+              model.thought_chain_model
+              %}checked{%
+              endif
+              %}
+            />
+            <span class="bool-slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <div class="model-actions">
+        <button
+          class="model-btn btn-edit"
+          onclick="openEditModal('{{ model.name }}')"
+        >
+          <i class="fas fa-edit"></i> 编辑
+        </button>
+        <button
+          class="model-btn btn-delete"
+          onclick="deleteModel('{{ model.name }}')"
+        >
+          <i class="fas fa-trash"></i> 删除
+        </button>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- 创建/编辑模型预设的模态框 -->
+<div id="modelModal" class="modal">
+  <div class="modal-content">
+    <span class="close" onclick="closeModal()">&times;</span>
+    <h2 id="modalTitle">创建模型预设</h2>
+    <form id="modelForm">
+      <input type="hidden" id="modelId" name="id" />
+      <div class="form-group">
+        <label class="form-label" for="modelName">预设名称</label>
+        <input
+          type="text"
+          class="form-control"
+          id="modelName"
+          name="name"
+          required
+        />
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="modelModel">模型名称</label>
+        <input
+          type="text"
+          class="form-control"
+          id="modelModel"
+          name="model"
+          required
+        />
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="modelBaseUrl">API基础地址</label>
+        <input
+          type="text"
+          class="form-control"
+          id="modelBaseUrl"
+          name="base_url"
+        />
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="modelApiKey">API密钥</label>
+        <input
+          type="password"
+          class="form-control"
+          id="modelApiKey"
+          name="api_key"
+        />
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="modelProtocol">协议</label>
+        <input
+          type="text"
+          class="form-control"
+          id="modelProtocol"
+          name="protocol"
+          value="__main__"
+        />
+      </div>
+      <div class="form-group">
+        <label class="form-label">
+          <input type="checkbox" id="modelMultimodal" name="multimodal" />
+          多模态支持
+        </label>
+      </div>
+      <div class="form-group">
+        <label class="form-label">
+          <input
+            type="checkbox"
+            id="modelThoughtChain"
+            name="thought_chain_model"
+          />
+          思维链模型
+        </label>
+      </div>
+      <div class="form-actions">
+        <button type="button" class="btn btn-secondary" onclick="closeModal()">
+          取消
+        </button>
+        <button type="submit" class="btn btn-primary">保存</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %} {% block scripts %}
+<script>
+  let editingModel = null;
+  const configContainer = document.querySelector('.config-container');
+
+  function openCreateModal() {
+    document.getElementById("modalTitle").textContent = "创建模型预设";
+    document.getElementById("modelForm").reset();
+    document.getElementById("modelId").value = "";
+    editingModel = null;
+    
+    // 添加背景虚化效果
+    configContainer.classList.add('blurred');
+    
+    document.getElementById("modelModal").style.display = "block";
+    document.getElementById("modelModal").classList.add("active");
+  }
+
+  function openEditModal(modelName) {
+    // 使用fetch获取模型详细信息
+    fetch(`/api/chat/models`)
+      .then((response) => response.json())
+      .then((data) => {
+        if (data.success) {
+          const model = data.models.find((m) => m.name === modelName);
+          if (model) {
+            document.getElementById("modalTitle").textContent = "编辑模型预设";
+            document.getElementById("modelId").value = model.name;
+            document.getElementById("modelName").value = model.name;
+            document.getElementById("modelModel").value = model.model;
+            document.getElementById("modelBaseUrl").value =
+              model.base_url !== "默认" ? model.base_url : "";
+            document.getElementById("modelApiKey").value =
+              model.api_key !== "未设置" ? model.api_key : "";
+            document.getElementById("modelProtocol").value = model.protocol;
+            document.getElementById("modelMultimodal").checked =
+              model.multimodal;
+            document.getElementById("modelThoughtChain").checked =
+              model.thought_chain_model;
+
+            editingModel = model.name;
+            
+            // 添加背景虚化效果
+            configContainer.classList.add('blurred');
+            
+            document.getElementById("modelModal").style.display = "block";
+            document.getElementById("modelModal").classList.add("active");
+          } else {
+            showAlert("danger", "未找到模型预设");
+          }
+        } else {
+          showAlert("danger", "获取模型预设列表失败");
+        }
+      })
+      .catch((error) => {
+        console.error("获取模型预设详情失败:", error);
+        showAlert("danger", "获取模型预设详情失败: " + error.message);
+      });
+  }
+
+  function closeModal() {
+    document.getElementById("modelModal").style.display = "none";
+    document.getElementById("modelModal").classList.remove("active");
+    
+    // 移除背景虚化效果
+    configContainer.classList.remove('blurred');
+  }
+
+  document
+    .getElementById("modelForm")
+    .addEventListener("submit", async function (e) {
+      e.preventDefault();
+
+      const formData = new FormData(this);
+      const modelData = Object.fromEntries(formData.entries());
+
+      // 处理布尔值
+      modelData.multimodal = document.getElementById("modelMultimodal").checked;
+      modelData.thought_chain_model =
+        document.getElementById("modelThoughtChain").checked;
+
+      // 如果API密钥未更改，不发送（避免覆盖已保存的密钥）
+      if (modelData.api_key === "{{key_placeholder}}") {
+        delete modelData.api_key;
+      }
+
+      try {
+        const method = editingModel ? "PUT" : "POST";
+        const url = editingModel
+          ? `/api/chat/models/${encodeURIComponent(editingModel)}`
+          : "/api/chat/models";
+
+        const response = await fetch(url, {
+          method: method,
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(modelData),
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          showAlert(
+            "success",
+            result.message ||
+              (editingModel ? "模型预设已更新" : "模型预设已创建")
+          );
+          location.reload();
+        } else {
+          showAlert("danger", result.message || "操作失败");
+        }
+      } catch (error) {
+        console.error("保存模型预设失败:", error);
+        showAlert("danger", "保存失败: " + error.message);
+      }
+    });
+
+  async function deleteModel(modelName) {
+    if (!confirm(`确定要删除模型预设 "${modelName}" 吗？此操作不可撤销。`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        `/api/chat/models/${encodeURIComponent(modelName)}`,
+        {
+          method: "DELETE",
+        }
+      );
+
+      const result = await response.json();
+
+      if (result.success) {
+        showAlert("success", result.message || "模型预设已删除");
+        location.reload();
+      } else {
+        showAlert("danger", result.message || "删除失败");
+      }
+    } catch (error) {
+      console.error("删除模型预设失败:", error);
+      showAlert("danger", "删除失败: " + error.message);
+    }
+  }
+
+  async function toggleModelField(checkbox) {
+    const modelName = checkbox.getAttribute("data-model");
+    const fieldName = checkbox.getAttribute("data-field");
+    const value = checkbox.checked;
+
+    try {
+      const response = await fetch(
+        `/api/chat/models/${encodeURIComponent(modelName)}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            name: modelName,
+            [fieldName]: value,
+          }),
+        }
+      );
+
+      const result = await response.json();
+
+      if (result.success) {
+        showAlert(
+          "success",
+          `模型预设 "${modelName}" 的 "${fieldName}" 已更新`
+        );
+      } else {
+        checkbox.checked = !value; // 恢复原状态
+        showAlert("danger", result.message || "更新失败");
+      }
+    } catch (error) {
+      console.error("更新模型预设失败:", error);
+      checkbox.checked = !value; // 恢复原状态
+      showAlert("danger", "更新失败: " + error.message);
+    }
+  }
+
+  function filterModels() {
+    const searchQuery = document
+      .getElementById("model-search")
+      .value.toLowerCase();
+    const modelCards = document.querySelectorAll(".model-card");
+
+    modelCards.forEach((card) => {
+      const modelName = card.getAttribute("data-name");
+
+      const searchMatch =
+        modelName.includes(searchQuery) ||
+        card
+          .querySelector(".field-value")
+          .textContent.toLowerCase()
+          .includes(searchQuery);
+
+      if (searchMatch) {
+        card.style.display = "block";
+      } else {
+        card.style.display = "none";
+      }
+    });
+  }
+
+  async function refreshModels() {
+    try {
+      location.reload();
+    } catch (error) {
+      console.error("刷新模型列表失败:", error);
+      showAlert("danger", "刷新失败: " + error.message);
+    }
+  }
+
+  function showAlert(type, message) {
+    const successAlert = document.getElementById("success-alert");
+    const errorAlert = document.getElementById("error-alert");
+
+    successAlert.style.display = "none";
+    errorAlert.style.display = "none";
+
+    if (type === "success") {
+      successAlert.textContent = message;
+      successAlert.style.display = "block";
+    } else {
+      errorAlert.textContent = message;
+      errorAlert.style.display = "block";
+    }
+
+    setTimeout(() => {
+      successAlert.style.display = "none";
+      errorAlert.style.display = "none";
+    }, 3000);
+  }
+
+  // 点击模态框外部关闭
+  window.onclick = function (event) {
+    const modal = document.getElementById("modelModal");
+    if (event.target === modal) {
+      closeModal();
+    }
+  };
+
+  // ESC键关闭模态框
+  document.addEventListener("keydown", function (event) {
+    if (event.key === "Escape") {
+      closeModal();
+    }
+  });
+</script>
+{% endblock %}

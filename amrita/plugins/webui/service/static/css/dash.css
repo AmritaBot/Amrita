@@ -6,28 +6,37 @@
 }
 
 .stat-card {
-  background: white;
+  background: rgba(255, 255, 255, var(--glass-opacity-light));
+  backdrop-filter: blur(var(--blur-intensity));
+  -webkit-backdrop-filter: blur(var(--blur-intensity));
   border-radius: 10px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
   padding: 20px;
   display: flex;
   align-items: center;
-  transition: transform 0.3s, box-shadow 0.3s;
+  transition: transform 0.3s, box-shadow 0.3s, background 0.3s,
+    backdrop-filter 0.3s;
   margin-bottom: 10px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
 }
 
 body.dark-mode .stat-card {
-  background: var(--dark-card-bg);
+  background: rgba(37, 37, 37, var(--glass-opacity-light));
+  backdrop-filter: blur(var(--blur-intensity));
+  -webkit-backdrop-filter: blur(var(--blur-intensity));
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(68, 68, 68, 0.3);
 }
 
 .stat-card:hover {
   transform: translateY(-5px);
   box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+  background: rgba(255, 255, 255, 0.6);
 }
 
 body.dark-mode .stat-card:hover {
   box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+  background: rgba(37, 37, 37, 0.6);
 }
 
 .stat-icon {
@@ -39,6 +48,8 @@ body.dark-mode .stat-card:hover {
   justify-content: center;
   margin-right: 15px;
   font-size: 24px;
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
 }
 
 .stat-icon.blue {
@@ -104,15 +115,22 @@ body.dark-mode .stat-info p {
 }
 
 .chart-card {
-  background: white;
+  background: rgba(255, 255, 255, var(--glass-opacity-light));
+  backdrop-filter: blur(var(--blur-intensity));
+  -webkit-backdrop-filter: blur(var(--blur-intensity));
   border-radius: 10px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
   padding: 20px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  transition: background 0.3s, backdrop-filter 0.3s;
 }
 
 body.dark-mode .chart-card {
-  background: var(--dark-card-bg);
+  background: rgba(37, 37, 37, var(--glass-opacity-light));
+  backdrop-filter: blur(var(--blur-intensity));
+  -webkit-backdrop-filter: blur(var(--blur-intensity));
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(68, 68, 68, 0.3);
 }
 
 .chart-header {
@@ -132,8 +150,8 @@ body.dark-mode .chart-title {
 }
 
 .chart-actions button {
-  background: none;
-  border: none;
+  background: rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(0, 0, 0, 0.1);
   color: #777;
   cursor: pointer;
   margin-left: 10px;
@@ -143,15 +161,17 @@ body.dark-mode .chart-title {
 }
 
 body.dark-mode .chart-actions button {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   color: #aaa;
 }
 
 .chart-actions button:hover {
-  background: #f0f0f0;
+  background: rgba(0, 0, 0, 0.1);
 }
 
 body.dark-mode .chart-actions button:hover {
-  background: var(--dark-sidebar-hover);
+  background: rgba(30, 30, 30, 0.5);
 }
 
 .chart-container {
@@ -159,12 +179,16 @@ body.dark-mode .chart-actions button:hover {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #f8f9fa;
+  background: rgba(248, 249, 250, 0.5);
+  backdrop-filter: blur(var(--blur-intensity));
+  -webkit-backdrop-filter: blur(var(--blur-intensity));
   border-radius: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
 }
 
 body.dark-mode .chart-container {
-  background: #333;
+  background: rgba(51, 51, 51, 0.5);
+  border: 1px solid rgba(68, 68, 68, 0.3);
 }
 
 .chart-canvas-container {
@@ -198,15 +222,22 @@ body.dark-mode .chart-placeholder i {
 }
 
 .recent-activity {
-  background: white;
+  background: rgba(255, 255, 255, var(--glass-opacity-light));
+  backdrop-filter: blur(var(--blur-intensity));
+  -webkit-backdrop-filter: blur(var(--blur-intensity));
   border-radius: 10px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
   padding: 20px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  transition: background 0.3s, backdrop-filter 0.3s;
 }
 
 body.dark-mode .recent-activity {
-  background: var(--dark-card-bg);
+  background: rgba(37, 37, 37, var(--glass-opacity-light));
+  backdrop-filter: blur(var(--blur-intensity));
+  -webkit-backdrop-filter: blur(var(--blur-intensity));
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(68, 68, 68, 0.3);
 }
 
 .activity-list {
@@ -216,7 +247,7 @@ body.dark-mode .recent-activity {
 .activity-item {
   display: flex;
   padding: 15px 0;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
 }
 
 .activity-item:last-child {
@@ -224,7 +255,7 @@ body.dark-mode .recent-activity {
 }
 
 body.dark-mode .activity-item {
-  border-bottom: 1px solid var(--dark-border-color);
+  border-bottom: 1px solid rgba(68, 68, 68, 0.3);
 }
 
 .activity-icon {
@@ -236,6 +267,8 @@ body.dark-mode .activity-item {
   justify-content: center;
   margin-right: 15px;
   flex-shrink: 0;
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
 }
 
 .activity-icon.yellow {
@@ -330,11 +363,11 @@ body.dark-mode .activity-time {
   align-items: center;
   margin-top: 20px;
   padding-top: 15px;
-  border-top: 1px solid #eee;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
 }
 
 body.dark-mode .activity-pagination {
-  border-top: 1px solid var(--dark-border-color);
+  border-top: 1px solid rgba(68, 68, 68, 0.3);
 }
 
 .pagination-info {
@@ -369,15 +402,17 @@ body.dark-mode .page-size-selector label {
 
 .page-size-selector select {
   padding: 5px 10px;
-  border: 1px solid #ddd;
+  border: 1px solid rgba(0, 0, 0, 0.2);
   border-radius: 4px;
-  background: white;
+  background: rgba(255, 255, 255, 0.9);
   color: #333;
+  backdrop-filter: blur(var(--blur-intensity));
+  -webkit-backdrop-filter: blur(var(--blur-intensity));
 }
 
 body.dark-mode .page-size-selector select {
-  background: var(--dark-card-bg);
-  border-color: var(--dark-border-color);
+  background: rgba(37, 37, 37, 0.9);
+  border-color: rgba(68, 68, 68, 0.3);
   color: var(--dark-text-color);
 }
 
@@ -388,16 +423,18 @@ body.dark-mode .page-size-selector select {
 
 .pagination-btn {
   padding: 5px 12px;
-  border: 1px solid #ddd;
+  border: 1px solid rgba(0, 0, 0, 0.2);
   border-radius: 4px;
-  background: white;
+  background: rgba(255, 255, 255, 0.9);
   color: #333;
   cursor: pointer;
   transition: all 0.2s;
+  backdrop-filter: blur(var(--blur-intensity));
+  -webkit-backdrop-filter: blur(var(--blur-intensity));
 }
 
 .pagination-btn:hover:not(:disabled) {
-  background: #f0f0f0;
+  background: rgba(240, 240, 240, 0.9);
 }
 
 .pagination-btn:disabled {
@@ -406,13 +443,13 @@ body.dark-mode .page-size-selector select {
 }
 
 body.dark-mode .pagination-btn {
-  background: var(--dark-card-bg);
-  border-color: var(--dark-border-color);
+  background: rgba(37, 37, 37, 0.9);
+  border-color: rgba(68, 68, 68, 0.3);
   color: var(--dark-text-color);
 }
 
 body.dark-mode .pagination-btn:hover:not(:disabled) {
-  background: var(--dark-sidebar-hover);
+  background: rgba(30, 30, 30, 0.9);
 }
 
 .pagination-btn.active {
@@ -471,4 +508,14 @@ body.dark-mode .pagination-btn:hover:not(:disabled) {
   .stats-grid {
     grid-template-columns: repeat(4, 1fr);
   }
+}
+
+.chart-card:hover,
+.recent-activity:hover {
+  background: rgba(255, 255, 255, 0.6);
+}
+
+body.dark-mode .chart-card:hover,
+body.dark-mode .recent-activity:hover {
+  background: rgba(37, 37, 37, 0.6);
 }

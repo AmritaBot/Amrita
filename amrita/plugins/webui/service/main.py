@@ -13,7 +13,7 @@ from nonebot import logger
 from pytz import utc
 from typing_extensions import Self
 
-from .authlib import AuthManager, TokenManager
+from .authlib import TOKEN_KEY, AuthManager, TokenManager
 
 TEMPLATES_PATH = Path(__file__).resolve().parent / "templates"
 
@@ -144,7 +144,7 @@ async def auth_middleware(request: Request, call_next):
     else:
         try:
             await AuthManager().check_current_user(request)
-            access_token = request.cookies.get("access_token")
+            access_token = request.cookies.get(TOKEN_KEY)
             assert access_token
             response: Response = await call_next(request)
             if (
@@ -160,7 +160,7 @@ async def auth_middleware(request: Request, call_next):
                 if expire - datetime.now(utc) < timedelta(minutes=10):
                     access_token = await AuthManager().refresh_token(request)
                     response.set_cookie(
-                        key="access_token",
+                        key=TOKEN_KEY,
                         value=access_token,
                         httponly=True,
                         samesite="lax",
@@ -169,7 +169,9 @@ async def auth_middleware(request: Request, call_next):
             # 令牌无效或过期，重定向到登录页面
             response = RedirectResponse(url="/", status_code=303)
             if e.status_code == 401:
-                response.delete_cookie("access_token")
+                response.delete_cookie(
+                   TOKEN_KEY,
+                )
                 return response
             raise e
     return response

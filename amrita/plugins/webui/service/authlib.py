@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import random
 import re
 import secrets
 from abc import ABC
@@ -18,7 +19,8 @@ from typing_extensions import Self
 from amrita.plugins.webui.service.config import get_webui_config
 
 T = TypeVar("T")
-
+BOT_SESSION_ID = random.randint(0, 1000000)
+TOKEN_KEY = f"amrita_token_{BOT_SESSION_ID}"
 
 def get_restful_auth_header(request: Request) -> str | None:
     if auth_header := request.headers.get("Authorization"):
@@ -235,7 +237,7 @@ class AuthManager:
     async def check_current_user(self, request: Request):
         if otk := get_restful_auth_header(request):
             return await self.check_otk_request(otk)
-        token = request.cookies.get("access_token")
+        token = request.cookies.get(TOKEN_KEY)
         token_manager = self._token_manager
         if not token or (not await token_manager.has_token(token)):
             raise HTTPException(status_code=401, detail="未认证")
@@ -287,7 +289,7 @@ class AuthManager:
 
     async def refresh_token(self, request: Request):
         await self.check_current_user(request)
-        token = request.cookies.get("access_token")
+        token = request.cookies.get(TOKEN_KEY)
         if not token:
             raise HTTPException(status_code=401, detail="未认证")
         return await self._token_manager.refresh_token(token)

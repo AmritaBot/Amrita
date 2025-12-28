@@ -13,6 +13,7 @@ __plugin_meta__ = PluginMetadata(
     name="Amrita WebUI",
     description="PROJ.Amrita的原生WebUI",
     usage="打开bot 的webui页面",
+    type="application",
     config=config.Config,
 )
 
