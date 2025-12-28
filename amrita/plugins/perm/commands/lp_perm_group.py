@@ -166,7 +166,7 @@ async def lp_perm_group_to(
         # 检查权限组是否存在
         if not await store.permission_group_exists(id):
             await matcher.finish("❌ 权限组不存在")
-        # 这里需要实际删除权限组，暂时返回成功信息
+        await store.delete_permission_group(id)
         await matcher.finish("✅ 权限组删除成功")
     else:
         await matcher.finish("❌ 操作错误，仅支持 create/remove")
