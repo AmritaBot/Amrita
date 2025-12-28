@@ -25,6 +25,8 @@ SideBarManager().add_sidebar_category(
     SideBarCategory(name="聊天管理", icon="fa fa-comments", url="#")
 )
 
+KEY_PLACEHOLDER = "••••••••"
+
 
 @router.post("/api/chat/models")
 async def create_model(request: Request):
@@ -149,7 +151,7 @@ async def get_models():
                 "name": model.name,
                 "model": model.model,
                 "base_url": model.base_url,
-                "api_key": model.api_key if model.api_key else "",
+                "api_key": KEY_PLACEHOLDER,
                 "protocol": model.protocol,
                 "multimodal": model.multimodal,
                 "thought_chain_model": model.thought_chain_model,
@@ -199,7 +201,7 @@ async def _(ctx: PageContext):
             "name": model.name,
             "model": model.model,
             "base_url": model.base_url,
-            "api_key": model.api_key if model.api_key else "",
+            "api_key": KEY_PLACEHOLDER,
             "protocol": model.protocol,
             "multimodal": model.multimodal,
             "thought_chain_model": model.thought_chain_model,
@@ -209,5 +211,9 @@ async def _(ctx: PageContext):
 
     return PageResponse(
         name="models.html",
-        context={"models": model_data, "current_default": current_default},
+        context={
+            "models": model_data,
+            "current_default": current_default,
+            "key_placeholder": KEY_PLACEHOLDER,
+        },
     )

@@ -16,10 +16,8 @@
     <link rel="shortcut icon" href="/static/images/Amrita.png" />
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <style>
-      {% block extra_css %}{% endblock %}
-    </style>
-    {% block head_extra %}{% endblock %}
+
+    {% block extra_css %}{% endblock %} {% block head_extra %}{% endblock %}
   </head>
   <body>
     <div class="loading-bar" id="loadingBar"></div>
@@ -80,8 +78,18 @@
             <button class="theme-toggle" id="themeToggle" title="切换主题">
               <i class="fas fa-moon"></i>
             </button>
-            <button class="theme-toggle" id="githubButton" title="GitHub" onclick="jmpToGitHub()">
-              <img src="/static/images/github-mark.svg" alt="GitHub" width="32" height="32">
+            <button
+              class="theme-toggle"
+              id="githubButton"
+              title="GitHub"
+              onclick="jmpToGitHub()"
+            >
+              <img
+                src="/static/images/github-mark.svg"
+                alt="GitHub"
+                width="32"
+                height="32"
+              />
             </button>
             <div class="user-info">
               <div class="user-avatar">A</div>
@@ -200,15 +208,15 @@
           document.getElementById("themeToggle").innerHTML =
             '<i class="fas fa-sun"></i>';
           document.getElementById("githubButton").innerHTML =
-            '<img src="/static/images/github-mark-white.svg" alt="GitHub" width="32" height="32">';
-          
+            '<img src="/static/images/github-mark-white.svg" alt="GitHub" width="25" height="25">';
+
           localStorage.setItem("theme", "dark");
         } else {
           document.body.classList.remove("dark-mode");
           document.getElementById("themeToggle").innerHTML =
             '<i class="fas fa-moon"></i>';
           document.getElementById("githubButton").innerHTML =
-            '<img src="/static/images/github-mark.svg" alt="GitHub" width="32" height="32">';
+            '<img src="/static/images/github-mark.svg" alt="GitHub" width="25" height="25">';
           localStorage.setItem("theme", "light");
         }
       }
@@ -275,8 +283,8 @@
         }
         return token;
       }
-      function jmpToGitHub(){
-        window.open("https://github.com/AmritaBot/Amrita", "_blank")
+      function jmpToGitHub() {
+        window.open("https://github.com/AmritaBot/Amrita", "_blank");
       }
     </script>
     {% block scripts %} {% endblock %}

@@ -14,7 +14,7 @@ from amrita.plugins.manager.models import get_usage
 from amrita.utils.logging import LoggingData
 from amrita.utils.system_health import calculate_system_health
 
-from ..authlib import BOT_SESSION_ID, AuthManager
+from ..authlib import TOKEN_KEY, AuthManager
 from ..main import TemplatesManager, app, try_get_bot
 from ..sidebar import SideBarManager
 
@@ -78,7 +78,7 @@ async def login(request: Request, username: str = Form(...), password: str = For
         url += "?warn=weak_password"
     response = RedirectResponse(url=url, status_code=303)
     response.set_cookie(
-        key=f"amrita_token_{BOT_SESSION_ID}",
+        key=TOKEN_KEY,
         value=access_token,
         httponly=True,
         samesite="lax",
@@ -140,7 +140,7 @@ async def dashboard(request: Request):
             "message_stats": message_stats,
             "msg_io_status": msg_io_status,
             "total_message": (
-                (usage[-1].msg_received + usage[-1].msg_sent) if bot else -1
+                (usage[-1].msg_received + usage[-1].msg_sent) if bot else "N/A"
             ),
             "bot_connected": "已连接" if bot else "未连接",
             "health": f"{calculate_system_health()['overall_health']}%",
@@ -151,7 +151,7 @@ async def dashboard(request: Request):
 @app.post("/logout")
 async def logout(request: Request):
     response = RedirectResponse(url="/", status_code=303)
-    if token := request.cookies.get(f"amrita_token_{BOT_SESSION_ID}"):
+    if token := request.cookies.get(TOKEN_KEY):
         await AuthManager().user_log_out(token)
-    response.delete_cookie(f"amrita_token_{BOT_SESSION_ID}")
+    response.delete_cookie(TOKEN_KEY)
     return response
