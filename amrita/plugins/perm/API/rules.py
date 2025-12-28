@@ -1,7 +1,8 @@
 from abc import abstractmethod
+from collections import defaultdict
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
-from typing import TypeAlias
+from typing import TypeAlias, Dict, Set
 
 from async_lru import alru_cache
 from nonebot.adapters.onebot.v11 import (
@@ -33,6 +34,49 @@ GroupEvent: TypeAlias = (
     | GroupRequestEvent
     | GroupUploadNoticeEvent
 )
+
+# 事件ID到权限节点的映射
+_event_permission_mapping: Dict[str, Dict[str, Set[str]]] = defaultdict(lambda: {"users": set(), "groups": set()})
+
+
+def register_event_permission(event_id: str, user_id: str | None, group_id: str | None, permission: str):
+    """注册事件使用的权限节点"""
+    if user_id:
+        _event_permission_mapping[event_id]["users"].add(f"{user_id}:{permission}")
+    if group_id:
+        _event_permission_mapping[event_id]["groups"].add(f"{group_id}:{permission}")
+
+
+async def expire_event_cache(event_id: str):
+    """根据事件ID清理相关缓存"""
+    if event_id not in _event_permission_mapping:
+        return
+    
+    mapping = _event_permission_mapping[event_id]
+    
+    # 清理用户权限缓存
+    for user_perm in mapping["users"]:
+        user_id, permission = user_perm.split(":", 1)
+        try:
+            _check_user_permission_with_cache.cache_expire()
+            logger.debug(f"已清理用户权限缓存: {user_id}:{permission}")
+        except Exception as e:
+            logger.warning(f"清理用户权限缓存失败: {user_id}:{permission}, 错误: {e}")
+    
+    # 清理群组权限缓存 (需要考虑group_only的true/false两种情况)
+    for group_perm in mapping["groups"]:
+        group_id, permission = group_perm.split(":", 1)
+        try:
+            #下的 清理两种情况缓存: only_group=True 和 only_group=False
+            _check_group_permission_with_cache.cache_expire(key=(group_id, permission, True))
+            _check_group_permission_with_cache.cache_expire(key=(group_id, permission, False))
+            logger.debug(f"已清理群组权限缓存: {group_id}:{permission}")
+        except Exception as e:
+            logger.warning(f"清理群组权限缓存失败: {group_id}:{permission}, 错误: {e}")
+    
+    # 删除事件映射
+    del _event_permission_mapping[event_id]
+    logger.debug(f"已清理事件权限映射: {event_id}")
 
 
 @alru_cache()
@@ -87,6 +131,7 @@ class PermissionChecker:
     """
 
     permission: str = field(default="")
+    _event_id: str = field(default="", init=False, compare=False)
 
     def __hash__(self) -> int:
         return hash(self.permission)
@@ -101,7 +146,8 @@ class PermissionChecker:
 
         async def _checker(event: Event) -> bool:
             """实际执行检查的协程函数"""
-            # 通过闭包访问类变量（self.permission）
+            # 记录事件ID用于后续清理缓存
+            self._event_id = str(id(event))
             return await self._check_permission(event, current_perm)
 
         return _checker
@@ -123,7 +169,10 @@ class UserPermissionChecker(PermissionChecker):
     @override
     async def _check_permission(self, event: Event, perm: str) -> bool:
         user_id = event.get_user_id()
-        return await _check_user_permission_with_cache(user_id, perm)
+        # 注册权限使用记录
+        register_event_permission(self._event_id, user_id, None, perm)
+        result = await _check_user_permission_with_cache(user_id, perm)
+        return result
 
 
 @dataclass
@@ -147,5 +196,12 @@ class GroupPermissionChecker(PermissionChecker):
             return False
         else:
             g_event: GroupEvent = event
+        
         group_id: str = str(g_event.group_id)
-        return await _check_group_permission_with_cache(group_id, perm, self.only_group)
+        user_id = event.get_user_id()
+        
+        # 注册权限使用记录
+        register_event_permission(self._event_id, user_id, group_id, perm)
+        
+        result = await _check_group_permission_with_cache(group_id, perm, self.only_group)
+        return result
