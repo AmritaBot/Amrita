@@ -15,7 +15,7 @@ user_check = UserPermissionChecker(permission="admin.exec")
 permission = user_check.checker()
 
 execute = on_command("exec",
-                     state=MatcherData(name="执行命令", usage="/exec <command>", description="在服务器上执行命令"),
+                     state=MatcherData(name="执行命令", usage="/exec <command>", description="在服务器上执行命令").model_dump(),
                      priority=1,
                      block=True,
                      rule=permission)
