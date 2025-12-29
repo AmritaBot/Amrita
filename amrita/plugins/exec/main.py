@@ -7,9 +7,9 @@ from nonebot.adapters.onebot.v11 import Bot, Message, MessageEvent, MessageSegme
 from nonebot.exception import FinishedException
 from nonebot.params import CommandArg
 
-from amrita.utils.send import send_forward_msg
 from amrita.plugins.menu.models import MatcherData
 from amrita.plugins.perm.API.rules import UserPermissionChecker
+from amrita.utils.send import send_forward_msg
 
 user_check = UserPermissionChecker(permission="admin.exec")
 permission = user_check.checker()
