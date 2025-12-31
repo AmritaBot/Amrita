@@ -15,7 +15,7 @@ from typing_extensions import override
 
 from amrita.plugins.chat.utils.models import Message, ToolResult
 
-SEND_MESSAGES = list[Message[str | None] | ToolResult]
+SEND_MESSAGES = list[Message | ToolResult]
 
 
 class EventTypeEnum(str, Enum):

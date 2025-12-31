@@ -1,6 +1,13 @@
 from pathlib import Path
 from typing import Any
+
+import aiofiles
+from fastapi import Query
 from nonebot import logger
+
+from amrita.plugins.chat.config import config_manager
+from amrita.plugins.chat.utils.llm_tools.mcp_client import ClientManager
+from amrita.plugins.chat.utils.models import InsightsModel
 from amrita.plugins.webui.API import (
     JSONResponse,
     PageContext,
@@ -11,11 +18,6 @@ from amrita.plugins.webui.API import (
     TemplatesManager,
     on_page,
 )
-import aiofiles
-from fastapi import Query
-from amrita.plugins.chat.config import config_manager
-from amrita.plugins.chat.utils.models import InsightsModel
-from amrita.plugins.chat.utils.llm_tools.mcp_client import ClientManager
 
 # 导入API路由
 from amrita.plugins.webui.API import app as router

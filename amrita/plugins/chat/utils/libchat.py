@@ -23,6 +23,7 @@ from openai.types.chat.chat_completion_tool_choice_option_param import (
 from pydantic import ValidationError
 from typing_extensions import override
 
+from amrita.plugins.chat.event import SEND_MESSAGES
 from amrita.plugins.chat.utils.tokenizer import hybrid_token_count
 
 from ..chatmanager import chat_manager
@@ -132,7 +133,7 @@ async def test_presets() -> typing.AsyncGenerator[PresetReport, None]:
 
 
 async def get_tokens(
-    memory: list[Message | ToolResult], response: UniResponse[str, None]
+    memory: SEND_MESSAGES, response: UniResponse[str, None]
 ) -> UniResponseUsage[int]:
     """计算消息和响应的token数量
 
@@ -234,8 +235,8 @@ async def usage_enough(event: Event) -> bool:
 
 
 def _validate_msg_list(
-    messages: Iterable[Message | ToolResult | dict[str, typing.Any]],
-) -> list[Message | ToolResult]:
+    messages: SEND_MESSAGES,
+) -> SEND_MESSAGES:
     validated_messages = []
     for msg in messages:
         if isinstance(msg, dict):
@@ -257,7 +258,7 @@ def _validate_msg_list(
 
 
 async def _determine_presets(
-    messages: Iterable[Message | ToolResult | dict[str, typing.Any]],
+    messages: SEND_MESSAGES,
 ) -> list[str]:
     """根据消息内容确定使用的预设列表"""
     # 检查消息中是否包含非文本内容（如图片等）
@@ -329,7 +330,7 @@ async def _call_with_presets(
 
 
 async def tools_caller(
-    messages: Iterable[Message | ToolResult],
+    messages: SEND_MESSAGES,
     tools: list,
     tool_choice: ToolChoice | None = None,
 ) -> UniResponse[None, list[ToolCall] | None]:
@@ -338,7 +339,7 @@ async def tools_caller(
 
     async def _call_tools(
         adapter: ModelAdapter,
-        messages: Iterable[Message | ToolResult],
+        messages: SEND_MESSAGES,
         tools,
         tool_choice,
     ):
@@ -348,14 +349,14 @@ async def tools_caller(
 
 
 async def get_chat(
-    messages: list[Message | ToolResult],
+    messages: SEND_MESSAGES,
 ) -> UniResponse[str, None]:
     """获取聊天响应"""
     messages = _validate_msg_list(messages)
     presets = await _determine_presets(messages)
 
     async def _call_api(
-        adapter: ModelAdapter, messages: Iterable[Message | ToolResult]
+        adapter: ModelAdapter, messages: SEND_MESSAGES
     ):
         response = await adapter.call_api([(i.model_dump()) for i in messages])
         preset = adapter.preset

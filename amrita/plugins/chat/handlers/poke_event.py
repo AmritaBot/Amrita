@@ -118,8 +118,6 @@ async def poke_event(event: PokeNotifyEvent, bot: Bot, matcher: Matcher):
                 user_id=event.user_id,
             )
             await MatcherManager.trigger_event(poke_event, event, bot)
-            send_messages = poke_event.get_send_message()
-
         # 获取聊天模型的回复
         response = await get_chat(send_messages)
         tokens = await get_tokens(
