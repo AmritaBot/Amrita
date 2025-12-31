@@ -1,8 +1,7 @@
 from abc import abstractmethod
-from collections import defaultdict
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
-from typing import TypeAlias, Dict, Set, Tuple, Any
+from typing import TypeAlias
 
 from async_lru import alru_cache
 from nonebot.adapters.onebot.v11 import (
@@ -17,6 +16,7 @@ from nonebot.adapters.onebot.v11 import (
     GroupUploadNoticeEvent,
 )
 from nonebot.log import logger
+from nonebot.message import event_postprocessor
 from typing_extensions import override
 
 from ..models import (
@@ -35,91 +35,18 @@ GroupEvent: TypeAlias = (
     | GroupUploadNoticeEvent
 )
 
-# 事件ID到权限节点的映射（使用元组避免字符串分割脆弱性）
-_event_permission_mapping: Dict[str, Dict[str, Set[Tuple[str, str]]]] = defaultdict(
-    lambda: {"users": set(), "groups": set()}
-)
-
-# 缓存存储引用，用于手动清理
-_user_cache_ref: Any = None
-_group_cache_ref: Any = None
+_event_to_key_mapping: dict[str, tuple[str, str]]
 
 
-def register_event_permission(event_id: str, user_id: str | None, group_id: str | None, permission: str):
-    """注册事件使用的权限节点"""
-    if user_id:
-        _event_permission_mapping[event_id]["users"].add((user_id, permission))
-    if group_id:
-        _event_permission_mapping[event_id]["groups"].add((group_id, permission))
-
-
-def _expire_cache_by_key(cache_ref: Any, key: Tuple[str, ...]) -> bool:
-    """通过key过期特定缓存条目"""
-    try:
-        # 尝试使用invalidate方法
-        if hasattr(cache_ref, 'invalidate'):
-            cache_ref.invalidate(key)
-            return True
-        # 尝试使用expire方法
-        elif hasattr(cache_ref, 'expire'):
-            cache_ref.expire(key)
-            return True
-        # 尝试使用cache_expire方法
-        elif hasattr(cache_ref, 'cache_expire'):
-            cache_ref.cache_expire(key=key)
-            return True
+@event_postprocessor
+async def _(event: Event):  # noqa: RUF029
+    event_id = event.get_session_id()
+    if data := _event_to_key_mapping.get(event_id):
+        uni_id, permission = data
+        if isinstance(event, GroupEvent):
+            _check_group_permission_with_cache.cache_invalidate(uni_id, permission)
         else:
-            # 如果都没有，尝试直接操作内部缓存
-            if hasattr(cache_ref, '_cache'):
-                cache_ref._cache.pop(key, None)
-                return True
-    except Exception as e:
-        logger.warning(f"缓存过期操作失败: {e}")
-    return False
-
-
-async def expire_event_cache(event_id: str):
-    """根据事件ID清理相关缓存"""
-    if event_id not in _event_permission_mapping:
-        return
-    
-    mapping = _event_permission_mapping[event_id]
-    
-    # 清理用户权限缓存
-    global _user_cache_ref
-    for user_id, permission in mapping["users"]:
-        try:
-            if _user_cache_ref:
-                key = (user_id, permission)
-                if _expire_cache_by_key(_user_cache_ref, key):
-                    logger.debug(f"已清理用户权限缓存: {user_id}:{permission}")
-                else:
-                    logger.debug(f"用户权限缓存清理方法不支持: {user_id}:{permission}")
-            else:
-                logger.debug("用户权限缓存引用未初始化")
-        except Exception as e:
-            logger.warning(f"清理用户权限缓存失败: {user_id}:{permission}, 错误: {e}")
-    
-    # 清理群组权限缓存 (需要考虑group_only的true/false两种情况)
-    global _group_cache_ref
-    for group_id, permission in mapping["groups"]:
-        try:
-            if _group_cache_ref:
-                # 清理两种情况缓存: only_group=True 和 only_group=False
-                for only_group in [True, False]:
-                    key = (group_id, permission, only_group)
-                    if _expire_cache_by_key(_group_cache_ref, key):
-                        logger.debug(f"已清理群组权限缓存: {group_id}:{permission} (only_group={only_group})")
-                    else:
-                        logger.debug(f"群组权限缓存清理方法不支持: {group_id}:{permission} (only_group={only_group})")
-            else:
-                logger.debug("群组权限缓存引用未初始化")
-        except Exception as e:
-            logger.warning(f"清理群组权限缓存失败: {group_id}:{permission}, 错误: {e}")
-    
-    # 删除事件映射
-    del _event_permission_mapping[event_id]
-    logger.debug(f"已清理事件权限映射: {event_id}")
+            _check_user_permission_with_cache.cache_invalidate(uni_id, permission)
 
 
 @alru_cache()
@@ -165,11 +92,6 @@ async def _check_group_permission_with_cache(
     return Permissions(group_data.permissions).check_permission(perm)
 
 
-# 在模块初始化时设置缓存引用
-_user_cache_ref = _check_user_permission_with_cache
-_group_cache_ref = _check_group_permission_with_cache
-
-
 @dataclass
 class PermissionChecker:
     """
@@ -193,14 +115,15 @@ class PermissionChecker:
 
         async def _checker(event: Event) -> bool:
             """实际执行检查的协程函数"""
-            # 获取事件ID（避免在实例中存储可变状态）
-            event_id = str(id(event))
-            return await self._check_permission(event, current_perm, event_id)
+            return await self._check_permission(
+                event,
+                current_perm,
+            )
 
         return _checker
 
     @abstractmethod
-    async def _check_permission(self, event: Event, perm: str, event_id: str) -> bool:
+    async def _check_permission(self, event: Event, perm: str) -> bool:
         raise NotImplementedError("Awaitable '_check_permission' not implemented")
 
 
@@ -214,10 +137,11 @@ class UserPermissionChecker(PermissionChecker):
         return hash(self.permission)
 
     @override
-    async def _check_permission(self, event: Event, perm: str, event_id: str) -> bool:
+    async def _check_permission(self, event: Event, perm: str) -> bool:
+        global _event_to_key_mapping
         user_id = event.get_user_id()
-        # 注册权限使用记录
-        register_event_permission(event_id, user_id, None, perm)
+        _event_to_key_mapping[event.get_session_id()] = (user_id, perm)
+
         result = await _check_user_permission_with_cache(user_id, perm)
         return result
 
@@ -236,19 +160,23 @@ class GroupPermissionChecker(PermissionChecker):
         return hash(self.permission + str(self.only_group))
 
     @override
-    async def _check_permission(self, event: Event, perm: str, event_id: str) -> bool:
+    async def _check_permission(
+        self,
+        event: Event,
+        perm: str,
+    ) -> bool:
+        global _event_to_key_mapping
         if not isinstance(event, GroupEvent) and not self.only_group:
             return True
         elif not isinstance(event, GroupEvent):
             return False
         else:
             g_event: GroupEvent = event
-        
+
         group_id: str = str(g_event.group_id)
-        user_id = event.get_user_id()
-        
-        # 注册权限使用记录
-        register_event_permission(event_id, user_id, group_id, perm)
-        
-        result = await _check_group_permission_with_cache(group_id, perm, self.only_group)
+        _event_to_key_mapping[event.get_session_id()] = (group_id, perm)
+
+        result: bool = await _check_group_permission_with_cache(
+            group_id, perm, self.only_group
+        )
         return result
