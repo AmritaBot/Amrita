@@ -544,7 +544,7 @@ async def delete_mcp_server(
     except Exception as e:
         logger.opt(exception=e, colors=True).error("删除MCP服务器失败")
         return JSONResponse(
-            {"success": False, "message": f"删除MCP服务器失败: {e!s}"},
+            {"success": False, "message": "删除MCP服务器失败"},
             status_code=500,
         )
 
@@ -562,7 +562,7 @@ async def reload_mcp_servers():
     except Exception as e:
         logger.opt(exception=e, colors=True).error("重载MCP服务器失败")
         return JSONResponse(
-            {"success": False, "message": f"重载MCP服务器失败: {e!s}"},
+            {"success": False, "message": "重载MCP服务器失败"},
             status_code=500,
         )
 
