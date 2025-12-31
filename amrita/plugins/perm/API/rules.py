@@ -16,6 +16,7 @@ from nonebot.adapters.onebot.v11 import (
     GroupUploadNoticeEvent,
 )
 from nonebot.log import logger
+from nonebot.message import event_postprocessor
 from typing_extensions import override
 
 from ..models import (
@@ -33,6 +34,19 @@ GroupEvent: TypeAlias = (
     | GroupRequestEvent
     | GroupUploadNoticeEvent
 )
+
+_event_to_key_mapping: dict[str, tuple[str, str]]
+
+
+@event_postprocessor
+async def _(event: Event):
+    event_id = event.get_session_id()
+    if data := _event_to_key_mapping.get(event_id):
+        uni_id, permission = data
+        if isinstance(event, GroupEvent):
+            _check_group_permission_with_cache.cache_invalidate(uni_id, permission)
+        else:
+            _check_user_permission_with_cache.cache_invalidate(uni_id, permission)
 
 
 @alru_cache()
@@ -101,8 +115,10 @@ class PermissionChecker:
 
         async def _checker(event: Event) -> bool:
             """实际执行检查的协程函数"""
-            # 通过闭包访问类变量（self.permission）
-            return await self._check_permission(event, current_perm)
+            return await self._check_permission(
+                event,
+                current_perm,
+            )
 
         return _checker
 
@@ -122,8 +138,12 @@ class UserPermissionChecker(PermissionChecker):
 
     @override
     async def _check_permission(self, event: Event, perm: str) -> bool:
+        global _event_to_key_mapping
         user_id = event.get_user_id()
-        return await _check_user_permission_with_cache(user_id, perm)
+        _event_to_key_mapping[event.get_session_id()] = (user_id, perm)
+
+        result = await _check_user_permission_with_cache(user_id, perm)
+        return result
 
 
 @dataclass
@@ -140,12 +160,23 @@ class GroupPermissionChecker(PermissionChecker):
         return hash(self.permission + str(self.only_group))
 
     @override
-    async def _check_permission(self, event: Event, perm: str) -> bool:
+    async def _check_permission(
+        self,
+        event: Event,
+        perm: str,
+    ) -> bool:
+        global _event_to_key_mapping
         if not isinstance(event, GroupEvent) and not self.only_group:
             return True
         elif not isinstance(event, GroupEvent):
             return False
         else:
             g_event: GroupEvent = event
+
         group_id: str = str(g_event.group_id)
-        return await _check_group_permission_with_cache(group_id, perm, self.only_group)
+        _event_to_key_mapping[event.get_session_id()] = (group_id, perm)
+
+        result: bool = await _check_group_permission_with_cache(
+            group_id, perm, self.only_group
+        )
+        return result
