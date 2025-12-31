@@ -22,6 +22,11 @@
         --dark-card-bg: #252525;
         --dark-border-color: #444;
         --dark-input-bg: rgba(37, 37, 37, 0.8);
+        
+        /* 毛玻璃效果变量 */
+        --blur-intensity: 12px;
+        --glass-opacity: 0.65;
+        --glass-opacity-mobile: 0.2;
       }
 
       * {
@@ -122,7 +127,7 @@
       }
 
       .login-container {
-        background-color: rgba(255, 255, 255, 0.9);
+        background-color: rgba(255, 255, 255, var(--glass-opacity));
         border-radius: 20px;
         box-shadow: 0 10px 30px rgba(164, 93, 181, 0.3);
         width: 100%;
@@ -130,7 +135,8 @@
         padding: 35px;
         position: relative;
         z-index: 1;
-        backdrop-filter: blur(5px);
+        backdrop-filter: blur(var(--blur-intensity));
+        -webkit-backdrop-filter: blur(var(--blur-intensity));
         border: 1px solid rgba(255, 255, 255, 0.5);
 
         animation: popup 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
@@ -139,7 +145,7 @@
       }
 
       body.dark-mode .login-container {
-        background-color: rgba(37, 37, 37, 0.9);
+        background-color: rgba(37, 37, 37, var(--glass-opacity));
         box-shadow: 0 10px 30px rgba(100, 50, 120, 0.3);
         border: 1px solid rgba(100, 100, 100, 0.5);
       }
@@ -367,6 +373,17 @@
 
       body.dark-mode .footer {
         color: #888;
+      }
+
+      /* 响应式调整：移动端降低毛玻璃透明度 */
+      @media (max-width: 768px) {
+        .login-container {
+          background-color: rgba(255, 255, 255, var(--glass-opacity-mobile));
+        }
+        
+        body.dark-mode .login-container {
+          background-color: rgba(37, 37, 37, var(--glass-opacity-mobile));
+        }
       }
 
       @media (max-width: 480px) {

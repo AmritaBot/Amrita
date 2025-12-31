@@ -1,6 +1,6 @@
 [project]
 name = "amrita"
-version = "0.5.0"
+version = "0.5.1"
 description = "A powerful AI bot framework powered by NoneBot2"
 readme = "README.md"
 license = "GPL-3.0-or-later"
@@ -23,6 +23,7 @@ dependencies = [
     "zipp>=3.23.0",
     "pytz>=2025.2",
     "tomlkit>=0.13.3",
+    "fastmcp>=2.14.1",
 ]
 
 [project.optional-dependencies]
