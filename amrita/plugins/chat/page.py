@@ -419,7 +419,10 @@ async def get_mcp_servers():
     except Exception as e:
         logger.opt(exception=e, colors=True).error("获取MCP服务器列表失败")
         return JSONResponse(
-            {"success": False, "message": f"获取MCP服务器列表失败: {e!s}"},
+            {
+                "success": False,
+                "message": "获取MCP服务器列表失败，请检查服务器日志获取详细信息",
+            },
             status_code=500,
         )
 
@@ -457,7 +460,10 @@ async def add_mcp_server(request: Request):
     except Exception as e:
         logger.opt(exception=e, colors=True).error("添加MCP服务器失败")
         return JSONResponse(
-            {"success": False, "message": f"添加MCP服务器失败: {e!s}"},
+            {
+                "success": False,
+                "message": "添加MCP服务器失败，请检查服务器日志获取详细信息",
+            },
             status_code=500,
         )
 
@@ -510,7 +516,10 @@ async def update_mcp_server(request: Request, server_script: str | None = None):
     except Exception as e:
         logger.opt(exception=e, colors=True).error("更新MCP服务器失败")
         return JSONResponse(
-            {"success": False, "message": f"更新MCP服务器失败: {e!s}"},
+            {
+                "success": False,
+                "message": "更新MCP服务器失败，请检查服务器日志获取详细信息",
+            },
             status_code=500,
         )
 
