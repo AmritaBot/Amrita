@@ -3,7 +3,7 @@ name: CI/CD Pipeline
 on:
   push:
     branches:
-      - "**" # 指定触发分支
+      - "main" # 指定触发分支
     paths:
       - "**" # 监控所有文件变更
 
