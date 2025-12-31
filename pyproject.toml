@@ -22,6 +22,7 @@ dependencies = [
     "packaging>=25.0",
     "zipp>=3.23.0",
     "pytz>=2025.2",
+    "tomlkit>=0.13.3",
 ]
 
 [project.optional-dependencies]

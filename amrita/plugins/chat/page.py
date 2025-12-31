@@ -1,6 +1,7 @@
 from pathlib import Path
 from typing import Any
 
+import aiofiles
 from nonebot import logger
 
 from amrita.plugins.chat.config import config_manager
@@ -169,6 +170,221 @@ async def get_models():
         )
 
 
+@router.post("/api/chat/prompts/{prompt_type}")
+async def create_prompt(request: Request, prompt_type: str):
+    try:
+        data = await request.json()
+        name = data.get("name")
+        text = data.get("text", "")
+
+        if not name:
+            return JSONResponse(
+                {"success": False, "message": "缺少提示词名称"}, status_code=400
+            )
+
+        if prompt_type not in ["group", "private"]:
+            return JSONResponse(
+                {"success": False, "message": "提示词类型必须是 'group' 或 'private'"},
+                status_code=400,
+            )
+
+        # 确定保存路径
+        prompt_dir = (
+            config_manager.group_prompts
+            if prompt_type == "group"
+            else config_manager.private_prompts
+        )
+        prompt_path = prompt_dir / f"{name}.txt"
+
+        # 检查是否已存在
+        if prompt_path.exists():
+            return JSONResponse(
+                {"success": False, "message": f"{prompt_type}提示词 {name} 已存在"},
+                status_code=400,
+            )
+
+        # 保存提示词到文件
+        async with aiofiles.open(prompt_path, "w", encoding="utf-8") as f:
+            await f.write(text)
+
+        # 重新加载提示词列表
+        await config_manager.get_prompts(cache=False)
+
+        return JSONResponse(
+            {"success": True, "message": f"{prompt_type}提示词 {name} 创建成功"},
+            status_code=200,
+        )
+    except Exception as e:
+        return JSONResponse(
+            {"success": False, "message": f"创建提示词失败: {e!s}"}, status_code=500
+        )
+
+
+@router.put("/api/chat/prompts/{prompt_type}/{name}")
+async def update_prompt(request: Request, prompt_type: str, name: str):
+    try:
+        data = await request.json()
+        text = data.get("text", "")
+
+        if prompt_type not in ["group", "private"]:
+            return JSONResponse(
+                {"success": False, "message": "提示词类型必须是 'group' 或 'private'"},
+                status_code=400,
+            )
+
+        # 确定保存路径
+        prompt_dir = (
+            config_manager.group_prompts
+            if prompt_type == "group"
+            else config_manager.private_prompts
+        )
+        prompt_path = prompt_dir / f"{name}.txt"
+
+        # 检查是否存在
+        if not prompt_path.exists():
+            return JSONResponse(
+                {"success": False, "message": f"{prompt_type}提示词 {name} 不存在"},
+                status_code=404,
+            )
+
+        # 检查是否为default提示词，如果是则不允许改名
+        new_name = data.get("name", name)
+        if name == "default" and new_name != "default":
+            return JSONResponse(
+                {"success": False, "message": "default提示词不允许改名"},
+                status_code=400,
+            )
+
+        # 如果是当前提示词，需要更新配置
+        update_config = False
+        if (
+            prompt_type == "group"
+            and config_manager.config.group_prompt_character == name
+        ):
+            update_config = True
+            config_manager.ins_config.group_prompt_character = new_name
+        elif (
+            prompt_type == "private"
+            and config_manager.config.private_prompt_character == name
+        ):
+            update_config = True
+            config_manager.ins_config.private_prompt_character = new_name
+
+        # 如果改名了，需要删除旧文件并创建新文件
+        if new_name != name:
+            new_prompt_path = prompt_dir / f"{new_name}.txt"
+            if new_prompt_path.exists():
+                return JSONResponse(
+                    {
+                        "success": False,
+                        "message": f"{prompt_type}提示词 {new_name} 已存在",
+                    },
+                    status_code=400,
+                )
+
+            # 重命名文件
+            prompt_path.rename(new_prompt_path)
+            prompt_path = new_prompt_path
+
+        # 更新提示词到文件
+        async with aiofiles.open(prompt_path, "w", encoding="utf-8") as f:
+            await f.write(text)
+
+        # 如果更新了配置，需要保存配置
+        if update_config:
+            await config_manager.save_config()
+
+        # 重新加载提示词列表
+        await config_manager.get_prompts(cache=False)
+
+        return JSONResponse(
+            {"success": True, "message": f"{prompt_type}提示词 {name} 更新成功"},
+            status_code=200,
+        )
+    except Exception as e:
+        return JSONResponse(
+            {"success": False, "message": f"更新提示词失败: {e!s}"}, status_code=500
+        )
+
+
+@router.delete("/api/chat/prompts/{prompt_type}/{name}")
+async def delete_prompt(prompt_type: str, name: str):
+    try:
+        if prompt_type not in ["group", "private"]:
+            return JSONResponse(
+                {"success": False, "message": "提示词类型必须是 'group' 或 'private'"},
+                status_code=400,
+            )
+
+        # 禁止删除default提示词
+        if name == "default":
+            return JSONResponse(
+                {"success": False, "message": "不能删除default提示词"}, status_code=400
+            )
+
+        # 确定保存路径
+        prompt_dir = (
+            config_manager.group_prompts
+            if prompt_type == "group"
+            else config_manager.private_prompts
+        )
+        prompt_path = prompt_dir / f"{name}.txt"
+
+        # 检查是否存在
+        if not prompt_path.exists():
+            return JSONResponse(
+                {"success": False, "message": f"{prompt_type}提示词 {name} 不存在"},
+                status_code=404,
+            )
+
+        # 删除文件
+        prompt_path.unlink()
+
+        # 重新加载提示词列表
+        await config_manager.get_prompts(cache=False)
+
+        return JSONResponse(
+            {"success": True, "message": f"{prompt_type}提示词 {name} 删除成功"},
+            status_code=200,
+        )
+    except Exception as e:
+        return JSONResponse(
+            {"success": False, "message": f"删除提示词失败: {e!s}"}, status_code=500
+        )
+
+
+@router.get("/api/chat/prompts")
+async def get_prompts():
+    try:
+        # 重新加载提示词列表以确保最新
+        await config_manager.get_prompts(cache=True)
+
+        # 获取群组提示词列表
+        group_prompts = [
+            {"name": prompt.name, "text": prompt.text}
+            for prompt in config_manager.prompts.group
+        ]
+
+        # 获取私聊提示词列表
+        private_prompts = [
+            {"name": prompt.name, "text": prompt.text}
+            for prompt in config_manager.prompts.private
+        ]
+
+        return JSONResponse(
+            {
+                "success": True,
+                "prompts": {"group": group_prompts, "private": private_prompts},
+            },
+            status_code=200,
+        )
+    except Exception as e:
+        return JSONResponse(
+            {"success": False, "message": f"获取提示词列表失败: {e!s}"},
+            status_code=500,
+        )
+
+
 @on_page("/manage/chat/function", page_name="信息统计", category="聊天管理")
 async def _(ctx: PageContext):
     insight = await InsightsModel.get()
@@ -217,4 +433,27 @@ async def _(ctx: PageContext):
             "current_default": current_default,
             "key_placeholder": KEY_PLACEHOLDER,
         },
+    )
+
+
+@on_page("/manage/chat/prompts", page_name="提示词预设", category="聊天管理")
+async def _(ctx: PageContext):
+    # 重新加载提示词列表以确保最新
+    await config_manager.get_prompts(cache=False)
+
+    # 获取群组提示词列表
+    group_prompts = [
+        {"name": prompt.name, "text": prompt.text}
+        for prompt in config_manager.prompts.group
+    ]
+
+    # 获取私聊提示词列表
+    private_prompts = [
+        {"name": prompt.name, "text": prompt.text}
+        for prompt in config_manager.prompts.private
+    ]
+
+    return PageResponse(
+        name="prompts.html",
+        context={"group_prompts": group_prompts, "private_prompts": private_prompts},
     )

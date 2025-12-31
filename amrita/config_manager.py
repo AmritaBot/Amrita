@@ -35,10 +35,13 @@ class BaseDataManager(ABC, Generic[T]):
 
     config: T  # 配置实例，延迟初始化
     config_class: type[T]  # 配置类类型，用于创建配置实例
-    _task: asyncio.Task  # 配置加载任务
+    _task: asyncio.Task | None = None  # 配置加载任务
     _owner_name: str  # 拥有者插件名称
     _inited: bool = False  # 是否已初始化
     _instance = None  # 单例实例
+    __lateinit__: bool = (
+        False  # 适用于DataManager需要暴露的情况使用，那么此时需要使用safe_get_config.
+    )
 
     def __new__(cls, *args, **kwargs):
         """实现单例模式，确保每个配置类只有一个实例"""
@@ -46,7 +49,8 @@ class BaseDataManager(ABC, Generic[T]):
             cls._instance = super().__new__(cls)
             cls._owner_name = _try_get_caller_plugin().name
             cls.__init_classvars__()
-            cls._instance._init()
+            if not cls.__lateinit__:
+                cls._instance._init()
         return cls._instance
 
     @classmethod
@@ -86,6 +90,9 @@ class BaseDataManager(ABC, Generic[T]):
 
     async def safe_get_config(self) -> T:
         """安全获取配置，等待配置加载完成"""
+        if not self._task:
+            self._init()
+        assert self._task
         if not self._task.done():
             await self._task
         return self.config
@@ -229,6 +236,42 @@ class UniConfigManager(Generic[T]):
         if on_reload:
             await on_reload(owner_name, config_dir / "config.toml")
 
+    async def get_plugin_files(self, owner_name: str | None = None) -> set[Path]:
+        """
+        获取插件注册的文件
+
+        Args:
+            owner_name (str): 插件名
+
+        Returns:
+            set[Path]: 存储的文件
+
+        Raises:
+            KeyError: 插件未注册文件
+        """
+        owner_name = owner_name or _try_get_caller_plugin().name
+        return self._config_other_files[owner_name]
+
+    async def get_cached_file_by_path(
+        self, path: Path, owner_name: str | None = None
+    ) -> StringIO:
+        """
+        获取缓存的文件内容
+
+        Args:
+            path (Path): 相对文件路径
+            owner_name (str | None, optional): 拥有者名称. 默认为None
+
+        Returns:
+            StringIO: 文件内容
+
+        Raises:
+            KeyError: 文件未注册或缓存未命中
+        """
+        owner_name = owner_name or _try_get_caller_plugin().name
+        data_path = get_config_dir(owner_name) / path
+        return self._config_file_cache[str(data_path)]
+
     async def add_file(
         self, name: str, data: str, watch=True, owner_name: str | None = None
     ):
@@ -252,7 +295,7 @@ class UniConfigManager(Generic[T]):
                 self._config_other_files[owner_name].add(file_path)
                 str_io = StringIO()
                 str_io.write(data)
-                self._config_file_cache[owner_name] = str_io
+                self._config_file_cache[str(file_path)] = str_io
         if watch:
             await self._add_watch_path(
                 owner_name,
@@ -527,7 +570,8 @@ class UniConfigManager(Generic[T]):
         filter: FILTER_TYPE,
         *callbacks: CALLBACK_TYPE,
     ):
-        """添加文件监听
+        """
+        添加文件监听
 
         Args:
             plugin_name (str): 插件名称
@@ -580,9 +624,11 @@ class UniConfigManager(Generic[T]):
         """
         logger.info(f"{plugin_name} ({path.name})文件已修改，正在重载中......")
         async with self._lock[plugin_name]:
-            self._config_file_cache[plugin_name] = StringIO()
+            path_str = str(path)
+            if path_str not in self._config_file_cache:
+                self._config_file_cache[path_str] = StringIO()
             async with aiofiles.open(path, encoding="utf-8") as f:
-                self._config_file_cache[plugin_name].write(await f.read())
+                self._config_file_cache[path_str].write(await f.read())
         logger.success(f"{plugin_name} ({path.name})文件已重载")
 
     def _clean_tasks(self):

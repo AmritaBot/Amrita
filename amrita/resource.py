@@ -245,9 +245,15 @@ async def handle_function(event: MessageEvent):
 EXAMPLE_PLUGIN_CONFIG = """# Configuration for {name} plugin
 from pydantic import BaseModel
 from nonebot import get_plugin_config
+from amrita.config_manager import BaseDataManager
+
 class Config(BaseModel):
     ...
     # Add your configuration here
 
+class DataManager(BaseDataManager):
+    config: Config
+
 # Get your config by using `get_plugin_config(Config)`
+# Get your file config by using `await DataManager().safe_get_config()`
 """

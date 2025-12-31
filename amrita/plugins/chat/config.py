@@ -2,11 +2,10 @@ import copy
 import json
 import os
 import re
-import typing
 from copy import deepcopy
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Literal, TypeVar
+from typing import Any, ClassVar, Literal, TypeVar
 
 import aiofiles
 import nonebot_plugin_localstore as store
@@ -16,7 +15,7 @@ from nonebot import get_driver, logger
 from pydantic import BaseModel, Field
 
 from amrita.config import get_amrita_config
-from amrita.config_manager import UniConfigManager
+from amrita.config_manager import BaseDataManager, UniConfigManager
 
 __kernel_version__ = "unknown"
 
@@ -458,34 +457,45 @@ class Prompts:
                 f.write(prompt.text)
 
 
-@dataclass
-class ConfigManager:
+class ConfigManager(BaseDataManager[Config]):
     config_dir: Path = CONFIG_DIR
-    _initialized = False
     private_prompts: Path = config_dir / "private_prompts"
     group_prompts: Path = config_dir / "group_prompts"
     custom_models_dir: Path = config_dir / "models"
-    _private_train: dict[str, Any] = field(default_factory=dict)
-    _group_train: dict[str, Any] = field(default_factory=dict)
-    _model_name2file: dict[str, Path] = field(default_factory=dict)
-    ins_config: Config = field(default_factory=Config)
-    models: list[tuple[ModelPreset, str]] = field(default_factory=list)
-    prompts: Prompts = field(default_factory=Prompts)
+    _private_train: ClassVar[dict[str, Any]] = {}
+    _group_train: ClassVar[dict[str, Any]] = {}
+    _model_name2file: ClassVar[dict[str, Path]] = {}
+    ins_config: Config = Config()
+    models: ClassVar[list[tuple[ModelPreset, str]]] = []
+    prompts: Prompts = Prompts()
+    config: Config
     _config_id: int | None = None
     _cached_env_config: Config | None = None
     _owner_name = store._try_get_caller_plugin().name
+    __lateinit__: bool = True
 
-    @property
-    def config(self) -> Config:
-        conf_id = id(self.ins_config)
-        if conf_id == self._config_id:
-            assert self._cached_env_config
+    def __getattribute__(self, name: str) -> Any:
+        if name == "config":
+            conf_id = id(self.ins_config)
+            if conf_id == self._config_id:
+                assert self._cached_env_config
+                return self._cached_env_config
+            self._config_id = conf_id
+            conf_data: dict[str, Any] = self.ins_config.model_dump()
+            result = replace_env_vars(conf_data)
+            self._cached_env_config = Config.model_validate(result)
             return self._cached_env_config
-        self._config_id = conf_id
-        conf_data: dict[str, Any] = self.ins_config.model_dump()
-        result = replace_env_vars(conf_data)
-        self._cached_env_config = Config.model_validate(result)
-        return self._cached_env_config
+        return super().__getattribute__(name)
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        if name == "config":
+            self._cached_env_config = None
+            self._config_id = None
+            self.ins_config = value
+        return super().__setattr__(name, value)
+
+    async def __apost_init__(self):
+        return await self.load()
 
     async def load(self):
         """_初始化配置目录_"""
@@ -501,21 +511,19 @@ class ConfigManager:
             await self.get_all_presets(False)
             logger.success("完成")
 
-        async def on_load(*args):
-            self.ins_config = typing.cast(Config, await UniConfigManager().get_config())
-
         logger.info("正在初始化存储目录...")
         logger.debug(f"配置目录: {self.config_dir}")
         os.makedirs(self.config_dir, exist_ok=True)
         os.makedirs(self.private_prompts, exist_ok=True)
         os.makedirs(self.group_prompts, exist_ok=True)
         os.makedirs(self.custom_models_dir, exist_ok=True)
-        await UniConfigManager().add_config(Config, on_reload=on_load)
-        await on_load()
+
         await UniConfigManager().add_directory("models", lambda *_: models_callback())
         self.validate_presets()
-        await self.get_all_presets(cache=False)
-        await self.get_prompts(cache=False)
+        ps = await self.get_all_presets(cache=False)
+        logger.info(f"加载了{len(ps)}个模型")
+        p = await self.get_prompts(cache=False)
+        logger.info(f"加载了{len(p.group) + len(p.private)}个提示词")
         await self.load_prompt()
         await UniConfigManager().add_directory(
             "group_prompts",
@@ -624,10 +632,10 @@ class ConfigManager:
         """加载提示词，匹配预设"""
         for prompt in self.prompts.group:
             if prompt.name == self.ins_config.group_prompt_character:
-                self._group_train = {"role": "system", "content": prompt.text}
+                self.__class__._group_train = {"role": "system", "content": prompt.text}
                 break
         else:
-            self._group_train = {
+            self.__class__._group_train = {
                 "role": "system",
                 "content": next(
                     i for i in self.prompts.group if i.name == "default"
@@ -638,28 +646,22 @@ class ConfigManager:
             )
 
         for prompt in self.prompts.private:
-            if prompt.name == self.ins_config.private_prompt_character:
-                self._private_train = {"role": "system", "content": prompt.text}
+            if prompt.name == self.__class__.ins_config.private_prompt_character:
+                self.__class__._private_train = {
+                    "role": "system",
+                    "content": prompt.text,
+                }
                 break
         else:
             logger.warning(
-                f"没有找到名称为 {self.ins_config.private_prompt_character} 的私聊提示词，将使用default.txt！"
+                f"没有找到名称为 {self.__class__.ins_config.private_prompt_character} 的私聊提示词，将使用default.txt！"
             )
-            self._private_train = {
+            self.__class__._private_train = {
                 "role": "system",
                 "content": next(
                     i for i in self.prompts.private if i.name == "default"
                 ).text,
             }
-
-    async def reload(self):
-        """重加载所有内容"""
-
-        await self.load()
-
-    async def reload_config(self):
-        self.ins_config = typing.cast(Config, await UniConfigManager().get_config())
-        logger.info("重载配置文件")
 
     async def save_config(self):
         """保存配置"""

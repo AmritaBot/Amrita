@@ -44,7 +44,7 @@ def get_package_metadata(package_name: str) -> dict[str, Any] | None:
 
 def should_update() -> tuple[bool, str]:
     if metadata := get_package_metadata("amrita"):
-        if metadata["releases"] != {} and version.parse(
+        if metadata["releases"] and version.parse(
             max(list(metadata["releases"].keys()), key=version.parse)
         ) > version.parse(get_amrita_version()):
             latest_version = list(metadata["releases"].keys())[-1]
