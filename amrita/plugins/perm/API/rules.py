@@ -39,7 +39,7 @@ _event_to_key_mapping: dict[str, tuple[str, str]]
 
 
 @event_postprocessor
-async def _(event: Event):  # noqa: RUF029
+async def _(event: Event):
     event_id = event.get_session_id()
     if data := _event_to_key_mapping.get(event_id):
         uni_id, permission = data
