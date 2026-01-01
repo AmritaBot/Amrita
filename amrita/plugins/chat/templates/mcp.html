@@ -597,19 +597,6 @@ extra_css %}
             showAlert("danger", result.message || "添加失败");
           }
         }
-
-        const result = await response.json();
-
-        if (result.success) {
-          showAlert(
-            "success",
-            result.message || (isEdit ? "MCP服务器已更新" : "MCP服务器已添加")
-          );
-          loadMcpServers(); // 重新加载服务器列表
-          closeModal();
-        } else {
-          showAlert("danger", result.message || "操作失败");
-        }
       } catch (error) {
         console.error("保存MCP服务器失败:", error);
         showAlert("danger", "保存失败: " + error.message);
