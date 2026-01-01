@@ -355,9 +355,7 @@ async def get_chat(
     messages = _validate_msg_list(messages)
     presets = await _determine_presets(messages)
 
-    async def _call_api(
-        adapter: ModelAdapter, messages: SEND_MESSAGES
-    ):
+    async def _call_api(adapter: ModelAdapter, messages: SEND_MESSAGES):
         response = await adapter.call_api([(i.model_dump()) for i in messages])
         preset = adapter.preset
         if preset.thought_chain_model:

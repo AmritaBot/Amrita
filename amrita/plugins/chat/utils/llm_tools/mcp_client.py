@@ -260,6 +260,7 @@ class ClientManager:
             for client in self.clients:
                 await self._load_this(client, False)
             self._is_initialized = True
+
     async def unregister_client(self, script_name: str | Path):
         """注销一个 MCP Server"""
         async with self._lock:

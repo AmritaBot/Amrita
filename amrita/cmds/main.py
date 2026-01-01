@@ -2,7 +2,6 @@
 
 该模块实现了Amrita CLI的主要命令，包括项目创建、初始化、运行、依赖检查等功能。
 """
-
 import importlib.metadata as metadata
 import os
 import subprocess
@@ -20,8 +19,7 @@ import toml
 import tomli_w
 from pydantic import BaseModel, Field
 
-import amrita
-from amrita.cmds.wrapper import cwd_to_module
+from amrita.cmds.wrapper import cwd_to_module, require_init
 
 from ..cli import (
     IS_IN_VENV,
@@ -480,14 +478,13 @@ def proj_info():
     }
 )
 @click.argument("orm_args", nargs=-1, type=click.UNPROCESSED)
+@require_init
 def orm(orm_args):
     """直接运行nb-orm命令。
 
     Args:
         orm_args: 传递给orm的参数
     """
-    amrita.init()
-    amrita.load_plugins()
     nonebot.require("nonebot_plugin_orm")
     from nonebot_plugin_orm import __main__
 

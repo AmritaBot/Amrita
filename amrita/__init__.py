@@ -7,8 +7,6 @@ import nonebot
 from nonebot import run
 
 from . import cli
-from .cmds import main as cmd_main
-from .cmds import plugin
 from .config import get_amrita_config
 from .utils.bot_utils import init
 from .utils.plugins import load_plugins

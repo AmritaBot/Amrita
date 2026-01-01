@@ -96,7 +96,8 @@ def run_proc(
         _cleanup_subprocesses()
         sys.exit(0)
     finally:
-        if proc in _subprocesses:
+        # 使用copy()避免在多线程环境中列表被修改
+        if proc in _subprocesses.copy():
             _subprocesses.remove(proc)
 
 
@@ -127,7 +128,8 @@ def stdout_run_proc(cmd: list[str]):
         _cleanup_subprocesses()
         sys.exit(0)
     finally:
-        if proc in _subprocesses:
+        # 使用copy()避免在多线程环境中列表被修改
+        if proc in _subprocesses.copy():
             _subprocesses.remove(proc)
     return stdout.decode("utf-8")
 
@@ -138,18 +140,16 @@ __is_cleaning = False
 def _cleanup_subprocesses():
     """清理所有子进程
 
-    终止所有正在运行的子进程，首先尝试优雅地终止，超时后强制杀死。
+    终止所有正在运行的子进程
     """
     global __is_cleaning
+    if __is_cleaning:
+        return  # 避免重复清理
     __is_cleaning = True
-    for proc in _subprocesses:
-        try:
-            proc.terminate()
-            proc.wait(timeout=2)
-        except subprocess.TimeoutExpired:  # noqa: PERF203
-            proc.kill()
-        except ProcessLookupError:
-            pass  # 进程已经结束
+
+    procs_to_cleanup = _subprocesses.copy()
+    for proc in procs_to_cleanup:
+        proc.kill()
     _subprocesses.clear()
 
 
@@ -164,10 +164,12 @@ def _signal_handler(signum, frame):
     """
     global __is_cleaning
     if __is_cleaning:
-        return
+        # 如果已经在清理过程中，直接退出
+        import os
+
+        os._exit(0)
     click.echo(warn("正在清理进程..."))
     _cleanup_subprocesses()
-    sys.exit(0)
 
 
 # 注册信号处理函数
@@ -374,9 +376,8 @@ IS_IN_VENV = is_in_venv()
 
 
 @click.group()
-def cli():
+def cli(*args, **kwargs):
     """Amrita CLI - PROJ.AmritaBot项目命令行工具"""
-    pass
 
 
 @cli.group()
@@ -388,11 +389,7 @@ def plugin():
 cli.add_command(plugin)
 
 
-def main():
-    """CLI主函数"""
+def main(*args, **kwargs):
     colorama.init()
-    cli()
 
-
-if __name__ == "__main__":
-    main()
+    cli(*args, **kwargs)
