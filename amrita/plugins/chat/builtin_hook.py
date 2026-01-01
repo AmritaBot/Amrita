@@ -79,7 +79,7 @@ async def text_check(event: BeforeChatEvent) -> None:
             function_args: dict[str, Any] = json.loads(tool_call.function.arguments)
             if function_name == REPORT_TOOL.function.name:
                 await report(
-                    nonebot_event,
+                    event,
                     function_args.get("content", ""),
                     typing.cast(Bot, bot),
                 )
@@ -116,7 +116,10 @@ async def agent_core(event: BeforeChatEvent) -> None:
                     if last_step
                     else ""
                 )
-                + (f"\n<INPUT>{original_msg}</INPUT>\n" if original_msg else ""),
+                + (f"\n<INPUT>\n{original_msg}\n</INPUT>\n" if original_msg else "")
+                + (
+                    f"<SYS_SETTINGS>\n{event._send_message[0].content!s}\n</SYS_SETTINGS>"
+                ),
             ),
             *msg,
         ]
@@ -266,10 +269,17 @@ async def agent_core(event: BeforeChatEvent) -> None:
                     call_count += 1
             if config_manager.config.llm_config.tools.agent_mode_enable:
                 # 发送工具调用信息给用户
-                await bot.send(
-                    nonebot_event,
-                    f"调用了函数{''.join([f'`{i.function.name}`,' for i in tool_calls])}",
-                )
+                if (
+                    config_manager.config.llm_config.tools.agent_tool_call_notice
+                    == "notify"
+                ):
+                    message = "".join(
+                        f"✅ 调用了工具 {i.name}\n"
+                        for i in result_msg_list
+                        if getattr(ToolsManager().get_tool(i.name), "on_call", "")
+                        == "show"
+                    )
+                    await bot.send(nonebot_event, message)
                 observation_msg = "\n".join(
                     [f"{result.name}: {result.content}\n" for result in result_msg_list]
                 )

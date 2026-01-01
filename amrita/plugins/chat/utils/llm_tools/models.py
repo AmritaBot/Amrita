@@ -86,7 +86,7 @@ class FunctionParametersSchema(BaseModel):
         default=None, description="参数属性定义"
     )
 
-    required: list[str] = Field([], description="必需参数列表")
+    required: list[str] = Field(default_factory=list, description="必需参数列表")
 
 
 class FunctionDefinitionSchema(BaseModel):
@@ -127,4 +127,8 @@ class ToolData(BaseModel):
     custom_run: bool = Field(
         default=False,
         description="是否自定义运行，如果启用则会传入Context类而不是dict，并且不会强制要求返回值。",
+    )
+    on_call: Literal["hide", "show"] = Field(
+        default="show",
+        description="是否显示此工具调用",
     )

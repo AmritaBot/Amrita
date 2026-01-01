@@ -25,8 +25,8 @@ class BaseDataManager(ABC, Generic[T]):
     """
     配置数据管理器基类，实现基于类型注解的自动配置类推导
 
-    该类实现了灵活的配置管理机制，开发者只需声明 config 或 config_class
-    中的任意一个类型注解，系统将自动推导另一个，实现类型安全的配置管理。
+    该类实现了灵活的配置管理机制，开发者只需声明 config 的类型注解或 config_class = MyConfig
+    中的任意一个，系统将自动推导另一个，实现类型安全的配置管理。
 
     使用方式：
     - 方式1：class MyDataManager(BaseDataManager[MyConfig]): config: MyConfig
