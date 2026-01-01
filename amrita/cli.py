@@ -153,9 +153,8 @@ def _cleanup_subprocesses():
         with contextlib.suppress(Exception):
             try:
                 proc.terminate()
-                proc.wait(timeout=3)
+                proc.wait(timeout=2)
             except subprocess.TimeoutExpired:
-                click.echo(warning("子进程未响应，正在强制终止..."))
                 proc.kill()
     _subprocesses.clear()
 
