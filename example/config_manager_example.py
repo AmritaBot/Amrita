@@ -21,8 +21,8 @@ class ExampleConfig(BaseModel):
     enable: bool = Field(default=True, description="是否启用功能")
     max_connections: int = Field(default=10, description="最大连接数")
     timeout: float = Field(default=30.0, description="超时时间（秒）")
-    allowed_users: list[str] = Field(default=[], description="允许的用户列表")
-    api_keys: dict[str, str] = Field(default={}, description="API密钥映射")
+    allowed_users: list[str] = Field(default_factory=list, description="允许的用户列表")
+    api_keys: dict[str, str] = Field(default_factory=dict, description="API密钥映射")
 
 
 # 创建配置管理器
