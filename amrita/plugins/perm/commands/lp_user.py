@@ -155,7 +155,7 @@ async def lp_user_perm_group(
 
     store = PermissionStorage()
     msg_str = ""
-    if target in DefaultPermissionGroupsEnum:
+    if any(name.value == target for name in DefaultPermissionGroupsEnum):
         await matcher.finish("不允许操作默认权限组")
     if operation == "add":
         if not await store.is_member_in_permission_group(id, "user", target):

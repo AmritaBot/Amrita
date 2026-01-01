@@ -379,9 +379,11 @@ class PermissionStorage:
             group_name (str): 权限组名
 
         Raises:
-            ValueError: 不存在则抛出
+            ValueError: 不存在或不合法则抛出
         """
         async with self._action_lock[group_name]:
+            if any(name.value == group_name for name in DefaultPermissionGroupsEnum):
+                raise ValueError(f"默认权限组`{group_name}`不能删除")
             if not (
                 group_name in self._cached_permission_group_data
                 or await self.permission_group_exists(group_name)

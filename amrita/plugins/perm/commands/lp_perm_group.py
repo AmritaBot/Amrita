@@ -155,7 +155,7 @@ async def lp_perm_group_to(
     operation = args_list[0]  # 操作
 
     store = PermissionStorage()
-    if id in DefaultPermissionGroupsEnum:
+    if any(name.value == id for name in DefaultPermissionGroupsEnum):
         await matcher.finish("❌ 默认权限组不允许被删除")
     if operation == "create":
         # 检查权限组是否已存在

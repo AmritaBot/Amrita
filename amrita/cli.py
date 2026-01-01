@@ -3,6 +3,7 @@
 该模块提供了Amrita项目的命令行界面工具，用于项目管理、依赖检查、插件管理等功能。
 """
 
+import contextlib
 import os
 import signal
 import subprocess
@@ -149,7 +150,13 @@ def _cleanup_subprocesses():
 
     procs_to_cleanup = _subprocesses.copy()
     for proc in procs_to_cleanup:
-        proc.kill()
+        with contextlib.suppress(Exception):
+            try:
+                proc.terminate()
+                proc.wait(timeout=3)
+            except subprocess.TimeoutExpired:
+                click.echo(warning("子进程未响应，正在强制终止..."))
+                proc.kill()
     _subprocesses.clear()
 
 
