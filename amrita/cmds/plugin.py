@@ -5,13 +5,13 @@
 
 import os
 import subprocess
+import typing
 from pathlib import Path
 from subprocess import CalledProcessError
 
 import click
-import toml
-import tomli
-import tomli_w
+import tomlkit
+from tomlkit.items import Array
 
 from amrita.cli import (
     error,
@@ -49,14 +49,19 @@ def pypi_install(name: str):
         return
     click.echo(info("正在安装..."))
     with open("pyproject.toml", encoding="utf-8") as f:
-        data = toml.load(f)
-        if "nonebot" not in data["tool"]:
-            data["tool"]["nonebot"] = {}
-            data["tool"]["nonebot"]["plugins"] = []
-        if name.replace("-", "_") not in data["tool"]["nonebot"]["plugins"]:
-            data["tool"]["nonebot"]["plugins"].append(name.replace("-", "_"))
+        data = tomlkit.load(f)
+        data_unwrapped = data.unwrap()
+        data.setdefault("tool", {})
+        data["tool"].setdefault("nonebot", {})  # type: ignore
+        data["tool"].setdefault("amrita", {})  # type: ignore
+        data["tool"]["amrita"].setdefault("plugins", [])  # type: ignore
+        data["tool"]["nonebot"].setdefault("plugins", [])  # type: ignore
+        if name.replace("-", "_") not in data_unwrapped["tool"]["amrita"]["plugins"]:
+            typing.cast(Array, data["tool"]["amrita"]["plugins"]).extend(  # type: ignore
+                [name.replace("-", "_")]
+            )
     with open("pyproject.toml", "w", encoding="utf-8") as f:
-        toml.dump(data, f)
+        f.write(tomlkit.dumps(data))
     click.echo(success(f"插件 {name} 已添加到 pyproject.toml 并成功安装。"))
 
 
@@ -119,11 +124,9 @@ def new(name: str):
 
     # 创建插件文件
     with open(plugin_dir / "__init__.py", "w", encoding="utf-8") as f:
-        f.write(
-            f"from . import {name.replace('-', '_')}\n\n__all__ = ['{name.replace('-', '_')}']\n"
-        )
+        f.write("from . import main\n\n__all__ = ['main']\n")
 
-    with open(plugin_dir / f"{name.replace('-', '_')}.py", "w", encoding="utf-8") as f:
+    with open(plugin_dir / "main.py", "w", encoding="utf-8") as f:
         f.write(EXAMPLE_PLUGIN.format(name=name.replace("-", "_")))
 
     # 创建配置文件
@@ -160,21 +163,21 @@ def remove(name: str):
                 "pyproject.toml",
                 "rb",
             ) as f:
-                data = tomli.load(f)
-                if "tool" in data:
-                    if "nonebot" in data["tool"]:
-                        if "plugins" in data["tool"]["nonebot"]:
-                            if (
-                                name.replace("-", "_")
-                                in data["tool"]["nonebot"]["plugins"]
-                            ):
-                                plugins_list: PY_LIST[str] = PY_LIST(
-                                    data["tool"]["nonebot"]["plugins"]
-                                )
-                                plugins_list.remove(name.replace("-", "_"))
-                                data["tool"]["nonebot"]["plugins"] = plugins_list
-            with open("pyproject.toml", "wb") as f:
-                tomli_w.dump(data, f)
+                data = tomlkit.load(f)
+                # 修复类型错误：根据 TOML Kit 文档，正确访问嵌套结构
+
+                plugins_item: PY_LIST[str] = data.unwrap()["tool"]["nonebot"]["plugins"]
+                # 检查是否包含要删除的插件名
+                if name.replace("-", "_") in plugins_item:
+                    plugins_list: PY_LIST[str] = PY_LIST(plugins_item)
+                    plugins_list.remove(name.replace("-", "_"))
+                    data["tool"]["nonebot"]["plugins"] = tomlkit.array()  # type: ignore
+                    typing.cast(Array, data["tool"]["nonebot"]["plugins"]).extend(  # type: ignore
+                        plugins_list
+                    )
+
+            with open("pyproject.toml", "w") as f:
+                f.write(tomlkit.dumps(data))
             run_proc(
                 ["uv", "remove", name.replace("-", "_")],
                 stdout=subprocess.PIPE,

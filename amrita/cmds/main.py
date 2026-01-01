@@ -14,11 +14,13 @@ from typing import Any
 
 import click
 import nonebot
+import packaging
+import packaging.version
 import toml
 import tomli_w
 from pydantic import BaseModel, Field
 
-import amrita
+from amrita.cmds.wrapper import cwd_to_module, require_init
 
 from ..cli import (
     IS_IN_VENV,
@@ -26,6 +28,7 @@ from ..cli import (
     check_optional_dependency,
     cli,
     error,
+    get_package_metadata,
     info,
     install_optional_dependency,
     install_optional_dependency_no_venv,
@@ -343,6 +346,7 @@ def entry():
         )
 
 
+@cwd_to_module
 @cli.command()
 @click.option("--run", "-r", is_flag=True, help="运行项目而不安装依赖。")
 def run(run: bool):
@@ -353,9 +357,6 @@ def run(run: bool):
     """
     if run:
         try:
-            # 添加当前目录到sys.path以确保插件能被正确导入
-            if "." not in sys.path:
-                sys.path.insert(0, ".")
             from amrita import bot
 
             bot.main()
@@ -478,14 +479,13 @@ def proj_info():
     }
 )
 @click.argument("orm_args", nargs=-1, type=click.UNPROCESSED)
+@require_init
 def orm(orm_args):
     """直接运行nb-orm命令。
 
     Args:
         orm_args: 传递给orm的参数
     """
-    amrita.init()
-    amrita.load_plugins()
     nonebot.require("nonebot_plugin_orm")
     from nonebot_plugin_orm import __main__
 
@@ -542,20 +542,12 @@ def nb(nb_args):
         click.echo(error("nb-cli 不可用。请使用 'uv add nb-cli' 安装"))
         return
 
-    try:
-        # 将参数传递给nb-cli
-        click.echo(info("正在运行 nb-cli..."))
-        run_proc(["nb", *list(nb_args)])
-    except subprocess.CalledProcessError as e:
-        if e.returncode == 127:
-            click.echo(error("nb-cli 不可用。请使用 'uv add nb-cli' 安装"))
-        elif e.returncode == 2:
-            click.echo(error(bytes(e.stdout).decode("utf-8")))
-            click.echo(error("nb-cli 命令失败，您的命令是否正确？"))
-        else:
-            click.echo(error(f"nb-cli 命令失败，退出代码 {e.returncode}"))
+    from nb_cli import __main__
+
+    __main__.main(nb_args)
 
 
+@cwd_to_module
 @cli.command()
 @click.option("--ignore-venv", "-i", is_flag=True, help="忽略Venv环境")
 def test(ignore_venv: bool):
@@ -579,10 +571,12 @@ def test(ignore_venv: bool):
 
 
 @cli.command()
-def update():
+@click.option("--ignore-venv", "-i", is_flag=True, help="忽略Venv环境")
+def update(ignore_venv):
     """更新Amrita"""
     click.echo(info("正在检查更新..."))
     need_update, version = should_update()
+    version = packaging.version.parse(version)
     if need_update:
         if not IS_IN_VENV:
             click.echo(warn(f"新版本的Amrita已就绪: {version}"))
@@ -591,17 +585,16 @@ def update():
             ["pip", "install", f"amrita=={version}"]
             + (["--break-system-packages"] if sys.platform.lower() == "linux" else [])
         )
-    if not IS_IN_VENV:
+    if not IS_IN_VENV or not ignore_venv:
         click.echo(info("正在检查虚拟环境Amrita..."))
         if not os.path.exists(".venv"):
             click.echo(warn("未找到虚拟环境，已跳过。"))
             return
-        venv_version = (
-            stdout_run_proc(["uv", "run", "pip", "show", "amrita"])
-            .split("\n")[1]
-            .split(" ")[1]
-            .strip()
-        )
+        meta = get_package_metadata("amrita")
+        if not meta:
+            click.echo(warn("未找到虚拟环境Amrita，已跳过。"))
+            return
+        venv_version = packaging.version.parse(meta["version"])
         click.echo(info(f"检测到虚拟环境Amrita: {venv_version}，目标：{version}"))
         if venv_version < version:
             click.echo(info("正在更新虚拟环境Amrita..."))

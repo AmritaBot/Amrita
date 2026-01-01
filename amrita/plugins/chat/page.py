@@ -1,9 +1,12 @@
 from pathlib import Path
 from typing import Any
 
+import aiofiles
+from fastapi import Query
 from nonebot import logger
 
 from amrita.plugins.chat.config import config_manager
+from amrita.plugins.chat.utils.llm_tools.mcp_client import ClientManager
 from amrita.plugins.chat.utils.models import InsightsModel
 from amrita.plugins.webui.API import (
     JSONResponse,
@@ -169,6 +172,410 @@ async def get_models():
         )
 
 
+@router.post("/api/chat/prompts/{prompt_type}")
+async def create_prompt(request: Request, prompt_type: str):
+    try:
+        data = await request.json()
+        name = data.get("name")
+        text = data.get("text", "")
+
+        if not name:
+            return JSONResponse(
+                {"success": False, "message": "缺少提示词名称"}, status_code=400
+            )
+
+        if prompt_type not in ["group", "private"]:
+            return JSONResponse(
+                {"success": False, "message": "提示词类型必须是 'group' 或 'private'"},
+                status_code=400,
+            )
+
+        # 确定保存路径
+        prompt_dir = (
+            config_manager.group_prompts
+            if prompt_type == "group"
+            else config_manager.private_prompts
+        )
+        prompt_path = prompt_dir / f"{name}.txt"
+
+        # 检查是否已存在
+        if prompt_path.exists():
+            return JSONResponse(
+                {"success": False, "message": f"{prompt_type}提示词 {name} 已存在"},
+                status_code=400,
+            )
+
+        # 保存提示词到文件
+        async with aiofiles.open(prompt_path, "w", encoding="utf-8") as f:
+            await f.write(text)
+
+        # 重新加载提示词列表
+        await config_manager.get_prompts(cache=False)
+
+        return JSONResponse(
+            {"success": True, "message": f"{prompt_type}提示词 {name} 创建成功"},
+            status_code=200,
+        )
+    except Exception as e:
+        return JSONResponse(
+            {"success": False, "message": f"创建提示词失败: {e!s}"}, status_code=500
+        )
+
+
+@router.put("/api/chat/prompts/{prompt_type}/{name}")
+async def update_prompt(request: Request, prompt_type: str, name: str):
+    try:
+        data = await request.json()
+        text = data.get("text", "")
+
+        if prompt_type not in ["group", "private"]:
+            return JSONResponse(
+                {"success": False, "message": "提示词类型必须是 'group' 或 'private'"},
+                status_code=400,
+            )
+
+        # 确定保存路径
+        prompt_dir = (
+            config_manager.group_prompts
+            if prompt_type == "group"
+            else config_manager.private_prompts
+        )
+        prompt_path = prompt_dir / f"{name}.txt"
+
+        # 检查是否存在
+        if not prompt_path.exists():
+            return JSONResponse(
+                {"success": False, "message": f"{prompt_type}提示词 {name} 不存在"},
+                status_code=404,
+            )
+
+        # 检查是否为default提示词，如果是则不允许改名
+        new_name = data.get("name", name)
+        if name == "default" and new_name != "default":
+            return JSONResponse(
+                {"success": False, "message": "default提示词不允许改名"},
+                status_code=400,
+            )
+
+        # 如果是当前提示词，需要更新配置
+        update_config = False
+        if (
+            prompt_type == "group"
+            and config_manager.config.group_prompt_character == name
+        ):
+            update_config = True
+            config_manager.ins_config.group_prompt_character = new_name
+        elif (
+            prompt_type == "private"
+            and config_manager.config.private_prompt_character == name
+        ):
+            update_config = True
+            config_manager.ins_config.private_prompt_character = new_name
+
+        # 如果改名了，需要删除旧文件并创建新文件
+        if new_name != name:
+            new_prompt_path = prompt_dir / f"{new_name}.txt"
+            if new_prompt_path.exists():
+                return JSONResponse(
+                    {
+                        "success": False,
+                        "message": f"{prompt_type}提示词 {new_name} 已存在",
+                    },
+                    status_code=400,
+                )
+
+            # 重命名文件
+            prompt_path.rename(new_prompt_path)
+            prompt_path = new_prompt_path
+
+        # 更新提示词到文件
+        async with aiofiles.open(prompt_path, "w", encoding="utf-8") as f:
+            await f.write(text)
+
+        # 如果更新了配置，需要保存配置
+        if update_config:
+            await config_manager.save_config()
+
+        # 重新加载提示词列表
+        await config_manager.get_prompts(cache=False)
+
+        return JSONResponse(
+            {"success": True, "message": f"{prompt_type}提示词 {name} 更新成功"},
+            status_code=200,
+        )
+    except Exception as e:
+        return JSONResponse(
+            {"success": False, "message": f"更新提示词失败: {e!s}"}, status_code=500
+        )
+
+
+@router.delete("/api/chat/prompts/{prompt_type}/{name}")
+async def delete_prompt(prompt_type: str, name: str):
+    try:
+        if prompt_type not in ["group", "private"]:
+            return JSONResponse(
+                {"success": False, "message": "提示词类型必须是 'group' 或 'private'"},
+                status_code=400,
+            )
+
+        # 禁止删除default提示词
+        if name == "default":
+            return JSONResponse(
+                {"success": False, "message": "不能删除default提示词"}, status_code=400
+            )
+
+        # 确定保存路径
+        prompt_dir = (
+            config_manager.group_prompts
+            if prompt_type == "group"
+            else config_manager.private_prompts
+        )
+        prompt_path = prompt_dir / f"{name}.txt"
+
+        # 检查是否存在
+        if not prompt_path.exists():
+            return JSONResponse(
+                {"success": False, "message": f"{prompt_type}提示词 {name} 不存在"},
+                status_code=404,
+            )
+
+        # 删除文件
+        prompt_path.unlink()
+
+        # 重新加载提示词列表
+        await config_manager.get_prompts(cache=False)
+
+        return JSONResponse(
+            {"success": True, "message": f"{prompt_type}提示词 {name} 删除成功"},
+            status_code=200,
+        )
+    except Exception as e:
+        return JSONResponse(
+            {"success": False, "message": f"删除提示词失败: {e!s}"}, status_code=500
+        )
+
+
+@router.get("/api/chat/prompts")
+async def get_prompts():
+    try:
+        # 重新加载提示词列表以确保最新
+        await config_manager.get_prompts(cache=True)
+
+        # 获取群组提示词列表
+        group_prompts = [
+            {"name": prompt.name, "text": prompt.text}
+            for prompt in config_manager.prompts.group
+        ]
+
+        # 获取私聊提示词列表
+        private_prompts = [
+            {"name": prompt.name, "text": prompt.text}
+            for prompt in config_manager.prompts.private
+        ]
+
+        return JSONResponse(
+            {
+                "success": True,
+                "prompts": {"group": group_prompts, "private": private_prompts},
+            },
+            status_code=200,
+        )
+    except Exception as e:
+        return JSONResponse(
+            {"success": False, "message": f"获取提示词列表失败: {e!s}"},
+            status_code=500,
+        )
+
+
+@router.get("/api/chat/mcp/servers")
+async def get_mcp_servers():
+    """获取MCP服务器列表"""
+    try:
+        client_manager = ClientManager()
+        servers = []
+
+        for client in client_manager.clients:
+            client.get_tools()
+            server_info = {
+                "server_script": str(client.server_script),
+                "tools_count": len(client.openai_tools),
+                "status": "connected",
+            }
+            servers.append(server_info)
+
+        # 获取配置中所有已定义的服务器脚本
+        config_scripts = config_manager.config.llm_config.tools.agent_mcp_server_scripts
+        for script in config_scripts:
+            if script not in [s["server_script"] for s in servers]:
+                servers.append(
+                    {
+                        "server_script": script,
+                        "tools_count": 0,
+                        "status": "disconnected",
+                    }
+                )
+
+        return JSONResponse({"success": True, "servers": servers}, status_code=200)
+    except Exception as e:
+        logger.opt(exception=e, colors=True).error("获取MCP服务器列表失败")
+        return JSONResponse(
+            {
+                "success": False,
+                "message": "获取MCP服务器列表失败，请检查服务器日志获取详细信息",
+            },
+            status_code=500,
+        )
+
+
+@router.post("/api/chat/mcp/servers")
+async def add_mcp_server(request: Request):
+    """添加MCP服务器"""
+    try:
+        data = await request.json()
+        server_script = data.get("server_script")
+
+        if not server_script:
+            return JSONResponse(
+                {"success": False, "message": "缺少服务器脚本路径"}, status_code=400
+            )
+
+        config = config_manager.ins_config
+        if server_script in config.llm_config.tools.agent_mcp_server_scripts:
+            return JSONResponse(
+                {"success": False, "message": "MCP服务器已存在"}, status_code=400
+            )
+
+        # 尝试初始化MCP服务器
+        client_manager = ClientManager()
+        await client_manager.initialize_this(server_script)
+
+        # 保存到配置
+        config.llm_config.tools.agent_mcp_server_scripts.append(server_script)
+        await config_manager.save_config()
+
+        return JSONResponse(
+            {"success": True, "message": f"MCP服务器 {server_script} 添加成功"},
+            status_code=200,
+        )
+    except Exception as e:
+        logger.opt(exception=e, colors=True).error("添加MCP服务器失败")
+        return JSONResponse(
+            {
+                "success": False,
+                "message": "添加MCP服务器失败，请检查服务器日志获取详细信息",
+            },
+            status_code=500,
+        )
+
+
+@router.put("/api/chat/mcp/servers")
+async def update_mcp_server(request: Request, server_script: str | None = None):
+    """更新MCP服务器"""
+    try:
+        data = await request.json()
+        new_server_script = data.get("server_script")
+        old_server_script = data.get("id") or server_script
+
+        if not new_server_script:
+            return JSONResponse(
+                {"success": False, "message": "缺少服务器脚本路径"}, status_code=400
+            )
+
+        if not old_server_script:
+            return JSONResponse(
+                {"success": False, "message": "缺少原始服务器脚本路径"}, status_code=400
+            )
+
+        config = config_manager.ins_config
+        if old_server_script not in config.llm_config.tools.agent_mcp_server_scripts:
+            return JSONResponse(
+                {"success": False, "message": "MCP服务器不存在"}, status_code=404
+            )
+
+        # 从配置中移除旧服务器
+        config.llm_config.tools.agent_mcp_server_scripts.remove(old_server_script)
+
+        # 注销旧客户端
+        client_manager = ClientManager()
+        await client_manager.unregister_client(old_server_script)
+
+        # 尝试初始化新MCP服务器
+        await client_manager.initialize_this(new_server_script)
+
+        # 添加新服务器到配置
+        config.llm_config.tools.agent_mcp_server_scripts.append(new_server_script)
+        await config_manager.save_config()
+
+        return JSONResponse(
+            {
+                "success": True,
+                "message": f"MCP服务器 {old_server_script} 已更新为 {new_server_script}",
+            },
+            status_code=200,
+        )
+    except Exception as e:
+        logger.opt(exception=e, colors=True).error("更新MCP服务器失败")
+        return JSONResponse(
+            {
+                "success": False,
+                "message": "更新MCP服务器失败，请检查服务器日志获取详细信息",
+            },
+            status_code=500,
+        )
+
+
+@router.delete("/api/chat/mcp/servers")
+async def delete_mcp_server(
+    server_script: str = Query(..., description="服务器脚本路径"),
+):
+    """删除MCP服务器"""
+    try:
+        config = config_manager.ins_config
+        if server_script not in config.llm_config.tools.agent_mcp_server_scripts:
+            return JSONResponse(
+                {"success": False, "message": "MCP服务器不存在"}, status_code=404
+            )
+
+        # 从配置中移除
+        config.llm_config.tools.agent_mcp_server_scripts.remove(server_script)
+
+        # 注销客户端
+        client_manager = ClientManager()
+        await client_manager.unregister_client(server_script)
+
+        # 保存配置
+        await config_manager.save_config()
+
+        return JSONResponse(
+            {"success": True, "message": f"MCP服务器 {server_script} 删除成功"},
+            status_code=200,
+        )
+    except Exception as e:
+        logger.opt(exception=e, colors=True).error("删除MCP服务器失败")
+        return JSONResponse(
+            {"success": False, "message": "删除MCP服务器失败"},
+            status_code=500,
+        )
+
+
+@router.post("/api/chat/mcp/servers/reload")
+async def reload_mcp_servers():
+    """重载所有MCP服务器"""
+    try:
+        client_manager = ClientManager()
+        await client_manager.initialize_all()
+
+        return JSONResponse(
+            {"success": True, "message": "MCP服务器重载成功"}, status_code=200
+        )
+    except Exception as e:
+        logger.opt(exception=e, colors=True).error("重载MCP服务器失败")
+        return JSONResponse(
+            {"success": False, "message": "重载MCP服务器失败"},
+            status_code=500,
+        )
+
+
 @on_page("/manage/chat/function", page_name="信息统计", category="聊天管理")
 async def _(ctx: PageContext):
     insight = await InsightsModel.get()
@@ -217,4 +624,35 @@ async def _(ctx: PageContext):
             "current_default": current_default,
             "key_placeholder": KEY_PLACEHOLDER,
         },
+    )
+
+
+@on_page("/manage/chat/prompts", page_name="提示词预设", category="聊天管理")
+async def _(ctx: PageContext):
+    # 重新加载提示词列表以确保最新
+    await config_manager.get_prompts(cache=False)
+
+    # 获取群组提示词列表
+    group_prompts = [
+        {"name": prompt.name, "text": prompt.text}
+        for prompt in config_manager.prompts.group
+    ]
+
+    # 获取私聊提示词列表
+    private_prompts = [
+        {"name": prompt.name, "text": prompt.text}
+        for prompt in config_manager.prompts.private
+    ]
+
+    return PageResponse(
+        name="prompts.html",
+        context={"group_prompts": group_prompts, "private_prompts": private_prompts},
+    )
+
+
+@on_page("/manage/chat/mcp", page_name="MCP服务器", category="聊天管理")
+async def _(ctx: PageContext):
+    return PageResponse(
+        name="mcp.html",
+        context={},
     )

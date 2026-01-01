@@ -67,7 +67,7 @@ class MCPClient:
         self.mcp_client = Client(server_script)
         await self.mcp_client.__aenter__()
         logger.info(f"✅ 成功连接到 MCP Server@{server_script}")
-        if self.tools is None or update_tools:
+        if not self.tools or update_tools:
             tools = await self.mcp_client.list_tools()
             self.tools = tools
             logger.info(f"🛠️  可用工具: {[tool.name for tool in tools]}")

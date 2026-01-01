@@ -8,6 +8,11 @@ import toml
 from amrita.config import get_amrita_config
 
 
+def add_module_dir(module_dir: str):
+    if module_dir not in sys.path:
+        sys.path.insert(0, module_dir)
+
+
 def apply_alias():
     from ..plugins import chat
 

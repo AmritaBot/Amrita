@@ -78,26 +78,16 @@ class BL_Manager:
         BL_Manager.del_cache("private", user_id)
         async with get_session() as session:
             stmt = delete(PrivateBlacklist).where(PrivateBlacklist.user_id == user_id)
-            result = await session.execute(stmt)
+            await session.execute(stmt)
             await session.commit()
-            deleted_count = result.rowcount
-            if deleted_count:
-                logger.info(f"移除黑名单用户：{user_id}")
-            else:
-                logger.warning(f"用户{user_id}不在黑名单中")
 
     @staticmethod
     async def group_remove(group_id: str):
         BL_Manager.del_cache("group", group_id)
         async with get_session() as session:
             stmt = delete(GroupBlacklist).where(GroupBlacklist.group_id == group_id)
-            result = await session.execute(stmt)
+            await session.execute(stmt)
             await session.commit()
-            deleted_count = result.rowcount
-            if deleted_count:
-                logger.info(f"移除黑名单群组：{group_id}")
-            else:
-                logger.warning(f"群组{group_id}不在黑名单中")
 
     @staticmethod
     @alru_cache(1024)

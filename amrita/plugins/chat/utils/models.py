@@ -225,7 +225,7 @@ class InsightsModel(BaseModel):
                     await session.commit()
 
     @staticmethod
-    async def _delete_expired(*, days: int, session: AsyncSession) -> int:
+    async def _delete_expired(*, days: int, session: AsyncSession) -> None:
         """
         删除过期的记录
 
@@ -239,9 +239,8 @@ class InsightsModel(BaseModel):
         stmt = delete(GlobalInsights).where(
             GlobalInsights.date < cutoff_date.strftime("%Y-%m-%d")
         )
-        result = await session.execute(stmt)
+        await session.execute(stmt)
         await session.commit()
-        return result.rowcount
 
 
 # Sqlalchemy 模型
@@ -366,3 +365,6 @@ async def get_or_create_data(
             group_config = (await session.execute(stmt)).scalar_one()
         session.add(group_config)
         return group_config, memory
+
+
+SEND_MESSAGES = list[Message | ToolResult]
