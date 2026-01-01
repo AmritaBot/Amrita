@@ -9,6 +9,7 @@ from amrita.plugins.menu.models import MatcherData
 from ..API.admin import is_lp_admin
 from ..command_manager import command
 from ..models import (
+    DefaultPermissionGroupsEnum,
     PermissionStorage,
 )
 from ..nodelib import Permissions
@@ -154,7 +155,8 @@ async def lp_user_perm_group(
 
     store = PermissionStorage()
     msg_str = ""
-
+    if target in DefaultPermissionGroupsEnum:
+        await matcher.finish("不允许操作默认权限组")
     if operation == "add":
         if not await store.is_member_in_permission_group(id, "user", target):
             # 检查权限组是否存在

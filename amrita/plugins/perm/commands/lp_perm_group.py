@@ -9,6 +9,7 @@ from amrita.plugins.menu.models import MatcherData
 from ..API.admin import is_lp_admin
 from ..command_manager import command
 from ..models import (
+    DefaultPermissionGroupsEnum,
     PermissionStorage,
 )
 from ..nodelib import Permissions
@@ -154,6 +155,8 @@ async def lp_perm_group_to(
     operation = args_list[0]  # 操作
 
     store = PermissionStorage()
+    if id in DefaultPermissionGroupsEnum:
+        await matcher.finish("❌ 默认权限组不允许被删除")
     if operation == "create":
         # 检查权限组是否已存在
         if await store.permission_group_exists(id):
@@ -172,6 +175,14 @@ async def lp_perm_group_to(
         await matcher.finish("❌ 操作错误，仅支持 create/remove")
 
 
+@command.command("perm_group.list ", permission=is_lp_admin).handle()
+async def _(matcher: Matcher):
+    perm_groups = await PermissionStorage().get_all_perm_groups()
+    await matcher.finish(
+        "权限组列表：\n" + "".join([f"{group.group_name}\n" for group in perm_groups])
+    )
+
+
 # 运行进入点
 @command.command(
     "perm_group",
@@ -179,11 +190,13 @@ async def lp_perm_group_to(
     state=MatcherData(
         name="lp权限组配置",
         description="配置权限组权限",
-        usage="/lp.perm_group.[to|parent|permission]",
+        usage="/lp.perm_group.[to|parent|permission|list]",
     ).model_dump(),
 ).handle()
 async def lp_perm_group(
     event: MessageEvent,
     matcher: Matcher,
 ):
-    await matcher.send("请使用 /lp.perm_group.[to|parent|permission] 指令进行操作。")
+    await matcher.send(
+        "请使用 /lp.perm_group.[to|parent|permission|list] 指令进行操作。"
+    )

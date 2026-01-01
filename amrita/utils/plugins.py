@@ -5,8 +5,6 @@ from pathlib import Path
 import nonebot
 import toml
 
-from amrita.config import get_amrita_config
-
 
 def add_module_dir(module_dir: str):
     if module_dir not in sys.path:
@@ -20,11 +18,9 @@ def apply_alias():
 
 
 def load_plugins():
-    config = get_amrita_config()
     nonebot.load_from_toml("pyproject.toml")
     for name in (Path(__file__).parent.parent / "plugins").iterdir():
-        if name in config.disabled_builtin_plugins:
-            continue
+        # 修改说明：为了Amrita项目的完整性，内置插件不会再允许被禁用。
         nonebot.logger.debug(f"Require built-in plugin {name.name}...")
         nonebot.require(f"amrita.plugins.{name.name}")
     nonebot.logger.debug("Appling Patches")

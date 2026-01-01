@@ -24,6 +24,17 @@ from amrita.plugins.perm import nodelib
 PERM_TYPE = Literal["group", "user"]
 
 
+class DefaultPermissionGroupsEnum(str, Enum):
+    """
+    默认权限组枚举类
+
+    用于定义默认的权限组名称。
+    """
+
+    default = "default"
+    default_group = "default_group"
+
+
 class OnDeleteEnum(str, Enum):
     CASCADE = "CASCADE"
     RESTRICT = "RESTRICT"

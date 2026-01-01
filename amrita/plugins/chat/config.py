@@ -119,6 +119,10 @@ class ToolsConfig(BaseModel):
     agent_tool_call_limit: int = Field(
         default=10, description="智能体模式下的工具调用限制"
     )
+    agent_tool_call_notice: Literal["hide", "notify"] = Field(
+        default="hide",
+        description="智能体模式下的工具调用情况提示方式，hide为隐藏，notify为通知",
+    )
     agent_thought_mode: Literal[
         "reasoning", "chat", "reasoning-required", "reasoning-optional"
     ] = Field(
@@ -472,7 +476,7 @@ class ConfigManager(BaseDataManager[Config]):
     _config_id: int | None = None
     _cached_env_config: Config | None = None
     _owner_name = store._try_get_caller_plugin().name
-    __lateinit__: bool = True
+    __lateinit__ = True
 
     def __getattribute__(self, name: str) -> Any:
         if name == "config":

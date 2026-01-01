@@ -21,7 +21,7 @@ class AmritaConfig(BaseModel):
     admin_group: int = -1
 
     # 禁用的内置插件列表
-    disabled_builtin_plugins: list[Literal["chat", "manager", "perm", "menu"]] = []
+    # disabled_builtin_plugins: list[Literal["chat", "manager", "perm", "menu", "webui"]] = [] # 注：Amrita不再允许禁用内置插件
 
     # Amrita日志级别
     amrita_log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = (

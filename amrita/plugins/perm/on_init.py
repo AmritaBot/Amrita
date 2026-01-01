@@ -6,6 +6,8 @@ from amrita.config_manager import UniConfigManager
 from amrita.plugins.perm.config import Config, search_perm
 from amrita.plugins.perm.config import DataManager as DT
 
+from .models import PermissionStorage
+
 banner_template = """\033[34m▗▖   ▗▄▄▖
 ▐▌   ▐▌ ▐▌  \033[96mLitePerm\033[34m  \033[1;4;34mV2-Amrita\033[0m\033[34m
 ▐▌   ▐▛▀▘   is initializing...
@@ -15,17 +17,17 @@ banner_template = """\033[34m▗▖   ▗▄▄▖
 @get_driver().on_startup
 async def load():
     print(banner_template)
+    store = PermissionStorage()
     if (await DT().safe_get_config()).update_from_json:
         logger.info("Migrating from JSON...")
         from .legacy import Data_Manager, GroupData, PermissionGroupData, UserData
         from .models import (
             MemberPermissionPydantic,
             PermissionGroupPydantic,
-            PermissionStorage,
         )
 
         dm = Data_Manager()
-        store = PermissionStorage()
+
         await dm.init()
         count = 0
         logger.info("Migrating permission groups...")
@@ -89,3 +91,6 @@ async def load():
         conf: Config = await UniConfigManager().get_config()
         conf.update_from_json = False
         await UniConfigManager().save_config()
+    await store.init_cache_from_database()
+    await store.get_permission_group("default", True)  # 隐式创建默认组
+    await store.get_permission_group("default_group", True)
