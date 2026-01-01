@@ -23,7 +23,7 @@ from openai.types.chat.chat_completion_tool_choice_option_param import (
 from pydantic import ValidationError
 from typing_extensions import override
 
-from amrita.plugins.chat.event import SEND_MESSAGES
+from amrita.plugins.chat.utils.models import SEND_MESSAGES
 from amrita.plugins.chat.utils.tokenizer import hybrid_token_count
 
 from ..chatmanager import chat_manager

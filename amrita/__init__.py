@@ -14,12 +14,10 @@ from .utils.utils import get_amrita_version
 
 __all__ = [
     "cli",
-    "cmd_main",
     "get_amrita_config",
     "get_amrita_version",
     "init",
     "load_plugins",
     "nonebot",
-    "plugin",
     "run",
 ]

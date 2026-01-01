@@ -365,3 +365,6 @@ async def get_or_create_data(
             group_config = (await session.execute(stmt)).scalar_one()
         session.add(group_config)
         return group_config, memory
+
+
+SEND_MESSAGES = list[Message | ToolResult]

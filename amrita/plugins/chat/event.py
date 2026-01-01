@@ -13,9 +13,7 @@ from nonebot.adapters.onebot.v11 import (
 )
 from typing_extensions import override
 
-from amrita.plugins.chat.utils.models import Message, ToolResult
-
-SEND_MESSAGES = list[Message | ToolResult]
+from amrita.plugins.chat.utils.models import SEND_MESSAGES
 
 
 class EventTypeEnum(str, Enum):
