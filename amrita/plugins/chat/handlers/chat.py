@@ -355,7 +355,7 @@ class ChatObject:
             self.bot = bot
             self.matcher = matcher
             self.event = event
-            self.train = (
+            self.train = copy.deepcopy(
                 config_manager.group_train
                 if isinstance(event, GroupMessageEvent)
                 else config_manager.private_train
@@ -448,6 +448,18 @@ class ChatObject:
                 else f"当前私聊提示词：\n{config_manager.private_train}"
             )
             logger.debug(debug_msg)
+        self.train["content"] = (
+            "<SCHEMA>\n你在纯文本环境工作，不允许使用MarkDown回复，你的工作环境是一个社交软件，我会提供聊天记录，你可以从这里面获取一些关键信息，比如时间与用户身份（e.g.: [管理员/群主/自己/群员][YYYY-MM-DD weekday hh:mm:ss AM/PM][昵称（QQ号）]说:<内容>），但是请不要以这个格式回复。请以你自己的角色身份参与讨论，交流时不同话题尽量不使用相似句式回复，用户与你交谈的信息在用户的消息输入内。\n</SCHEMA>\n"
+            + "<SYSTEM_PROMPT>\n"
+            + (
+                self.train["content"]
+                .replace("{cookie}", config_manager.config.cookies.cookie)
+                .replace("{self_id}", str(event.self_id))
+                .replace("{user_id}", str(event.user_id))
+                .replace("{user_name}", str(event.sender.nickname))
+            )
+            + "\n</SYSTEM_PROMPT>"
+        )
         async with MemoryLimiter(self.data, self.train) as lim:
             await lim.run_enforce()
             abs_usage = lim.usage
@@ -573,20 +585,7 @@ class ChatObject:
         """
         train: Message[str] = Message[str].model_validate(self.train)
         assert isinstance(train.content, str)
-        event = self.event
         data = self.data
-
-        train.content = (
-            "<SCHEMA>\n你在纯文本环境工作，不允许使用MarkDown回复，你的工作环境是一个社交软件，我会提供聊天记录，你可以从这里面获取一些关键信息，比如时间与用户身份（e.g.: [管理员/群主/自己/群员][YYYY-MM-DD weekday hh:mm:ss AM/PM][昵称（QQ号）]说:<内容>），但是请不要以这个格式回复。请以你自己的角色身份参与讨论，交流时不同话题尽量不使用相似句式回复，用户与你交谈的信息在用户的消息输入内。\n</SCHEMA>\n"
-            + "<SYSTEM_PROMPT>\n"
-            + (
-                train.content.replace("{cookie}", config_manager.config.cookies.cookie)
-                .replace("{self_id}", str(event.self_id))
-                .replace("{user_id}", str(event.user_id))
-                .replace("{user_name}", str(event.sender.nickname))
-            )
-            + "\n</SYSTEM_PROMPT>"
-        )
         train.content += f"\n以下是一些补充内容，如果与上面任何一条有冲突请忽略。\n<EXTRA>\n{data.prompt if data.prompt != '' else '无'}\n<EXTRA>"
         send_messages = copy.deepcopy(data.memory.messages)
         send_messages.insert(0, Message.model_validate(train))
