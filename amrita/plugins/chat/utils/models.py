@@ -285,6 +285,7 @@ class Memory(Model):
     usage_count: Mapped[int] = mapped_column(Integer, default=0)
     input_token_usage: Mapped[int] = mapped_column(BigInteger, default=0)
     output_token_usage: Mapped[int] = mapped_column(BigInteger, default=0)
+    memory_abstract: Mapped[str] = mapped_column(Text, default="")
     __table_args__ = (
         UniqueConstraint("ins_id", "is_group", name="uq_ins_id_is_group"),
         Index("idx_ins_id", "ins_id"),

@@ -36,7 +36,7 @@ GroupEvent: TypeAlias = (
     | GroupUploadNoticeEvent
 )
 
-_event_to_key_mapping: dict[str, tuple[str, str]]
+_event_to_key_mapping: dict[str, tuple[str, str]] = {}
 
 
 @event_postprocessor

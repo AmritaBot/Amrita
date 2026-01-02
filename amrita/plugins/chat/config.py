@@ -302,6 +302,13 @@ class LLM_Config(BaseModel):
     llm_timeout: int = Field(default=60, description="API请求超时时间（秒）")
     auto_retry: bool = Field(default=True, description="请求失败时自动重试")
     max_retries: int = Field(default=3, description="最大重试次数")
+    enable_memory_abstract: bool = Field(
+        default=True,
+        description="是否启用上下文记忆摘要(将删除上下文替换为一个摘要插入到system instruction中)",
+    )
+    memory_abstract_proportion: float = Field(
+        default=1e-1, description="上下文摘要比例(0.1=10%)"
+    )
     block_msg: list[str] = Field(
         default=[
             "喵呜～这个问题有点超出Suggar的理解范围啦(歪头)",

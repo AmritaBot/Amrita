@@ -100,13 +100,14 @@ async def text_check(event: BeforeChatEvent) -> None:
 
 @prehook.handle()
 async def agent_core(event: BeforeChatEvent) -> None:
-    agent_last_step = [""]
+    agent_last_step = ""
 
     async def append_reasoning_msg(
         msg: list,
         original_msg: str = "",
         last_step: str = "",
     ):
+        nonlocal agent_last_step
         reasoning_msg = [
             Message(
                 role="system",
@@ -128,7 +129,7 @@ async def agent_core(event: BeforeChatEvent) -> None:
         if tool_calls:
             tool = tool_calls[0]
             if reasoning := json.loads(tool.function.arguments).get("reasoning"):
-                agent_last_step[0] = reasoning
+                agent_last_step = reasoning
                 await bot.send(nonebot_event, f"[Agent] {reasoning}")
                 msg.append(Message.model_validate(response, from_attributes=True))
                 msg.append(
@@ -179,7 +180,7 @@ async def agent_core(event: BeforeChatEvent) -> None:
                             await append_reasoning_msg(
                                 msg_list,
                                 original_msg,
-                                agent_last_step[0],
+                                agent_last_step,
                             )
                             continue
                         case STOP_TOOL.function.name:
@@ -348,7 +349,7 @@ async def cookie(event: ChatEvent, bot: Bot):
         if cookie := config.cookies.cookie:
             if cookie in response:
                 await send_to_admin(
-                    f"WARNING!!!\n[{nonebot_event.get_user_id()}]{'[群' + str(getattr(nonebot_event, 'group_id', '')) + ']' if hasattr(nonebot_event, 'group_id') else ''}用户尝试套取提示词！！！"
+                    f"WARNING!!!\n[{nonebot_event.get_user_id()}]{'[群' + str(getattr(nonebot_event, 'group_id', '')) + ']' if hasattr(nonebot_event, 'group_id') else ''}用户输入导致了可能的Prompt泄露！！"
                     + f"\nCookie:{cookie[:3]}......"
                     + f"\n<input>\n{nonebot_event.get_plaintext()}\n</input>\n"
                     + "输出已包含目标Cookie！已阻断消息。"

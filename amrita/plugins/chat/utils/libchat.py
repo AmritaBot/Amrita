@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import time
 import typing
-from collections.abc import Iterable
+from collections.abc import Generator, Iterable
 from copy import deepcopy
 
 import openai
@@ -132,6 +132,18 @@ async def test_presets() -> typing.AsyncGenerator[PresetReport, None]:
             )
 
 
+def text_generator(memory: SEND_MESSAGES) -> Generator[str, None, str]:
+    memory_l = [i.model_dump() for i in memory if hasattr(i, "model_dump")]
+    for st in memory_l:
+        if isinstance(st["content"], str):
+            yield st["content"]
+        else:
+            for s in st["content"]:
+                if s["type"] == "text" and s.get("text") is not None:
+                    yield s["text"]
+    return ""
+
+
 async def get_tokens(
     memory: SEND_MESSAGES, response: UniResponse[str, None]
 ) -> UniResponseUsage[int]:
@@ -144,7 +156,6 @@ async def get_tokens(
     Returns:
         包含token使用情况的对象
     """
-    memory_l = [i.model_dump() for i in memory]
     if (
         response.usage is not None
         and response.usage.total_tokens is not None
@@ -152,16 +163,11 @@ async def get_tokens(
         and response.usage.prompt_tokens is not None
     ):
         return response.usage
-    it = 0
-    for st in memory_l:
-        if st["content"] is None:
-            continue
-        temp_string = (
-            st["content"]
-            if isinstance(st["content"], str)
-            else "".join(s["text"] for s in st["content"] if s["type"] == "text")
-        )
-        it += hybrid_token_count(temp_string)
+
+    it = hybrid_token_count(
+        "".join(list(text_generator(memory))),
+        config_manager.config.llm_config.tokens_count_mode,
+    )
 
     ot = hybrid_token_count(response.content)
     return UniResponseUsage(
@@ -267,10 +273,10 @@ async def _determine_presets(
     for msg in msg_list:
         if isinstance(msg.content, str) or not msg.content:
             continue
-        for content in msg.content:
-            if not isinstance(content, TextContent):
-                has_multimodal_content = True
-                break
+        has_multimodal_content = any(
+            not isinstance(content, TextContent) for content in msg.content
+        )
+
         if has_multimodal_content:
             break
 
@@ -334,7 +340,6 @@ async def tools_caller(
     tools: list,
     tool_choice: ToolChoice | None = None,
 ) -> UniResponse[None, list[ToolCall] | None]:
-    messages = _validate_msg_list(messages)
     presets = await _determine_presets(messages)
 
     async def _call_tools(

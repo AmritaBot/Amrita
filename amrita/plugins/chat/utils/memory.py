@@ -33,6 +33,7 @@ class MemoryModel(BaseModel, extra="allow"):
     usage: int = Field(default=0, description="请求次数")
     input_token_usage: int = Field(default=0, description="token使用量")
     output_token_usage: int = Field(default=0, description="token使用量")
+    memory_abstract: str = Field(default="", description="记忆摘要")
 
     async def save(
         self,
@@ -115,6 +116,7 @@ async def get_memory_data(
             timestamp=memory.time.timestamp(),
             input_token_usage=memory.input_token_usage,
             output_token_usage=memory.output_token_usage,
+            memory_abstract=memory.memory_abstract or "",
         )
         if group_conf:
             conf.enable = group_conf.enable
@@ -180,6 +182,7 @@ async def write_memory_data(
             memory.usage_count = data.usage
             memory.input_token_usage = data.input_token_usage
             memory.output_token_usage = data.output_token_usage
+            memory.memory_abstract = data.memory_abstract
             if group_conf:
                 group_conf.enable = data.enable
                 group_conf.prompt = data.prompt
