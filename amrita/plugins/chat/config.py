@@ -291,7 +291,6 @@ class LLM_Config(BaseModel):
     tools: ToolsConfig = Field(default=ToolsConfig(), description="工具调用配置")
     stream: bool = Field(default=False, description="是否启用流式响应（逐字输出）")
     memory_lenth_limit: int = Field(default=50, description="记忆上下文的最大消息数量")
-    use_base_prompt: bool = Field(default=True, description="是否使用基础角色提示词")
     max_tokens: int = Field(default=100, description="单次回复生成的最大token数")
     tokens_count_mode: Literal["word", "bpe", "char"] = Field(
         default="bpe", description="Token计算模式：bpe(子词)/word(词语)/char(字符)"

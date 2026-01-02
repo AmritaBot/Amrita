@@ -132,15 +132,29 @@ async def test_presets() -> typing.AsyncGenerator[PresetReport, None]:
             )
 
 
-def text_generator(memory: SEND_MESSAGES) -> Generator[str, None, str]:
+def text_generator(
+    memory: SEND_MESSAGES, split_role: bool = False
+) -> Generator[str, None, str]:
     memory_l = [(i.model_dump() if hasattr(i, "model_dump") else i) for i in memory]
+    role_map = {
+        "assistant": "<BOT的回答>",
+        "user": "<用户的提问>",
+    }
     for st in memory_l:
         if isinstance(st["content"], str):
-            yield st["content"]
+            yield (
+                st["content"]
+                if not split_role
+                else role_map.get(st["role"], "") + st["content"]
+            )
         else:
             for s in st["content"]:
                 if s["type"] == "text" and s.get("text") is not None:
-                    yield s["text"]
+                    yield (
+                        s["text"]
+                        if not split_role
+                        else role_map.get(st["role"], "") + s["text"]
+                    )
     return ""
 
 
