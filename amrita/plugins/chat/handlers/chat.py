@@ -449,7 +449,7 @@ class ChatObject:
             )
             logger.debug(debug_msg)
         self.train["content"] = (
-            "<SCHEMA>\n你在纯文本环境工作，不允许使用MarkDown回复，你的工作环境是一个社交软件，我会提供聊天记录，你可以从这里面获取一些关键信息，比如时间与用户身份（e.g.: [管理员/群主/自己/群员][YYYY-MM-DD weekday hh:mm:ss AM/PM][昵称（QQ号）]说:<内容>），但是请不要以这个格式回复。请以你自己的角色身份参与讨论，交流时不同话题尽量不使用相似句式回复，用户与你交谈的信息在用户的消息输入内。\n</SCHEMA>\n"
+            "<SCHEMA>\n你在纯文本环境工作，不允许使用MarkDown回复，你的工作环境是一个社交软件，我会提供聊天记录，你可以从这里面获取一些关键信息，比如时间与用户身份（e.g.: [管理员/群主/自己/群员][YYYY-MM-DD weekday hh:mm:ss AM/PM][昵称（QQ号）]说:<内容>），但是请不要以聊天记录的格式做回复，而是纯文本方式。请以你自己的角色身份参与讨论，交流时不同话题尽量不使用相似句式回复，用户与你交谈的信息在用户的消息输入内。\n</SCHEMA>\n"
             + "<SYSTEM_PROMPT>\n"
             + (
                 self.train["content"]
@@ -505,8 +505,8 @@ class ChatObject:
                 ins.token_output += usage.completion_tokens
                 ins.token_input += usage.prompt_tokens
             else:
-                ins.input_token_usage += usage.completion_tokens
-                ins.output_token_usage += usage.prompt_tokens
+                ins.input_token_usage += usage.prompt_tokens
+                ins.output_token_usage += usage.completion_tokens
 
         event = self.event
         bot = self.bot

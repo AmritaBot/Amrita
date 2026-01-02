@@ -141,6 +141,8 @@ def text_generator(
         "user": "<用户的提问>",
     }
     for st in memory_l:
+        if st["content"] is None:
+            continue
         if isinstance(st["content"], str):
             yield (
                 st["content"]
