@@ -13,6 +13,8 @@ from amrita.config import get_amrita_config
 from amrita.utils.logging import LoggingData, LoggingEvent
 from amrita.utils.utils import get_amrita_version
 
+_loop_running: bool = False
+
 if TYPE_CHECKING:
     # avoid sphinx autodoc resolve annotation failed
     # because loguru module do not have `Logger` class actually
@@ -50,6 +52,7 @@ def default_filter(record: "Record"):
 
 
 def init():
+    from nonebot import get_driver
     from nonebot.adapters.onebot.v11 import Adapter as ONEBOT_V11Adapter
     from nonebot.adapters.onebot.v11 import Bot, MessageSegment
 
@@ -57,15 +60,17 @@ def init():
 
     logger = nonebot.logger
 
+    async def st():
+        global _loop_running
+        _loop_running = True
+
     class AsyncErrorHandler:
         def write(self, message):
+            global _loop_running
             try:
-                try:
-                    asyncio.get_running_loop()
-                except RuntimeError:
-                    pass
-                else:
+                if _loop_running:
                     self.task = asyncio.create_task(self.process(message))
+
             except RuntimeError:
                 print(
                     "RuntimeWarning:\nThis is a known bug.\nPlease ignore this warning.\n----------\n"
@@ -124,6 +129,7 @@ def init():
     logger.add(AsyncErrorHandler(), level="ERROR")
     logger.add(EventRecorder(), level="WARNING")
     nonebot.init()
+    get_driver().on_startup(st)
     logger.success(f"Amrita v{get_amrita_version()} is initializing......")
     driver = nonebot.get_driver()
     driver.register_adapter(ONEBOT_V11Adapter)
