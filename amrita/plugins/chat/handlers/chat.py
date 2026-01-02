@@ -127,6 +127,7 @@ class ChatObjectMeta(BaseModel):
 
     用于存储聊天对象的标识、事件和时间信息。
     """
+
     stream_id: str  # 聊天流ID
     event: MessageEvent  # 消息事件
     time: datetime = Field(default_factory=datetime.now)  # 创建时间
@@ -312,6 +313,7 @@ class ChatObject:
 
     该类负责处理单次聊天会话，包括消息接收、上下文管理、模型调用和响应发送。
     """
+
     stream_id: str  # 聊天对象ID
     matcher: Matcher  # (lateinit) 匹配器
     bot: Bot  # (lateinit) Bot实例
