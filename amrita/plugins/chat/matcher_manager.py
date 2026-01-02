@@ -15,7 +15,7 @@ from .check_rule import (
     should_respond_with_usage_check,
 )
 from .handlers.add_notices import add_notices
-from .handlers.chat import chat
+from .handlers.chat import entry as chat
 from .handlers.choose_prompt import choose_prompt
 from .handlers.debug_switchs import debug_switchs
 from .handlers.del_memory import del_memory

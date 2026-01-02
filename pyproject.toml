@@ -1,6 +1,6 @@
 [project]
 name = "amrita"
-version = "0.5.1"
+version = "0.5.2"
 description = "A powerful AI bot framework powered by NoneBot2"
 readme = "README.md"
 license = "GPL-3.0-or-later"
@@ -23,14 +23,14 @@ dependencies = [
     "zipp>=3.23.0",
     "pytz>=2025.2",
     "tomlkit>=0.13.3",
-
+    "nonebot-plugin-orm>=0.8.3",        # See https://github.com/nonebot/plugin-orm/issues/33
 ]
 
 [project.optional-dependencies]
 full = [
     "aiomysql>=0.3.2",
     "aiopg>=1.4.0",
-    "aiosqlite<=0.21.0",
+    "aiosqlite>=0.21.0",
     "fastmcp>=2.14.1",
     "alembic==1.16.4",
     "aiohttp>=3.13.2",
@@ -76,8 +76,9 @@ dev-dependencies = [
     "pytest>=8.4.1",
     "amrita[full]",
     "mcp>=1.21.1",
-    "pyright>=1.1.407",
     "py-spy>=0.4.1",
+    "ty>=0.0.8",
+    "pyright>=1.1.407",
 ]
 package = true
 
@@ -112,9 +113,6 @@ ignore = [
     "RUF002", # ambiguous-unicode-character-docstring
     "RUF003", # ambiguous-unicode-character-comment
 ]
-
-[tool.pyright]
-typeCheckingMode = "standard"
 
 [tool.amrita]
 plugins = [

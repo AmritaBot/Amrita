@@ -92,6 +92,7 @@ def on_tools(
     data: FunctionDefinitionSchema,
     custom_run: bool = False,
     strict: bool = False,
+    show_call: bool = True,
 ):
     """Tools注册装饰器
 
@@ -99,6 +100,7 @@ def on_tools(
         data (FunctionDefinitionSchema): 函数元数据
         custom_run (bool, optional): 是否启用自定义运行模式. Defaults to False.
         strict (bool, optional): 是否启用严格模式. Defaults to False.
+        show_call (bool, optional): 是否显示工具调用. Defaults to True.
     """
 
     def decorator(
@@ -109,6 +111,7 @@ def on_tools(
             func=func,
             data=ToolFunctionSchema(function=data, type="function", strict=strict),
             custom_run=custom_run,
+            on_call="show" if show_call else "hide",
         )
         ToolsManager().register_tool(tool_data)
         return func

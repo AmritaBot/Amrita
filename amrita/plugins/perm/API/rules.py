@@ -20,6 +20,7 @@ from nonebot.message import event_postprocessor
 from typing_extensions import override
 
 from ..models import (
+    DefaultPermissionGroupsEnum,
     PermissionStorage,
 )
 from ..nodelib import Permissions
@@ -35,18 +36,22 @@ GroupEvent: TypeAlias = (
     | GroupUploadNoticeEvent
 )
 
-_event_to_key_mapping: dict[str, tuple[str, str]]
+_event_to_key_mapping: dict[str, tuple[str, str]] = {}
 
 
 @event_postprocessor
 async def _(event: Event):
-    event_id = event.get_session_id()
-    if data := _event_to_key_mapping.get(event_id):
-        uni_id, permission = data
-        if isinstance(event, GroupEvent):
-            _check_group_permission_with_cache.cache_invalidate(uni_id, permission)
-        else:
-            _check_user_permission_with_cache.cache_invalidate(uni_id, permission)
+    try:
+        event_id = event.get_session_id()
+    except ValueError:
+        return
+    else:
+        if data := _event_to_key_mapping.get(event_id):
+            uni_id, permission = data
+            if isinstance(event, GroupEvent):
+                _check_group_permission_with_cache.cache_invalidate(uni_id, permission)
+            else:
+                _check_user_permission_with_cache.cache_invalidate(uni_id, permission)
 
 
 @alru_cache()
@@ -60,7 +65,7 @@ async def _check_user_permission_with_cache(user_id: str, perm: str) -> bool:
         await store.get_member_related_permission_groups(user_id, "user")
     ).groups:
         logger.info(f"正在检查用户权限组，用户ID：{user_id}")
-        for permg in perm_groups:
+        for permg in (*perm_groups, DefaultPermissionGroupsEnum.default.value):
             logger.debug(f"正在检查用户权限组 {permg}，用户ID：{user_id}")
             if not await store.permission_group_exists(permg):
                 logger.warning(f"权限组 {permg} 不存在")
@@ -80,7 +85,7 @@ async def _check_group_permission_with_cache(
     group_data = await store.get_member_permission(member_id=group_id, type="group")
     logger.debug(f"正在检查群组权限 {group_id} {perm}")
     if permd := await store.get_member_related_permission_groups(group_id, "group"):
-        for permg in permd.groups:
+        for permg in (*permd.groups, DefaultPermissionGroupsEnum.default_group.value):
             logger.debug(f"正在检查群组 {group_id} 的权限组 {permg}")
             if not await store.permission_group_exists(permg):
                 logger.warning(f"权限组 {permg} 不存在")

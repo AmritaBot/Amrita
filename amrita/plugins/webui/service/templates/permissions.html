@@ -156,6 +156,7 @@ endblock %} {% block topbar_title %}权限管理{% endblock %} {% block content 
       }).then((result) => {
         if (result.isConfirmed) {
           const groupName = this.getAttribute("data-group-name");
+
           fetch(`/api/users/permissions/perm_group/delete`, {
             method: "POST",
             headers: {
@@ -164,7 +165,27 @@ endblock %} {% block topbar_title %}权限管理{% endblock %} {% block content 
             body: JSON.stringify({
               group_name: groupName,
             }),
-          });
+          })
+            .then((response) => {
+              if (!response.ok) {
+                throw new Error(`${response.json()}`);
+              }
+              return response.json();
+            })
+            .then((data) => {
+              if (data.code !== 200) {
+                throw new Error(data.error || "删除权限组失败");
+              }
+              location.reload();
+            })
+            .catch((e) => {
+              console.error("删除权限组错误:", e);
+              Swal.fire({
+                icon: "error",
+                title: "删除权限组失败",
+                text: e.message,
+              });
+            });
         }
       });
     });

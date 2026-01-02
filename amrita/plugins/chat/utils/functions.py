@@ -198,9 +198,9 @@ def split_list(lst: list, threshold: int) -> list[Any]:
     return [lst[i : i + threshold] for i in range(0, len(lst), threshold)]
 
 
-def get_current_datetime_timestamp():
+def get_current_datetime_timestamp(utc_time: None | datetime = None):
     """获取当前时间并格式化为日期、星期和时间字符串"""
-    utc_time = datetime.now(pytz.utc)
+    utc_time = utc_time or datetime.now(pytz.utc)
     asia_shanghai = pytz.timezone("Asia/Shanghai")
     now = utc_time.astimezone(asia_shanghai)
     formatted_date = now.strftime("%Y-%m-%d")

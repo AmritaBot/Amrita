@@ -119,6 +119,10 @@ class ToolsConfig(BaseModel):
     agent_tool_call_limit: int = Field(
         default=10, description="智能体模式下的工具调用限制"
     )
+    agent_tool_call_notice: Literal["hide", "notify"] = Field(
+        default="hide",
+        description="智能体模式下的工具调用情况提示方式，hide为隐藏，notify为通知",
+    )
     agent_thought_mode: Literal[
         "reasoning", "chat", "reasoning-required", "reasoning-optional"
     ] = Field(
@@ -287,7 +291,6 @@ class LLM_Config(BaseModel):
     tools: ToolsConfig = Field(default=ToolsConfig(), description="工具调用配置")
     stream: bool = Field(default=False, description="是否启用流式响应（逐字输出）")
     memory_lenth_limit: int = Field(default=50, description="记忆上下文的最大消息数量")
-    use_base_prompt: bool = Field(default=True, description="是否使用基础角色提示词")
     max_tokens: int = Field(default=100, description="单次回复生成的最大token数")
     tokens_count_mode: Literal["word", "bpe", "char"] = Field(
         default="bpe", description="Token计算模式：bpe(子词)/word(词语)/char(字符)"
@@ -298,6 +301,13 @@ class LLM_Config(BaseModel):
     llm_timeout: int = Field(default=60, description="API请求超时时间（秒）")
     auto_retry: bool = Field(default=True, description="请求失败时自动重试")
     max_retries: int = Field(default=3, description="最大重试次数")
+    enable_memory_abstract: bool = Field(
+        default=True,
+        description="是否启用上下文记忆摘要(将删除上下文替换为一个摘要插入到system instruction中)",
+    )
+    memory_abstract_proportion: float = Field(
+        default=15e-2, description="上下文摘要比例(0.15=15%)"
+    )
     block_msg: list[str] = Field(
         default=[
             "喵呜～这个问题有点超出Suggar的理解范围啦(歪头)",
@@ -472,7 +482,7 @@ class ConfigManager(BaseDataManager[Config]):
     _config_id: int | None = None
     _cached_env_config: Config | None = None
     _owner_name = store._try_get_caller_plugin().name
-    __lateinit__: bool = True
+    __lateinit__ = True
 
     def __getattribute__(self, name: str) -> Any:
         if name == "config":
