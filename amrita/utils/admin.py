@@ -9,8 +9,7 @@ import nonebot
 from nonebot.adapters.onebot.v11 import Bot, MessageSegment
 
 from amrita.config import get_amrita_config
-from amrita.plugins.manager.status_manager import StatusManager
-from amrita.plugins.manager.utils import TokenBucket
+from amrita.utils.rate import TokenBucket
 
 # 用于跟踪消息发送的计数器和时间戳
 _message_tracker = defaultdict(list)
@@ -25,6 +24,7 @@ bucket = TokenBucket(0.2, 1)
 async def _check_and_handle_rate_limit():
     """检查消息发送频率并处理速率限制"""
     global _critical_error_occurred, bucket
+    from amrita.plugins.manager.status_manager import StatusManager
 
     current_time = time.time()
     window_start = current_time - 5  # 5秒窗口
@@ -42,10 +42,10 @@ async def _check_and_handle_rate_limit():
             _critical_error_occurred = True
             StatusManager().set_unready(True)
             nonebot.logger.warning(
-                "严重异常警告！Amrita可能无法从这个错误只恢复！之后的推送将被阻断！请立即查看控制台！现在amrita将进入维护模式！"
+                "严重异常警告！Amrita可能无法从这个错误恢复！之后的推送将被阻断！请立即查看控制台！现在amrita将进入维护模式！"
             )
             await send_to_admin_unsafe(
-                "严重异常警告！Amrita可能无法从这个错误只恢复！之后的推送将被阻断！请立即查看控制台！现在amrita将进入维护模式！"
+                "严重异常警告！Amrita可能无法从这个错误恢复！之后的推送将被阻断！请立即查看控制台！现在amrita将进入维护模式！"
             )
             return True
 

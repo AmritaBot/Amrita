@@ -307,7 +307,7 @@ class LLM_Config(BaseModel):
         description="是否启用上下文记忆摘要(将删除上下文替换为一个摘要插入到system instruction中)",
     )
     memory_abstract_proportion: float = Field(
-        default=1e-1, description="上下文摘要比例(0.1=10%)"
+        default=15e-2, description="上下文摘要比例(0.15=15%)"
     )
     block_msg: list[str] = Field(
         default=[

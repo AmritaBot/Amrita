@@ -41,13 +41,17 @@ _event_to_key_mapping: dict[str, tuple[str, str]] = {}
 
 @event_postprocessor
 async def _(event: Event):
-    event_id = event.get_session_id()
-    if data := _event_to_key_mapping.get(event_id):
-        uni_id, permission = data
-        if isinstance(event, GroupEvent):
-            _check_group_permission_with_cache.cache_invalidate(uni_id, permission)
-        else:
-            _check_user_permission_with_cache.cache_invalidate(uni_id, permission)
+    try:
+        event_id = event.get_session_id()
+    except ValueError:
+        return
+    else:
+        if data := _event_to_key_mapping.get(event_id):
+            uni_id, permission = data
+            if isinstance(event, GroupEvent):
+                _check_group_permission_with_cache.cache_invalidate(uni_id, permission)
+            else:
+                _check_user_permission_with_cache.cache_invalidate(uni_id, permission)
 
 
 @alru_cache()

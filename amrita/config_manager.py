@@ -221,6 +221,7 @@ class UniConfigManager(Generic[T]):
             await self._init_config_or_nothing(owner_name, config_dir)
         if init_now:
             self._config_instances[owner_name] = await self.get_config(owner_name)
+            await self.save_config(owner_name)
 
         if watch:
             callbacks = (

@@ -133,7 +133,7 @@ async def test_presets() -> typing.AsyncGenerator[PresetReport, None]:
 
 
 def text_generator(memory: SEND_MESSAGES) -> Generator[str, None, str]:
-    memory_l = [i.model_dump() for i in memory if hasattr(i, "model_dump")]
+    memory_l = [(i.model_dump() if hasattr(i, "model_dump") else i) for i in memory]
     for st in memory_l:
         if isinstance(st["content"], str):
             yield st["content"]

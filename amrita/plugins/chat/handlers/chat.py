@@ -195,12 +195,19 @@ class MemoryLimiter:
         通过调用LLM将当前记忆中的所有消息内容摘要为一段简短的内容，
         以减少上下文长度，同时保留关键信息。
         """
+        proportion = self.config.llm_config.memory_abstract_proportion  # 摘要比例
+        index = int(len(self.memory.memory.messages) * proportion)
+        dropped_part = self.memory.memory.messages[index:]
+        self.memory.memory.messages = self.memory.memory.messages[:index]
         msg_list: SEND_MESSAGES = [
             Message[str](role="system", content=self._abstract_instruction),
             Message[str](
                 role="user",
                 content="".join(
-                    [f"{it}\n" for it in text_generator(self.memory.memory.messages)]
+                    [
+                        f"{it}\n"
+                        for it in text_generator(self._dropped_messages + dropped_part)
+                    ]
                 ),
             ),
         ]
@@ -208,6 +215,7 @@ class MemoryLimiter:
         response = await get_chat(msg_list)
         usage = await get_tokens(msg_list, response)
         self.usage = usage
+        logger.debug(f"获取到上下文摘要：{response.content}")
         self.memory.memory_abstract = response.content
 
     async def run_enforce(self):
@@ -278,7 +286,7 @@ class MemoryLimiter:
             )
             return
         tk_tmp = hybrid_token_count(
-            text_generator(list(memory_l)),
+            "".join(list(text_generator(memory_l))),
             config_manager.config.llm_config.tokens_count_mode,
         )
 
@@ -287,7 +295,7 @@ class MemoryLimiter:
                 self._dropped_messages.append(data.memory.messages.pop(0))
 
             tk_tmp = hybrid_token_count(
-                text_generator(list(memory_l)),
+                "".join(list(text_generator(memory_l))),
                 config_manager.config.llm_config.tokens_count_mode,
             )
             await asyncio.sleep(0)  # CPU 密集型任务可能造成性能问题，我们在这里让出协程
@@ -631,7 +639,7 @@ class ChatObject:
             ]
 
             return images
-        raise ValueError("No reply found for event.reply")
+        return []
 
     async def _get_user_role(self, group_id: int, user_id: int) -> str:
         """获取用户在群聊中的身份（群主、管理员或普通成员）。
@@ -735,7 +743,7 @@ class ChatObject:
         Args:
             e: 异常对象
         """
-        if hasattr(self, "_matcher"):
+        if hasattr(self, "matcher"):
             await self.matcher.send("出错了稍后试试吧（错误已反馈）")
         logger.opt(exception=e, colors=True).exception("程序发生了未捕获的异常")
 
