@@ -35,7 +35,6 @@ class FakeEvent(Event):
 
 
 async def is_bot_enabled(event: Event) -> bool:
-    raise Exception("Not implemented")
     if not config_manager.config.enable:
         return False
     with contextlib.suppress(Exception):
