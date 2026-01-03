@@ -14,6 +14,7 @@ from typing import Generic, TypeVar
 
 K = TypeVar("K")
 V = TypeVar("V")
+T = TypeVar("T")
 
 
 class LRUCache(Generic[K, V]):
@@ -22,6 +23,8 @@ class LRUCache(Generic[K, V]):
     该缓存具有固定容量，当添加新条目导致缓存满时，
     会自动删除最久未使用的条目（Least Recently Used）。
     """
+
+    __marker = object()
 
     def __init__(self, capacity: int):
         """初始化LRU缓存
@@ -189,6 +192,16 @@ class LRUCache(Generic[K, V]):
             如果缓存已满则返回True，否则返回False
         """
         return len(self._cache) >= self._capacity
+
+    def pop(self, key: K, default: T = __marker) -> V | T:
+        """从缓存中删除指定键的条目并返回其值
+        如果指定键不存在，则抛出异常
+
+        """
+        if default is self.__marker:
+            return self._cache.pop(key)
+        else:
+            return self._cache.pop(key, default)
 
     def __repr__(self) -> str:
         """返回缓存的字符串表示

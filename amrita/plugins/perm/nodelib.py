@@ -49,7 +49,7 @@ class Permissions:
         """
         if node in self.permissions_data:
             del self.permissions_data[node]
-            self.__write_to_string(overwrite=True)
+
         return self
 
     def set_permission(self, node: str, has_permission: bool) -> Self:
@@ -64,7 +64,6 @@ class Permissions:
             Self: 返回自身以支持链式调用
         """
         self.permissions_data[node] = has_permission
-        self.__write_to_string(overwrite=True)
         return self
 
     def check_permission(self, node: str) -> bool:
@@ -83,7 +82,7 @@ class Permissions:
 
         current_node = ""
         for part in node.split("."):
-            if self.permissions_data.get(f"{current_node}.*"):
+            if self.permissions_data.get(f"{current_node}.*" if current_node else "*"):
                 return True
             current_node += ("." if current_node else "") + part
             if self.permissions_data.get(current_node):
@@ -99,7 +98,6 @@ class Permissions:
         """
         with open(filename, "w", encoding="utf-8") as f:
             json.dump(self.permissions_data, f, indent=4)
-        self.__write_to_string(overwrite=True)
 
     def load_from_json(self, filename: str):
         """
@@ -110,7 +108,6 @@ class Permissions:
         """
         with open(filename, encoding="utf-8") as f:
             self.permissions_data = json.load(f)
-        self.__write_to_string(overwrite=True)
 
     def from_perm_str(self, perm_str: str):
         """
@@ -129,7 +126,6 @@ class Permissions:
                 self.permissions_data[node.strip()] = (
                     permission.strip().lower() == "true"
                 )
-        self.__write_to_string(overwrite=True)
 
     def dump_data(self) -> dict[str, bool]:
         """
@@ -159,7 +155,6 @@ class Permissions:
             data: 新的权限数据
         """
         self.permissions_data = data
-        self.__write_to_string(overwrite=True)
 
     @property
     def perm_str(self) -> str:
@@ -188,5 +183,7 @@ if __name__ == "__main__":
     permissions = Permissions()
     permissions.set_permission("user.*", True)
     print(permissions.check_permission("user.a"))
+    permissions.set_permission("*", True)
+    print(permissions.check_permission("lp.admin"))
     print(permissions.permissions_str)
     print(json.dumps(permissions.dump_data(), indent=4))
