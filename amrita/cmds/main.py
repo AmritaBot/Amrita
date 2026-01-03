@@ -20,7 +20,7 @@ import toml
 import tomli_w
 from pydantic import BaseModel, Field
 
-from amrita.cmds.wrapper import cwd_to_module, require_init
+from amrita.cmds.wrapper import require_init
 
 from ..cli import (
     IS_IN_VENV,
@@ -346,7 +346,6 @@ def entry():
         )
 
 
-@cwd_to_module
 @cli.command()
 @click.option("--run", "-r", is_flag=True, help="运行项目而不安装依赖。")
 def run(run: bool):
@@ -547,7 +546,6 @@ def nb(nb_args):
     __main__.main(nb_args)
 
 
-@cwd_to_module
 @cli.command()
 @click.option("--ignore-venv", "-i", is_flag=True, help="忽略Venv环境")
 def test(ignore_venv: bool):

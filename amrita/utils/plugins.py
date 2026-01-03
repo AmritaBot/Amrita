@@ -18,7 +18,10 @@ def apply_alias():
 
 
 def load_plugins():
+    if "." not in sys.path:
+        sys.path.insert(0, ".")
     nonebot.load_from_toml("pyproject.toml")
+
     for name in (Path(__file__).parent.parent / "plugins").iterdir():
         # 修改说明：为了Amrita项目的完整性，内置插件不会再允许被禁用。
         nonebot.logger.debug(f"Require built-in plugin {name.name}...")

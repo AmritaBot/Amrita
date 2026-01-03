@@ -8,15 +8,6 @@ import amrita
 from amrita.cli import check_optional_dependency, error
 
 
-def cwd_to_module(func: Callable):
-    def wrapper(*args, **kwargs):
-        if "." not in sys.path:
-            sys.path.insert(0, ".")
-        return func(*args, **kwargs)
-
-    return wrapper
-
-
 def require_full_depencies(func: Callable):
     def wrapper(*args, **kwargs):
         if not check_optional_dependency(quiet=True):
