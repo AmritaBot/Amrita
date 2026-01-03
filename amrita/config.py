@@ -51,10 +51,6 @@ class AmritaConfig(BaseModel):
         if 10000 > self.admin_group > 0:
             logger.warning("Amrita config 'admin_group' is invalid, set to -1")
             self.admin_group = -1
-        if self.admin_group == -1:
-            logger.info(
-                "Amrita config 'admin_group' is disabled, so some push messages will just be printed to console."
-            )
         return self
 
 

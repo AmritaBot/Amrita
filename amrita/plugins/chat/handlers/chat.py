@@ -373,7 +373,7 @@ class ChatObject:
                         pass
                     case "single":
                         if lock.locked():
-                            matcher.stop_propagation()
+                            return matcher.stop_propagation()
                     case "single_with_report":
                         if lock.locked():
                             await matcher.finish("聊天任务正在处理中，请稍后再试")
@@ -715,7 +715,8 @@ class ChatObject:
                             message_id=chated["message_id"], timestamp=datetime.now()
                         )
 
-                        raise CancelException()
+                        return matcher.stop_propagation()
+
                 elif (
                     session := session_clear_map.get(session_id)
                 ) and "继续" in event.message.extract_plain_text():
