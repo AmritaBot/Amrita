@@ -4,9 +4,9 @@ import time
 import typing
 from asyncio import Lock
 from collections import defaultdict
-from venv import logger
 
 import nonebot
+from nonebot import logger
 from nonebot.adapters.onebot.v11 import Bot, MessageSegment
 
 from amrita.config import get_amrita_config
@@ -34,7 +34,7 @@ async def _check_and_handle_rate_limit():
     async with _tracker_lock:
         consume = bucket.consume()
         _message_tracker["admin"] += int(not consume)
-        _last_exception_time = time.time()
+
         if _message_tracker["admin"] > 6 and not _critical_error_occurred:
             _critical_error_occurred = True
             StatusManager().set_unready(True)
@@ -87,9 +87,11 @@ async def send_forward_msg_to_admin(
     Returns:
         dict: 发送消息后的结果
     """
+    global _last_exception_time
     # 检查是否需要阻断消息发送
     if await _check_and_handle_rate_limit():
         return  # 阻断消息发送
+    _last_exception_time = time.time()
 
     def to_json(msg: MessageSegment) -> dict:
         return {"type": "node", "data": {"name": name, "uin": uin, "content": msg}}
