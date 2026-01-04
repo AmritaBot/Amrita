@@ -276,10 +276,9 @@ class MemoryLimiter:
         逐步删除最早的消息直到满足token数量限制。
         """
 
-        def get_token() -> int:
-            nonlocal memory_l
+        def get_token(memory: list[Message | ToolResult]) -> int:
             tk_tmp: int = 0
-            for msg in text_generator(memory_l):
+            for msg in text_generator(memory):
                 tk_tmp += hybrid_token_count(
                     msg,
                     config_manager.config.llm_config.tokens_count_mode,
@@ -298,7 +297,7 @@ class MemoryLimiter:
                 f"提示词大小过大！为{prompt_length}>{config_manager.config.session.session_max_tokens}！请调整提示词或者设置！"
             )
             return
-        tk_tmp: int = get_token()
+        tk_tmp: int = get_token(memory_l)
 
         while tk_tmp > config_manager.config.session.session_max_tokens:
             if len(data.memory.messages) > 1:
@@ -306,7 +305,7 @@ class MemoryLimiter:
             else:
                 break
 
-            tk_tmp: int = get_token()
+            tk_tmp: int = get_token(memory_l)
             memory_l = [train_model, *data.memory.messages]
             await asyncio.sleep(0)  # CPU 密集型任务可能造成性能问题，我们在这里让出协程
 
