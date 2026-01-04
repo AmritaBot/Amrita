@@ -90,13 +90,15 @@ async def synthesize_message_to_msg(
         转换后的消息内容
     """
     is_multimodal: bool = (
-        any([
-            (await config_manager.get_preset(preset=preset)).multimodal
-            for preset in [
-                config_manager.config.preset,
-                *config_manager.config.preset_extension.backup_preset_list,
+        any(
+            [
+                (await config_manager.get_preset(preset=preset)).multimodal
+                for preset in [
+                    config_manager.config.preset,
+                    *config_manager.config.preset_extension.backup_preset_list,
+                ]
             ]
-        ])
+        )
         or len(config_manager.config.preset_extension.multi_modal_preset_list) > 0
     )
 
@@ -201,12 +203,14 @@ class MemoryLimiter:
             Message[str](role="system", content=self._abstract_instruction),
             Message[str](
                 role="user",
-                content="".join([
-                    f"{it}\n"
-                    for it in text_generator(
-                        self._dropped_messages + dropped_part, split_role=True
-                    )
-                ]),
+                content="".join(
+                    [
+                        f"{it}\n"
+                        for it in text_generator(
+                            self._dropped_messages + dropped_part, split_role=True
+                        )
+                    ]
+                ),
             ),
         ]
         logger.info("正在进行上下文摘要......")
@@ -271,6 +275,17 @@ class MemoryLimiter:
         通过计算当前消息列表的token数量，当超出配置的session最大token限制时，
         逐步删除最早的消息直到满足token数量限制。
         """
+
+        def get_token() -> int:
+            nonlocal memory_l
+            tk_tmp: int = 0
+            for msg in text_generator(memory_l):
+                tk_tmp += hybrid_token_count(
+                    msg,
+                    config_manager.config.llm_config.tokens_count_mode,
+                )
+            return tk_tmp
+
         train = self._train
         train_model = Message.model_validate(train)
         data = self.memory
@@ -283,23 +298,16 @@ class MemoryLimiter:
                 f"提示词大小过大！为{prompt_length}>{config_manager.config.session.session_max_tokens}！请调整提示词或者设置！"
             )
             return
-        tk_tmp: int = 0
-        for msg in text_generator(memory_l):
-            tk_tmp += hybrid_token_count(
-                msg,
-                config_manager.config.llm_config.tokens_count_mode,
-            )
+        tk_tmp: int = get_token()
 
         while tk_tmp > config_manager.config.session.session_max_tokens:
-            if len(data.memory.messages) > 0:
+            if len(data.memory.messages) > 1:
                 self._dropped_messages.append(data.memory.messages.pop(0))
+            else:
+                break
 
-            tk_tmp: int = 0
-            for msg in text_generator(memory_l):
-                tk_tmp += hybrid_token_count(
-                    msg,
-                    config_manager.config.llm_config.tokens_count_mode,
-                )
+            tk_tmp: int = get_token()
+            memory_l = [train_model, *data.memory.messages]
             await asyncio.sleep(0)  # CPU 密集型任务可能造成性能问题，我们在这里让出协程
 
     async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
@@ -452,8 +460,7 @@ class ChatObject:
             "<SCHEMA>\n你在纯文本环境工作，不允许使用MarkDown回复，你的工作环境是一个社交软件，我会提供聊天记录，你可以从这里面获取一些关键信息，比如时间与用户身份（e.g.: [管理员/群主/自己/群员][YYYY-MM-DD weekday hh:mm:ss AM/PM][昵称（QQ号）]说:<内容>），但是请不要以聊天记录的格式做回复，而是纯文本方式。请以你自己的角色身份参与讨论，交流时不同话题尽量不使用相似句式回复，用户与你交谈的信息在用户的消息输入内。\n</SCHEMA>\n"
             + "<SYSTEM_PROMPT>\n"
             + (
-                self
-                .train["content"]
+                self.train["content"]
                 .replace("{cookie}", config_manager.config.cookies.cookie)
                 .replace("{self_id}", str(event.self_id))
                 .replace("{user_id}", str(event.user_id))
