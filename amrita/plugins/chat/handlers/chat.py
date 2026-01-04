@@ -34,7 +34,6 @@ from ..chatmanager import SessionTemp, chat_manager
 from ..check_rule import FakeEvent
 from ..config import Config, config_manager
 from ..event import BeforeChatEvent, ChatEvent
-from ..exception import CancelException
 from ..matcher import MatcherManager
 from ..utils.functions import (
     get_current_datetime_timestamp,
