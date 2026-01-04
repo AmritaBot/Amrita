@@ -175,7 +175,7 @@ async def lp_perm_group_to(
         await matcher.finish("❌ 操作错误，仅支持 create/remove")
 
 
-@command.command("perm_group.list ", permission=is_lp_admin).handle()
+@command.command("perm_group.list", permission=is_lp_admin).handle()
 async def _(matcher: Matcher):
     perm_groups = await PermissionStorage().get_all_perm_groups()
     await matcher.finish(
