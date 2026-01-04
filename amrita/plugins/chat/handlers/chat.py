@@ -722,7 +722,7 @@ class ChatObject:
                             message_id=chated["message_id"], timestamp=datetime.now()
                         )
 
-                        return matcher.stop_propagation()
+                        return await matcher.finish()
 
                 elif (
                     session := session_clear_map.get(session_id)
@@ -737,7 +737,7 @@ class ChatObject:
                     data.sessions.pop()
                     await matcher.send("让我们继续聊天吧～")
                     await data.save(event, raise_err=True)
-                    raise CancelException()
+                    return await matcher.finish()
 
             finally:
                 data.timestamp = time.time()
