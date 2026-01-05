@@ -1,3 +1,4 @@
+import contextlib
 from abc import abstractmethod
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
@@ -145,7 +146,8 @@ class UserPermissionChecker(PermissionChecker):
     async def _check_permission(self, event: Event, perm: str) -> bool:
         global _event_to_key_mapping
         user_id = event.get_user_id()
-        _event_to_key_mapping[event.get_session_id()] = (user_id, perm)
+        with contextlib.suppress(ValueError):
+            _event_to_key_mapping[event.get_session_id()] = (user_id, perm)
 
         result = await _check_user_permission_with_cache(user_id, perm)
         return result
@@ -179,7 +181,8 @@ class GroupPermissionChecker(PermissionChecker):
             g_event: GroupEvent = event
 
         group_id: str = str(g_event.group_id)
-        _event_to_key_mapping[event.get_session_id()] = (group_id, perm)
+        with contextlib.suppress(ValueError):
+            _event_to_key_mapping[event.get_session_id()] = (group_id, perm)
 
         result: bool = await _check_group_permission_with_cache(
             group_id, perm, self.only_group
