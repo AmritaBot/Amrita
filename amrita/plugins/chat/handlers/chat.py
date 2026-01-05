@@ -203,7 +203,7 @@ class MemoryLimiter:
             Message[str](
                 role="user",
                 content=(
-                    "消息列表：\n```text".join(
+                    "消息列表：\n```text\n".join(
                         [
                             f"{it}\n"
                             for it in text_generator(
@@ -211,7 +211,7 @@ class MemoryLimiter:
                             )
                         ]
                     )
-                    + "```"
+                    + "\n```"
                 ),
             ),
         ]
@@ -474,7 +474,7 @@ class ChatObject:
                 .replace("{user_name}", str(event.sender.nickname))
             )
             + "\n</SYSTEM_PROMPT>"
-            + f"\n<SUMMARY>{data.memory_abstract if config.llm_config.enable_memory_abstract else ''}"
+            + f"\n<SUMMARY>{data.memory_abstract if config.llm_config.enable_memory_abstract else ''}\n</SUMMARY>"
         )
         async with MemoryLimiter(self.data, self.train) as lim:
             await lim.run_enforce()
