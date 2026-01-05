@@ -70,17 +70,6 @@ class Admin:
         await send_to_admin(msg)
         return self
 
-    def is_admin(self, user_id: str) -> bool:
-        """检查用户是否是管理员。
-
-        参数:
-        - user_id (str): 用户ID。
-
-        返回:
-        - bool: 用户是否是管理员。
-        """
-        return int(user_id) in self.config.admin.admins
-
 
 class Chat:
     """聊天处理类

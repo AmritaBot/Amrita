@@ -14,7 +14,6 @@ import tomli_w
 from nonebot import get_driver, logger
 from pydantic import BaseModel, Field
 
-from amrita.config import get_amrita_config
 from amrita.config_manager import BaseDataManager, UniConfigManager
 
 __kernel_version__ = "unknown"
@@ -258,20 +257,6 @@ class ExtendConfig(BaseModel):
     )
 
 
-class AdminConfig(BaseModel):
-    allow_send_to_admin: bool = Field(
-        default=False, description="是否允许向管理群发送系统消息"
-    )
-
-    @property
-    def admins(self) -> list[int]:
-        return [int(i) for i in get_driver().config.superusers if i.isdigit()]
-
-    @property
-    def admin_group(self) -> int:
-        return get_amrita_config().admin_group
-
-
 class UsageLimitConfig(BaseModel):
     enable_usage_limit: bool = Field(default=False, description="是否启用使用频率限制")
     group_daily_limit: int = Field(default=100, description="单个群组每日最大使用次数")
@@ -380,7 +365,6 @@ class Config(BaseModel):
         default=FunctionConfig(), description="功能开关配置"
     )
     extended: ExtendConfig = Field(default=ExtendConfig(), description="扩展行为设置")
-    admin: AdminConfig = Field(default=AdminConfig(), description="管理员设置")
     llm_config: LLM_Config = Field(default=LLM_Config(), description="大语言模型配置")
     extra: dict[str, Any] = Field(default={}, description="扩展预留区")
     usage_limit: UsageLimitConfig = Field(

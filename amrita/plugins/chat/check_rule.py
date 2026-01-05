@@ -13,6 +13,7 @@ from nonebot.adapters.onebot.v11.event import (
 from typing_extensions import override
 
 from amrita.plugins.chat.utils.libchat import usage_enough
+from amrita.plugins.perm.API.admin import is_lp_admin
 
 from .config import config_manager
 from .utils.functions import (
@@ -68,9 +69,7 @@ async def is_group_admin(event: GroupMessageEvent, bot: Bot) -> bool:
 
 
 async def is_bot_admin(event: Event) -> bool:
-    return (int(event.get_user_id())) in config_manager.config.admin.admins + [
-        int(user) for user in nb_config.superusers if user.isdigit()
-    ]
+    return await is_lp_admin(event)
 
 
 async def is_group_admin_if_is_in_group(event: MessageEvent, bot: Bot) -> bool:
