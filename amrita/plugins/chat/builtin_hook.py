@@ -281,16 +281,20 @@ async def agent_core(event: BeforeChatEvent) -> None:
                         == "show"
                     )
                     await bot.send(nonebot_event, message)
-                observation_msg = "\n".join(
-                    [f"{result.name}: {result.content}\n" for result in result_msg_list]
-                )
-                msg_list.append(
-                    Message(
-                        role="user",
-                        content=f"观察结果:\n```text\n{observation_msg}\n```"
-                        + f"\n请基于以上工具执行结果继续完成任务，如果任务已完成请使用工具 '{STOP_TOOL.function.name}' 结束。",
+                if result_msg_list:
+                    observation_msg = "".join(
+                        [
+                            f"{result.name}: {result.content}\n"
+                            for result in result_msg_list
+                        ]
                     )
-                )
+                    msg_list.append(
+                        Message(
+                            role="user",
+                            content=f"观察结果:\n```text\n{observation_msg}\n```"
+                            + f"\n请基于以上工具执行结果继续完成任务，如果任务已完成请使用工具 '{STOP_TOOL.function.name}' 结束。",
+                        )
+                    )
                 await run_tools(msg_list, nonebot_event, call_count, original_msg)
 
     config = config_manager.config

@@ -202,13 +202,16 @@ class MemoryLimiter:
             Message[str](role="system", content=self._abstract_instruction),
             Message[str](
                 role="user",
-                content="".join(
-                    [
-                        f"{it}\n"
-                        for it in text_generator(
-                            self._dropped_messages + dropped_part, split_role=True
-                        )
-                    ]
+                content=(
+                    "消息列表：\n```text\n".join(
+                        [
+                            f"{it}\n"
+                            for it in text_generator(
+                                self._dropped_messages + dropped_part, split_role=True
+                            )
+                        ]
+                    )
+                    + "\n```"
                 ),
             ),
         ]
@@ -409,6 +412,7 @@ class ChatObject:
         data = self.data
         bot = self.bot
         user_id = event.user_id
+        config = self.config
         await self._manage_sessions()
 
         if isinstance(event, GroupMessageEvent):
@@ -419,7 +423,7 @@ class ChatObject:
                 (await bot.get_group_member_info(group_id=group_id, user_id=user_id))[
                     "nickname"
                 ]
-                if not config_manager.config.function.use_user_nickname
+                if not config.function.use_user_nickname
                 else event.sender.nickname
             )
             role = await self._get_user_role(group_id, user_id)
@@ -455,16 +459,22 @@ class ChatObject:
             )
             logger.debug(debug_msg)
         self.train["content"] = (
-            "<SCHEMA>\n你在纯文本环境工作，不允许使用MarkDown回复，你的工作环境是一个社交软件，我会提供聊天记录，你可以从这里面获取一些关键信息，比如时间与用户身份（e.g.: [管理员/群主/自己/群员][YYYY-MM-DD weekday hh:mm:ss AM/PM][昵称（QQ号）]说:<内容>），但是请不要以聊天记录的格式做回复，而是纯文本方式。请以你自己的角色身份参与讨论，交流时不同话题尽量不使用相似句式回复，用户与你交谈的信息在用户的消息输入内。\n</SCHEMA>\n"
+            "<SCHEMA>\n"
+            + "你在纯文本环境工作，不允许使用MarkDown回复，你的工作环境是一个社交软件，我会提供聊天记录，你可以从这里面获取一些关键信息，比如时间与用户身份"
+            + "（e.g.: [管理员/群主/自己/群员][YYYY-MM-DD weekday hh:mm:ss AM/PM][昵称（QQ号）]说:<内容>），但是请不要以聊天记录的格式做回复，而是纯文本方式。"
+            + "请以你自己的角色身份参与讨论，交流时不同话题尽量不使用相似句式回复，用户与你交谈的信息在用户的消息输入内。"
+            + "你的设定将在<SYSTEM_PROMPT>标签对内，对于先前对话的摘要位于<SUMMARY>标签对内，"
+            + "\n</SCHEMA>\n"
             + "<SYSTEM_PROMPT>\n"
             + (
                 self.train["content"]
-                .replace("{cookie}", config_manager.config.cookies.cookie)
+                .replace("{cookie}", config.cookies.cookie)
                 .replace("{self_id}", str(event.self_id))
                 .replace("{user_id}", str(event.user_id))
                 .replace("{user_name}", str(event.sender.nickname))
             )
             + "\n</SYSTEM_PROMPT>"
+            + f"\n<SUMMARY>{data.memory_abstract if config.llm_config.enable_memory_abstract else ''}\n</SUMMARY>"
         )
         async with MemoryLimiter(self.data, self.train) as lim:
             await lim.run_enforce()
@@ -479,7 +489,7 @@ class ChatObject:
         Args:
             response: 模型响应内容
         """
-        if not config_manager.config.function.nature_chat_style:
+        if not self.config.function.nature_chat_style:
             await self.matcher.send(
                 MessageSegment.reply(self.event.message_id)
                 + MessageSegment.text(response)
