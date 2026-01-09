@@ -463,9 +463,9 @@ class ChatObject:
             + "你在纯文本环境工作，不允许使用MarkDown回复，你的工作环境是一个社交软件，我会提供聊天记录，你可以从这里面获取一些关键信息，比如时间与用户身份"
             + "（e.g.: [管理员/群主/自己/群员][YYYY-MM-DD weekday hh:mm:ss AM/PM][昵称（QQ号）]说:<内容>），但是请不要以聊天记录的格式做回复，而是纯文本方式。"
             + "请以你自己的角色身份参与讨论，交流时不同话题尽量不使用相似句式回复，用户与你交谈的信息在用户的消息输入内。"
-            + "你的设定将在<SYSTEM_PROMPT>标签对内，对于先前对话的摘要位于<SUMMARY>标签对内，"
+            + "你的设定将在<SYSTEM_INSTRUCTIONS>标签对内，对于先前对话的摘要位于<SUMMARY>标签对内，"
             + "\n</SCHEMA>\n"
-            + "<SYSTEM_PROMPT>\n"
+            + "<SYSTEM_INSTRUCTIONS>\n"
             + (
                 self.train["content"]
                 .replace("{cookie}", config.cookies.cookie)
@@ -473,7 +473,7 @@ class ChatObject:
                 .replace("{user_id}", str(event.user_id))
                 .replace("{user_name}", str(event.sender.nickname))
             )
-            + "\n</SYSTEM_PROMPT>"
+            + "\n</SYSTEM_INSTRUCTIONS>"
             + f"\n<SUMMARY>{data.memory_abstract if config.llm_config.enable_memory_abstract else ''}\n</SUMMARY>"
         )
         async with MemoryLimiter(self.data, self.train) as lim:
@@ -602,10 +602,12 @@ class ChatObject:
         train: Message[str] = Message[str].model_validate(self.train)
         assert isinstance(train.content, str)
         data = self.data
-        train.content += f"\n以下是一些补充内容，如果与上面任何一条有冲突请忽略。\n<EXTRA>\n{data.prompt if data.prompt != '' else '无'}\n<EXTRA>"
-        send_messages = copy.deepcopy(data.memory.messages)
-        send_messages.insert(0, Message.model_validate(train))
-        return send_messages
+        train.content += (
+            f"\n以下是一些补充内容，如果与上面任何一条有冲突请忽略。\n<EXTRA>\n{data.prompt if data.prompt != '' else '无'}\n<EXTRA>"
+            if self.config.function.allow_custom_prompt
+            else ""
+        )
+        return [Message.model_validate(train), *copy.deepcopy(data.memory.messages)]
 
     async def _handle_reply(
         self, reply: Reply, bot: Bot, group_id: int | None, content: str
