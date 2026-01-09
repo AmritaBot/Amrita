@@ -4,6 +4,7 @@
 """
 
 from nonebot import MatcherGroup, on_command
+from nonebot.permission import Permission
 from nonebot.rule import Rule
 
 from ..menu.models import MatcherData
@@ -65,7 +66,7 @@ base_matcher.on_command(
     "prompt",
     priority=10,
     block=True,
-    permission=is_group_admin_if_is_in_group,
+    permission=Permission(is_group_admin_if_is_in_group),
     state=MatcherData(
         name="设置系统提示",
         description="设置系统提示词，用于指导AI回复",

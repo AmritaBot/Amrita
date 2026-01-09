@@ -92,6 +92,7 @@ async def _check_group_permission_with_cache(
                 logger.warning(f"权限组 {permg} 不存在")
                 continue
             data = await store.get_permission_group(permg)
+
             if Permissions(data.permissions).check_permission(perm):
                 return True
 
@@ -188,3 +189,12 @@ class GroupPermissionChecker(PermissionChecker):
             group_id, perm, self.only_group
         )
         return result
+
+
+def any_has_permission(permission: str) -> Callable[[Event], Awaitable[bool]]:
+    async def inner(event: Event):
+        return (await GroupPermissionChecker(permission, True).checker()(event)) or (
+            await UserPermissionChecker(permission).checker()(event)
+        )
+
+    return inner

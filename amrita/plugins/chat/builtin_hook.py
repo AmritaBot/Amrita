@@ -66,11 +66,11 @@ async def text_check(event: BeforeChatEvent) -> None:
     logger.info("正在进行内容审查......")
     bot = get_bot()
     tool_list = [REPORT_TOOL]
-    msg = event._send_message
+    msg = event._send_message.unwrap()
     if config.llm_config.tools.report_exclude_system_prompt:
-        msg = [i for i in msg if i.role != "system"]
+        msg = event.get_send_message().get_memory()
     if config.llm_config.tools.report_exclude_context:
-        msg = msg[:-1]
+        msg = event.get_send_message().get_memory()[:-1]
     response = await tools_caller(msg, tool_list)
     nonebot_event = typing.cast(MessageEvent, event.get_nonebot_event())
     if tool_calls := response.tool_calls:
@@ -119,7 +119,7 @@ async def agent_core(event: BeforeChatEvent) -> None:
                 )
                 + (f"\n<INPUT>\n{original_msg}\n</INPUT>\n" if original_msg else "")
                 + (
-                    f"<SYS_SETTINGS>\n{event._send_message[0].content!s}\n</SYS_SETTINGS>"
+                    f"<SYS_SETTINGS>\n{event._send_message.train.content!s}\n</SYS_SETTINGS>"
                 ),
             ),
             *msg,
@@ -306,9 +306,9 @@ async def agent_core(event: BeforeChatEvent) -> None:
     bot = typing.cast(Bot, get_bot(str(nonebot_event.self_id)))
     msg_list = [
         *deepcopy([i for i in event.message if i["role"] == "system"]),
-        deepcopy(event.message)[-1],
+        deepcopy(event.message.memory)[-1],
     ]
-    chat_list_backup = deepcopy(event.message.copy())
+    chat_list_backup = event.message.copy()
     tools: list[dict[str, Any]] = []
     if config.llm_config.tools.agent_mode_enable:
         tools.append(STOP_TOOL.model_dump())
@@ -331,7 +331,7 @@ async def agent_core(event: BeforeChatEvent) -> None:
         await run_tools(
             msg_list, nonebot_event, original_msg=nonebot_event.get_plaintext()
         )
-        event._send_message.extend(
+        event._send_message.memory.extend(
             [msg for msg in msg_list if msg not in event._send_message]
         )
 

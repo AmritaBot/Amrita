@@ -61,38 +61,42 @@ class Matcher:
             priority (int, optional): 优先级。 Defaults to 10.
             block (bool, optional): 是否阻止后续事件。 Defaults to True.
         """
+        if priority <= 0:
+            raise ValueError("事件优先级不能为0或负！")
+
         self.event_type = event_type
         self.priority = priority
         self.block = block
+
+    def append_handler(self, func: Callable[..., Awaitable[Any]]):
+        frame = inspect.currentframe()
+        assert frame is not None, "Frame is None!!!"
+        func_data = FunctionData(
+            function=func,
+            signature=inspect.signature(func),
+            frame=frame,
+            priority=self.priority,
+            block=self.block,
+            matcher=self,
+        )
+        EventRegistry().register_handler(self.event_type, func_data)
 
     def handle(self):
         """
         事件处理函数注册函数
         """
-        if self.priority <= 0:
-            raise ValueError("事件优先级不能为0或负！")
 
         def wrapper(
             func: Callable[..., Awaitable[Any]],
         ):
-            frame = inspect.currentframe()
-            assert frame is not None, "Frame is None!!!"
-            func_data = FunctionData(
-                function=func,
-                signature=inspect.signature(func),
-                frame=frame,
-                priority=self.priority,
-                block=self.block,
-                matcher=self,
-            )
-            EventRegistry().register_handler(self.event_type, func_data)
+            self.append_handler(func)
             return func
 
         return wrapper
 
     def stop_process(self):
         """
-        阻止当前Suggar事件循环继续运行并立即停止当前的处理器。
+        阻止当前聊天插件内的事件流继续运行并立即停止当前的处理器。
         """
         raise BlockException()
 
@@ -104,7 +108,7 @@ class Matcher:
 
     def cancel_matcher(self):
         """
-        停止当前Suggar事件处理并取消。
+        停止当前聊天插件内的事件处理并取消。
         """
         raise CancelException()
 
@@ -142,13 +146,13 @@ class MatcherManager:
             return
         event_type = event.get_event_type()  # 获取事件类型
         priority_tmp = 0
-        logger.info(f"正在为事件: {event_type} 运行matcher!")
+        logger.info(f"正在为事件: {event_type} 运行匹配器!")
         # 检查是否有处理该事件类型的处理程序
         if matcher_list := EventRegistry().get_handlers(event_type):
             for matcher in matcher_list:
                 if matcher.priority != priority_tmp:
                     priority_tmp = matcher.priority
-                    logger.info(f"为优先级 {priority_tmp} 运行Matcher......")
+                    logger.info(f"为优先级 {priority_tmp} 运行匹配器......")
 
                 signature = matcher.signature
                 frame = matcher.frame
@@ -179,7 +183,6 @@ class MatcherManager:
                             new_args.append(arg)
                             used_indices.add(i)
                             break
-                new_args_tuple = tuple(new_args)
 
                 # 获取关键词参数类型注解
                 kwparams = signature.parameters
@@ -191,7 +194,7 @@ class MatcherManager:
                 f_kwargs.update(
                     {k: await v() for k, v in f_kwargs.items() if type(v) is Dependent}
                 )
-                if len(new_args_tuple) != len(list(filtered_args_types)):
+                if len(new_args) != len(list(filtered_args_types)):
                     continue
 
                 # 调用处理程序
@@ -199,7 +202,7 @@ class MatcherManager:
                 try:
                     logger.info(f"开始运行Matcher: '{handler.__name__}'")
 
-                    await handler(*new_args_tuple, **f_kwargs)
+                    await handler(*new_args, **f_kwargs)
 
                 except ProcessException as e:
                     logger.info("停止Nonebot处理")

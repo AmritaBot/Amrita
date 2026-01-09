@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 import time
 import typing
+from collections.abc import Iterable
+from copy import deepcopy
 from datetime import datetime, timedelta
 from typing import Any, Generic, Literal, overload
 
@@ -33,6 +35,7 @@ from ..config import config_manager
 from .lock import database_lock
 
 # Pydantic 模型
+
 T = typing.TypeVar("T", None, str, None | typing.Literal[""])
 T_INT = typing.TypeVar("T_INT", int, None)
 
@@ -134,8 +137,54 @@ class ToolResult(BaseModel):
 
 
 class MemoryModel(BaseModel):
-    messages: list[Message | ToolResult] = Field(default_factory=list)
+    messages: list[SEND_MESSAGES_ITEM] = Field(default_factory=list)
     time: float = Field(default_factory=time.time, description="时间戳")
+
+
+SEND_MESSAGES_ITEM = Message | ToolResult
+SEND_MESSAGES = list[SEND_MESSAGES_ITEM]
+
+
+class SendMessageWrap(Iterable[SEND_MESSAGES_ITEM]):
+    """SEND_MESSAGES的包装类"""
+
+    train: Message  # system 消息
+    memory: SEND_MESSAGES  # 无system消息的消息
+
+    def __init__(
+        self, train: dict[str, str] | Message[str], memory: SEND_MESSAGES | MemoryModel
+    ):
+        self.train = (
+            train if isinstance(train, Message) else Message.model_validate(train)
+        )
+        self.memory = memory if isinstance(memory, list) else memory.messages
+
+    @classmethod
+    def validate_messages(cls, messages: SEND_MESSAGES) -> SendMessageWrap:
+        train = messages[0]
+        if train.role != "system":
+            raise ValueError("The first item must be system message")
+        memory = messages[1:]
+        return cls(train, memory)
+
+    def __len__(self) -> int:
+        return len(self.memory) + 1
+
+    def __iter__(self) -> typing.Iterator[SEND_MESSAGES_ITEM]:
+        yield self.train
+        yield from self.memory
+
+    def copy(self) -> SendMessageWrap:
+        return SendMessageWrap(deepcopy(self.train), deepcopy(self.memory))
+
+    def unwrap(self) -> SEND_MESSAGES:
+        return [self.train, *self.memory]
+
+    def get_train(self) -> Message:
+        return self.train
+
+    def get_memory(self) -> SEND_MESSAGES:
+        return self.memory
 
 
 class InsightsModel(BaseModel):
@@ -366,6 +415,3 @@ async def get_or_create_data(
             group_config = (await session.execute(stmt)).scalar_one()
         session.add(group_config)
         return group_config, memory
-
-
-SEND_MESSAGES = list[Message | ToolResult]

@@ -535,7 +535,7 @@ class ChatObject:
                 user_id=event.user_id,
             )
             await MatcherManager.trigger_event(chat_event, event, bot)
-            send_messages = chat_event.get_send_message()
+            send_messages = chat_event.get_send_message().unwrap()
 
         response = await get_chat(send_messages)
 
@@ -547,6 +547,7 @@ class ChatObject:
                 user_id=event.user_id,
             )
             await MatcherManager.trigger_event(chat_event, event, bot)
+            response.content = chat_event.model_response
 
         tokens = await get_tokens(send_messages, response)
         # 记录模型回复

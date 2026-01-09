@@ -207,6 +207,7 @@ class PermissionStorage:
     _cached_member_to_permission_group_data: dict[
         tuple[str, PERM_TYPE], set[str]
     ]  # 权限拥有者实体ID -> 权限组名称
+    _default_permission: dict[tuple[str, PERM_TYPE], set[str]]
 
     def __new__(cls, *args, **kwargs):
         """
