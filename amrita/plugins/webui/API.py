@@ -48,7 +48,7 @@ def on_page(path: str, page_name: str, category: str = "其他功能"):
     Args:
         path (str): 页面的URL路径
         page_name (str): 页面名称，将显示在侧边栏中
-        category (str, optional): 页面所属的分类，分类不存在时将创建一个分类
+        category (str, optional): 页面所属的分类，分类不存在时将创建一个分类，__HIDDEN__则不将该页面添加到侧边栏中。
 
     Returns:
         Callable: 返回一个装饰器函数
@@ -56,33 +56,38 @@ def on_page(path: str, page_name: str, category: str = "其他功能"):
 
     def decorator(func: Callable[[PageContext], Awaitable[PageResponse]]):
         # 将当前页面添加到侧边栏对应分类中
-        if all(cate.name != category for cate in SideBarManager().get_sidebar().items):
-            SideBarManager().add_sidebar_category(
-                SideBarCategory(name=category, icon="fa fa-question", url="#")
+        if category != "__HIDDEN__":
+            if all(
+                cate.name != category for cate in SideBarManager().get_sidebar().items
+            ):
+                SideBarManager().add_sidebar_category(
+                    SideBarCategory(name=category, icon="fa fa-question", url="#")
+                )
+            SideBarManager().add_sidebar_item(
+                category, SideBarItem(name=page_name, url=path)
             )
-        SideBarManager().add_sidebar_item(
-            category, SideBarItem(name=page_name, url=path)
-        )
         page_path = path
 
         async def route(request: Request) -> _TemplateResponse:
             # 深拷贝侧边栏数据，避免修改原始数据
+
             side_bar = deepcopy(SideBarManager().get_sidebar().items)
             logger.debug(page_path)
             # 设置当前分类和页面为激活状态
-            if request.url.path == page_path:
-                for bar in side_bar:
-                    if bar.name == category:
-                        bar.active = True
-                        for item in bar.children:
-                            if item.name == page_name:
-                                item.active = True
-                                break
-                        break
-                else:
-                    logger.warning(
-                        f"Invalid page category `{category}` for page {path}"
-                    )
+            if category != "__HIDDEN__":
+                if request.url.path == page_path:
+                    for bar in side_bar:
+                        if bar.name == category:
+                            bar.active = True
+                            for item in bar.children:
+                                if item.name == page_name:
+                                    item.active = True
+                                    break
+                            break
+                    else:
+                        logger.warning(
+                            f"Invalid page category `{category}` for page {path}"
+                        )
 
             # 构造页面上下文并调用实际的处理函数
             ctx = PageContext(request, AuthManager(), TokenManager())

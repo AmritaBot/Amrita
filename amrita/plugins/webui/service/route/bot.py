@@ -4,12 +4,10 @@ import importlib
 import importlib.metadata
 import platform
 import sys
-import typing
 
 import nonebot
 from fastapi import Request
 from fastapi.responses import HTMLResponse
-from nonebot.adapters.onebot.v11 import Bot
 
 from amrita.config import get_amrita_config
 from amrita.utils.system_health import calculate_system_usage
@@ -38,15 +36,10 @@ async def _(request: Request):
             "request": request,
             "sidebar_items": side_bar,  # 侧边栏菜单项
             "bot_static_info": {  # 机器人静态信息
-                "id": bot.self_id if bot else "unknown",
+                "id": bot.self_id if bot else "未连接",
                 "name": get_amrita_config().bot_name,
                 "version": get_amrita_version(),
                 "platform": "OneBot V11",
-                "bot_name": (
-                    next(iter(typing.cast(Bot, bot).config.nickname))
-                    if bot and typing.cast(Bot, bot).config.nickname
-                    else "<获取失败>"
-                ),
             },
             "bot_dynamic_info": {  # 机器人动态信息(初始值，将通过API实时更新)
                 "status": "online" if bot else "offline",  # 状态: online/offline
