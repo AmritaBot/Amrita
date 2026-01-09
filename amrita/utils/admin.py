@@ -55,6 +55,8 @@ async def _check_and_handle_rate_limit():
             else:
                 logger.info("Rejecting pushing due to critical error.")
                 return True  # 仍然处于异常状态
+        else:
+            _message_tracker["admin"] = 0
     return False  # 表示不需要阻断消息发送
 
 

@@ -68,7 +68,7 @@ async def text_check(event: BeforeChatEvent) -> None:
     tool_list = [REPORT_TOOL]
     msg = event._send_message
     if config.llm_config.tools.report_exclude_system_prompt:
-        msg = msg[1:]
+        msg = [i for i in msg if i.role != "system"]
     if config.llm_config.tools.report_exclude_context:
         msg = msg[:-1]
     response = await tools_caller(msg, tool_list)
