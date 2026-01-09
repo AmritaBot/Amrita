@@ -174,8 +174,8 @@ async def should_respond_to_message(event: MessageEvent, bot: Bot) -> bool:
                 )
             elif isinstance(memory_data.memory.messages[-1].content, str):
                 memory_data.memory.messages[-1].content = [
-                    memory_data.memory.messages[-1].content,
-                    content_message,
+                    TextContent(type="text",memory_data.memory.messages[-1].content),
+                    TextContent(type="text", text=content_message),
                 ]
             else:
                 memory_data.memory.messages[-1].content.append(
