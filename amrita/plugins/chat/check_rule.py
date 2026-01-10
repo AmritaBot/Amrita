@@ -22,7 +22,8 @@ from .utils.functions import (
     get_current_datetime_timestamp,
     synthesize_message,
 )
-from .utils.memory import Message, get_memory_data
+from .utils.memory import get_memory_data
+from .utils.models import Message
 
 nb_config = get_driver().config
 

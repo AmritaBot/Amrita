@@ -65,7 +65,7 @@ REPORT_TOOL = ToolFunctionSchema(
 STOP_TOOL = ToolFunctionSchema(
     type="function",
     function=FunctionDefinitionSchema(
-        name="completion",
+        name="finish_work",
         description="当前用户所有任务处理完成时结束处理",
         parameters=FunctionParametersSchema(type="object", properties={}, required=[]),
     ),

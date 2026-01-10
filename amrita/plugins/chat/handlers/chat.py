@@ -30,6 +30,7 @@ from typing_extensions import Self
 
 from amrita.plugins.chat.builtin_hook import ChatException
 from amrita.plugins.chat.utils.event import GroupEvent
+from amrita.plugins.chat.utils.logging import debug_log
 
 from ..chatmanager import SessionTemp, chat_manager
 from ..check_rule import FakeEvent
@@ -47,8 +48,6 @@ from ..utils.lock import get_group_lock, get_private_lock
 from ..utils.memory import (
     Memory,
     MemoryModel,
-    Message,
-    ToolResult,
     get_memory_data,
 )
 from ..utils.models import (
@@ -56,8 +55,10 @@ from ..utils.models import (
     ImageContent,
     ImageUrl,
     InsightsModel,
+    Message,
     SessionMemoryModel,
     TextContent,
+    ToolResult,
     UniResponseUsage,
 )
 from ..utils.protocol import UniResponse
@@ -188,6 +189,7 @@ class MemoryLimiter:
         """
         self._dropped_messages = []
         self._copied_messages = copy.deepcopy(self.memory.memory)
+        debug_log(f"MemoryLimiter初始化，消息数量: {len(self.memory.memory.messages)}")
         return self
 
     async def _make_abstract(self):
@@ -196,6 +198,7 @@ class MemoryLimiter:
         通过调用LLM将当前记忆中的所有消息内容摘要为一段简短的内容，
         以减少上下文长度，同时保留关键信息。
         """
+        debug_log("开始进行上下文摘要...")
         proportion = self.config.llm_config.memory_abstract_proportion  # 摘要比例
         index = int(len(self.memory.memory.messages) * proportion)
         dropped_part = self.memory.memory.messages[index:]
@@ -217,12 +220,13 @@ class MemoryLimiter:
                 ),
             ),
         ]
-        logger.info("正在进行上下文摘要......")
+        debug_log("正在进行上下文摘要......")
         response = await get_chat(msg_list)
         usage = await get_tokens(msg_list, response)
         self.usage = usage
-        logger.debug(f"获取到上下文摘要：{response.content}")
+        debug_log(f"获取到上下文摘要：{response.content}")
         self.memory.memory.abstract = response.content
+        debug_log("上下文摘要完成")
 
     async def run_enforce(self):
         """执行记忆限制处理
@@ -233,6 +237,7 @@ class MemoryLimiter:
         Raises:
             RuntimeError: 当未在异步上下文管理器中使用时抛出
         """
+        debug_log("开始执行记忆限制处理...")
         if not hasattr(self, "_dropped_messages") and not hasattr(
             self, "_copied_messages"
         ):
@@ -243,9 +248,11 @@ class MemoryLimiter:
         await self._limit_tokens()
         if self.config.llm_config.enable_memory_abstract and self._dropped_messages:
             await self._make_abstract()
+        debug_log("记忆限制处理完成")
 
     async def _limit_length(self):
         """控制记忆长度，删除超出限制的旧消息，移除不支持的消息。"""
+        debug_log("开始执行记忆长度限制...")
         is_multimodal = (
             await config_manager.get_preset(config_manager.config.preset)
         ).multimodal
@@ -265,6 +272,7 @@ class MemoryLimiter:
                 message.content = message_text
 
         # Enforce memory length limit
+        initial_count = len(data.memory.messages)
         while len(data.memory.messages) > 0:
             if data.memory.messages[0].role != "user":
                 del data.memory.messages[0]
@@ -272,6 +280,8 @@ class MemoryLimiter:
                 self._dropped_messages.append(data.memory.messages.pop(0))
             else:
                 break
+        final_count = len(data.memory.messages)
+        debug_log(f"记忆长度限制完成，删除了 {initial_count - final_count} 条消息")
 
     async def _limit_tokens(self):
         """控制 token 数量，删除超出限制的旧消息
@@ -292,8 +302,10 @@ class MemoryLimiter:
         train = self._train
         train_model = Message.model_validate(train)
         data = self.memory
+        debug_log("开始执行token数量限制...")
         memory_l: list[Message | ToolResult] = [train_model, *data.memory.messages]
         if not config_manager.config.llm_config.enable_tokens_limit:
+            debug_log("token限制未启用，跳过处理")
             return
         prompt_length = hybrid_token_count(train["content"])
         if prompt_length > config_manager.config.session.session_max_tokens:
@@ -303,6 +315,7 @@ class MemoryLimiter:
             return
         tk_tmp: int = get_token(memory_l)
 
+        initial_count = len(data.memory.messages)
         while tk_tmp > config_manager.config.session.session_max_tokens:
             if len(data.memory.messages) > 1:
                 self._dropped_messages.append(data.memory.messages.pop(0))
@@ -312,6 +325,9 @@ class MemoryLimiter:
             tk_tmp: int = get_token(memory_l)
             memory_l = [train_model, *data.memory.messages]
             await asyncio.sleep(0)  # CPU 密集型任务可能造成性能问题，我们在这里让出协程
+        final_count = len(data.memory.messages)
+        debug_log(f"token数量限制完成，删除了 {initial_count - final_count} 条消息")
+        debug_log(f"最终token数量: {tk_tmp}")
 
     async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
         """异步上下文管理器出口，处理异常情况下的回滚
@@ -324,7 +340,7 @@ class MemoryLimiter:
             exc_tb: 异常追踪栈
         """
         if exc_type is not None:
-            logger.warning("Rolling back messages......")
+            logger.warning("发生异常，正在回滚消息......")
             self.memory.memory.messages = self._copied_messages.messages
             return
 
@@ -362,6 +378,7 @@ class ChatObject:
             bot: Bot实例
         """
         if not self._is_running and not self._is_done:
+            debug_log(f"开始处理聊天事件，用户ID: {event.user_id}")
             self.stream_id = uuid4().hex
             self.bot = bot
             self.matcher = matcher
@@ -381,23 +398,29 @@ class ChatObject:
                 )
                 match self.config.function.chat_pending_mode:
                     case "queue":
-                        pass
+                        debug_log("聊天队列模式")
                     case "single":
                         if lock.locked():
+                            debug_log("聊天已被锁定，跳过")
                             return matcher.stop_propagation()
                     case "single_with_report":
                         if lock.locked():
+                            debug_log("聊天已被锁定，发送报告")
                             await matcher.finish("聊天任务正在处理中，请稍后再试")
                 async with lock:
+                    debug_log("获取锁成功，开始获取记忆数据")
                     self.data = await get_memory_data(event)
+                    debug_log("记忆数据获取完成，开始运行聊天流程")
                     await self._run()
             except BaseException as e:
                 if isinstance(e, ChatException):
                     raise
+                debug_log(f"处理聊天事件时发生异常: {e}")
                 await self._throw(e)
             finally:
                 self._is_running = False
                 self._is_done = True
+                debug_log("聊天事件处理完成")
 
         else:
             raise RuntimeError(
@@ -410,15 +433,19 @@ class ChatObject:
         执行消息处理的主要逻辑，包括获取用户信息、处理消息内容、
         管理上下文长度和token限制，以及发送响应。
         """
+        debug_log("开始运行聊天处理流程...")
         event = self.event
         data = self.data
         bot = self.bot
         user_id = event.user_id
         config = self.config
+        debug_log("管理会话上下文...")
         await self._manage_sessions()
+        debug_log("会话管理完成")
 
         if isinstance(event, GroupMessageEvent):
             # 群聊消息处理
+            debug_log("处理群聊消息")
             group_id = event.group_id
 
             user_name = (
@@ -430,21 +457,27 @@ class ChatObject:
             )
             role = await self._get_user_role(group_id, user_id)
         else:
+            debug_log("处理私聊消息")
             user_name = (
                 await get_friend_name(event.user_id, bot=bot)
                 if not isinstance(event, GroupMessageEvent)
                 else event.sender.nickname
             )
             role = ""
+        debug_log(f"获取用户信息完成: {user_name}, 角色: {role}")
+
         content = await synthesize_message(event.get_message(), bot)
+        debug_log(f"合成消息完成: {content}")
 
         if content.strip() == "":
             content = ""
         if event.reply:
             group_id = event.group_id if isinstance(event, GroupMessageEvent) else None
+            debug_log("处理引用消息...")
             content = await self._handle_reply(event.reply, bot, group_id, content)
 
         reply_pics = self._get_reply_pics()
+        debug_log(f"获取引用图片完成，共 {len(reply_pics)} 张")
 
         content = await synthesize_message_to_msg(
             event, role, self.timestamp, str(user_name), str(user_id), content
@@ -452,14 +485,8 @@ class ChatObject:
         if isinstance(content, list):
             content.extend(reply_pics)
         data.memory.messages.append(Message(role="user", content=content))
+        debug_log(f"添加用户消息到记忆，当前消息总数: {len(data.memory.messages)}")
 
-        if chat_manager.debug:
-            debug_msg = (
-                f"当前群组提示词：\n{config_manager.group_train}"
-                if isinstance(event, GroupMessageEvent)
-                else f"当前私聊提示词：\n{config_manager.private_train}"
-            )
-            logger.debug(debug_msg)
         self.train["content"] = (
             "<SCHEMA>\n"
             + "你在纯文本环境工作，不允许使用MarkDown回复，你的工作环境是一个社交软件，我会提供聊天记录，你可以从这里面获取一些关键信息，比如时间与用户身份"
@@ -476,14 +503,32 @@ class ChatObject:
                 .replace("{user_name}", str(event.sender.nickname))
             )
             + "\n</SYSTEM_INSTRUCTIONS>"
-            + f"\n<SUMMARY>{data.memory.abstract if config.llm_config.enable_memory_abstract else ''}\n</SUMMARY>"
+            + f"\n<SUMMARY>\n{data.memory.abstract if config.llm_config.enable_memory_abstract else ''}\n</SUMMARY>"
         )
+
+        debug_msg = (
+            f"当前群组提示词：\n{config_manager.group_train}"
+            if isinstance(event, GroupMessageEvent)
+            else f"当前私聊提示词：\n{config_manager.private_train}"
+        )
+        debug_log(debug_msg)
+        debug_log(self.train["content"])
+
+        debug_log("开始应用记忆限制...")
         async with MemoryLimiter(self.data, self.train) as lim:
             await lim.run_enforce()
             abs_usage = lim.usage
+            self.data = lim.memory
+        debug_log("记忆限制应用完成")
+
         send_messages = self._prepare_send_messages()
+        debug_log(f"准备发送消息完成，消息数量: {len(send_messages)}")
         response = await self._process_chat(send_messages, abs_usage)
+        debug_log("聊天处理完成，准备发送响应")
         await self.send_response(response.content)
+        debug_log("开始保存记忆数据...")
+        await self.data.save(event)
+        debug_log("记忆数据保存完成")
 
     async def send_response(self, response: str):
         """发送聊天模型的回复，根据配置选择不同的发送方式。
@@ -491,6 +536,7 @@ class ChatObject:
         Args:
             response: 模型响应内容
         """
+        debug_log(f"发送响应: {response[:50]}...")  # 只显示前50个字符
         if not self.config.function.nature_chat_style:
             await self.matcher.send(
                 MessageSegment.reply(self.event.message_id)
@@ -529,7 +575,10 @@ class ChatObject:
         event = self.event
         bot = self.bot
         data = self.data
+        debug_log(f"开始处理聊天，发送消息数量: {len(send_messages)}")
+
         if config_manager.config.matcher_function:
+            debug_log("触发匹配器函数...")
             chat_event = BeforeChatEvent(
                 nbevent=event,
                 send_message=send_messages,
@@ -539,9 +588,11 @@ class ChatObject:
             await MatcherManager.trigger_event(chat_event, event, bot)
             send_messages = chat_event.get_send_message().unwrap()
 
+        debug_log("调用聊天模型...")
         response = await get_chat(send_messages)
 
         if config_manager.config.matcher_function:
+            debug_log("触发聊天事件...")
             chat_event = ChatEvent(
                 nbevent=event,
                 send_message=send_messages,
@@ -551,6 +602,7 @@ class ChatObject:
             await MatcherManager.trigger_event(chat_event, event, bot)
             response.content = chat_event.model_response
 
+        debug_log("计算token使用情况...")
         tokens = await get_tokens(send_messages, response)
         # 记录模型回复
         data.memory.messages.append(
@@ -559,8 +611,10 @@ class ChatObject:
                 role="assistant",
             )
         )
+        debug_log(f"添加助手回复到记忆，当前消息总数: {len(data.memory.messages)}")
 
         insights = await InsightsModel.get()
+        debug_log(f"获取洞察数据完成，使用计数: {insights.usage_count}")
 
         # 写入全局统计
         insights.usage_count += 1
@@ -568,6 +622,7 @@ class ChatObject:
         if extra_usage:
             add_usage(insights, extra_usage)
         await insights.save()
+        debug_log(f"更新全局统计完成，使用计数: {insights.usage_count}")
 
         # 写入记忆数据
         for d, ev in (
@@ -590,8 +645,10 @@ class ChatObject:
             add_usage(d, tokens)
             if extra_usage:
                 add_usage(d, extra_usage)
+            debug_log(f"更新记忆数据，使用次数: {d.usage}")
             await d.save(ev)
 
+        debug_log("聊天处理完成")
         return response
 
     def _prepare_send_messages(
@@ -602,6 +659,7 @@ class ChatObject:
         Returns:
             准备发送的消息列表
         """
+        debug_log("准备发送消息...")
         train: Message[str] = Message[str].model_validate(self.train)
         assert isinstance(train.content, str)
         data = self.data
@@ -610,7 +668,9 @@ class ChatObject:
             if self.config.function.allow_custom_prompt
             else ""
         )
-        return [Message.model_validate(train), *copy.deepcopy(data.memory.messages)]
+        messages = [Message.model_validate(train), *copy.deepcopy(data.memory.messages)]
+        debug_log(f"发送消息准备完成，共 {len(messages)} 条消息")
+        return messages
 
     async def _handle_reply(
         self, reply: Reply, bot: Bot, group_id: int | None, content: str
@@ -640,7 +700,9 @@ class ChatObject:
         )
 
         reply_content = await synthesize_message(reply.message, bot)
-        return f"{content}\n<引用的消息>\n{formatted_time} {weekday} [{role}]{reply.sender.nickname}（QQ:{reply.sender.user_id}）说：{reply_content}\n</引用的消息>"
+        result = f"{content}\n<引用的消息>\n{formatted_time} {weekday} [{role}]{reply.sender.nickname}（QQ:{reply.sender.user_id}）说：{reply_content}\n</引用的消息>"
+        debug_log(f"处理引用消息完成: {result[:50]}...")
+        return result
 
     def _get_reply_pics(
         self,
@@ -657,7 +719,7 @@ class ChatObject:
                 for seg in msg
                 if seg.type == "image" and (url := seg.data.get("url")) is not None
             ]
-
+            debug_log(f"获取引用图片完成，共 {len(images)} 张")
             return images
         return []
 
@@ -671,12 +733,15 @@ class ChatObject:
         Returns:
             用户角色字符串
         """
-        role = (
-            await self.bot.get_group_member_info(group_id=group_id, user_id=user_id)
-        )["role"]
-        return {"admin": "群管理员", "owner": "群主", "member": "普通成员"}.get(
+        role_data = await self.bot.get_group_member_info(
+            group_id=group_id, user_id=user_id
+        )
+        role = role_data["role"]
+        role_str = {"admin": "群管理员", "owner": "群主", "member": "普通成员"}.get(
             role, "[获取身份失败]"
         )
+        debug_log(f"获取用户角色完成: {role_str}")
+        return role_str
 
     async def _manage_sessions(
         self,
@@ -686,6 +751,7 @@ class ChatObject:
         - 提供"继续"功能以恢复上下文。
 
         """
+        debug_log("开始管理会话上下文...")
         event = self.event
         data = self.data
         matcher = self.matcher
@@ -704,15 +770,21 @@ class ChatObject:
             )
             try:
                 if session := session_clear_map.get(session_id):
+                    debug_log(f"找到会话清除记录: {session_id}")
                     if "继续" not in event.message.extract_plain_text():
+                        debug_log("消息中不包含'继续'，清除会话记录")
                         del session_clear_map[session_id]
                         return
 
                 # 检查会话超时
                 time_now = time.time()
+                debug_log(
+                    f"检查会话超时，当前时间: {time_now}, 数据时间戳: {data.timestamp}"
+                )
                 if (time_now - data.timestamp) >= (
                     float(config_manager.config.session.session_control_time * 60)
                 ):
+                    debug_log("会话超时，开始创建新会话...")
                     data.sessions.append(
                         SessionMemoryModel(messages=data.memory.messages, time=time_now)
                     )
@@ -729,6 +801,7 @@ class ChatObject:
                         async with get_session() as session:
                             for i in dropped_sesssions:
                                 try:
+                                    debug_log(f"删除过期会话: {i.id}")
                                     await i.delete(session)
                                 except Exception as e:  # noqa: PERF203
                                     logger.warning(f"删除Session{i.id}失败\n{e}")
@@ -741,6 +814,7 @@ class ChatObject:
                         (time_now - timestamp)
                         > float(config.session.session_control_time * 60 * 2)
                     ):
+                        debug_log("发送继续聊天提示")
                         chated = await matcher.send(
                             f'如果想和我继续用之前的上下文聊天，快at我回复✨"继续"✨吧！\n（超过{config.session.session_control_time}分钟没理我我就会被系统抱走存档哦！）'
                         )
@@ -753,6 +827,7 @@ class ChatObject:
                 elif (
                     session := session_clear_map.get(session_id)
                 ) and "继续" in event.message.extract_plain_text():
+                    debug_log("检测到'继续'消息，恢复上下文...")
                     with contextlib.suppress(Exception):
                         if time_now - session.timestamp.timestamp() < 100:
                             await bot.delete_msg(message_id=session.message_id)
@@ -767,6 +842,7 @@ class ChatObject:
 
             finally:
                 data.timestamp = time.time()
+                debug_log("会话上下文管理完成")
 
     async def _throw(self, e: BaseException):
         """处理异常：

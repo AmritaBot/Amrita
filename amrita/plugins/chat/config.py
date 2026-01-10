@@ -99,6 +99,10 @@ class ToolsConfig(BaseModel):
         default=True,
         description="是否启用外部工具调用功能（关闭此选项不影响内容审查系统）",
     )
+    use_minimal_context: bool = Field(
+        default=True,
+        description="是否使用最小上下文，即使用系统prompt+用户最后一条消息（关闭此选项将使用消息列表的所有上下文，在Agent工作流执行中可能会消耗大量Tokens，启用此选项可能会有效降低Tokens使用量）",
+    )
     enable_report: bool = Field(default=True, description="是否启用内容审查系统")
     report_exclude_system_prompt: bool = Field(
         default=False,

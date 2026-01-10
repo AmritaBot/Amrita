@@ -12,6 +12,7 @@ from nonebot.exception import NoneBotException
 from nonebot.log import logger
 
 from amrita.plugins.chat.utils.llm_tools.models import ToolContext
+from amrita.plugins.chat.utils.models import SEND_MESSAGES
 from amrita.utils.admin import send_to_admin
 
 from .config import config_manager
@@ -33,9 +34,11 @@ from .utils.llm_tools.builtin_tools import (
 )
 from .utils.llm_tools.manager import ToolsManager
 from .utils.memory import (
+    get_memory_data,
+)
+from .utils.models import (
     Message,
     ToolResult,
-    get_memory_data,
 )
 
 prehook = on_before_chat(block=False, priority=2)
@@ -305,10 +308,14 @@ async def agent_core(event: BeforeChatEvent) -> None:
     if not isinstance(nonebot_event, MessageEvent):
         return
     bot = typing.cast(Bot, get_bot(str(nonebot_event.self_id)))
-    msg_list = [
-        *deepcopy(event.message.train),
-        deepcopy(event.message.memory)[-1],
-    ]
+    msg_list: SEND_MESSAGES = (
+        [
+            deepcopy(event.message.train),
+            deepcopy(event.message.memory)[-1],
+        ]
+        if config.llm_config.tools.use_minimal_context
+        else event.message.unwrap()
+    )
     chat_list_backup = event.message.copy()
     tools: list[dict[str, Any]] = []
     if config.llm_config.tools.agent_mode_enable:
@@ -333,7 +340,7 @@ async def agent_core(event: BeforeChatEvent) -> None:
             msg_list, nonebot_event, original_msg=nonebot_event.get_plaintext()
         )
         event._send_message.memory.extend(
-            [msg for msg in msg_list if msg not in event._send_message]
+            [msg for msg in msg_list if msg not in event._send_message.unwrap()]
         )
 
     except Exception as e:
