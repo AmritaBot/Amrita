@@ -2,6 +2,7 @@ import time
 from copy import deepcopy
 from datetime import datetime
 
+from nonebot import logger
 from nonebot.adapters.onebot.v11 import Bot, Message, MessageEvent
 from nonebot.exception import NoneBotException
 from nonebot.matcher import Matcher
@@ -105,8 +106,9 @@ async def sessions(
             await matcher.finish("会话已清空。")
         except NoneBotException as e:
             raise e
-        except Exception as e:
-            await matcher.finish(f"清空当前会话失败。{e}")
+        except Exception:
+            logger.exception("清除当前会话失败。")
+            await matcher.finish("清空当前会话失败。")
 
     # 检查是否启用了会话管理功能
     if not config_manager.config.session.session_control:
