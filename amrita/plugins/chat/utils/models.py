@@ -235,9 +235,17 @@ class SendMessageWrap(Iterable[SEND_MESSAGES_ITEM]):
     @classmethod
     def validate_messages(cls, messages: SEND_MESSAGES) -> SendMessageWrap:
         train = messages[0]
-        if train.role != "system":
-            raise ValueError("The first item must be system message")
-        memory = messages[1:]
+        if train.role != "system":  # Fall back to match the first system message
+            for idx, msg in enumerate(messages):
+                if msg.role == "system":
+                    train = msg
+                    messages.pop(idx)
+                    memory = messages
+                    break
+            else:
+                raise ValueError("Invalid messages, expecting system message!")
+        else:
+            memory = messages[1:]
         return cls(train, memory)
 
     def __len__(self) -> int:
@@ -391,7 +399,7 @@ class MemorySessions(Model):
         ForeignKey("suggarchat_memory_data.ins_id"), nullable=False
     )
     is_group: Mapped[bool] = mapped_column(
-        ForeignKey(column="suggarchat_memory_data.is_group"),
+        ForeignKey("suggarchat_memory_data.is_group"),
         nullable=False,
         default=False,
     )

@@ -306,7 +306,7 @@ async def agent_core(event: BeforeChatEvent) -> None:
         return
     bot = typing.cast(Bot, get_bot(str(nonebot_event.self_id)))
     msg_list = [
-        *deepcopy([i for i in event.message if i["role"] == "system"]),
+        *deepcopy(event.message.train),
         deepcopy(event.message.memory)[-1],
     ]
     chat_list_backup = event.message.copy()
