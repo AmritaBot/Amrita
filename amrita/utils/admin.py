@@ -35,7 +35,7 @@ async def _check_and_handle_rate_limit():
         consume = bucket.consume()
         _message_tracker["admin"] += int(not consume)
 
-        if _message_tracker["admin"] > 6 and not _critical_error_occurred:
+        if _message_tracker["admin"] > 5 and not _critical_error_occurred:
             _critical_error_occurred = True
             StatusManager().set_unready(True)
             nonebot.logger.info(
@@ -55,8 +55,8 @@ async def _check_and_handle_rate_limit():
             else:
                 logger.info("Rejecting pushing due to critical error.")
                 return True  # 仍然处于异常状态
-        else:
-            _message_tracker["admin"] = 0
+        elif consume:
+            _message_tracker["admin"] -= 1 if _message_tracker["admin"] > 0 else 0
     return False  # 表示不需要阻断消息发送
 
 

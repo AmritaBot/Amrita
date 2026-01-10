@@ -108,7 +108,15 @@ async def get_memory_data(
         c_memory = Memory.model_validate(memory_data)
         debug_log(f"构建主记忆对象，包含 {len(c_memory.messages)} 条消息")
 
-        sessions = [SessionMemoryModel.model_validate(i.data) for i in sessions_data]
+        sessions = [
+            SessionMemoryModel.model_validate(
+                obj={
+                    **i.data,
+                    "id": i.id,
+                }
+            )
+            for i in sessions_data
+        ]
         debug_log(f"构建会话列表，包含 {len(sessions)} 个会话")
 
         conf = MemoryModel(

@@ -2,6 +2,7 @@ import time
 from copy import deepcopy
 from datetime import datetime
 
+from nonebot import logger
 from nonebot.adapters.onebot.v11 import Bot, Message, MessageEvent
 from nonebot.exception import NoneBotException
 from nonebot.matcher import Matcher
@@ -29,7 +30,7 @@ async def sessions(
         message_content = "历史会话\n"
         for index, msg in enumerate(data.sessions):
             if msg.messages:
-                message_content += f"编号：{index}) ：{msg.abstract[10:] or '（无描述）'}... 时间：{datetime.fromtimestamp(msg.time).strftime('%Y-%m-%d %I:%M:%S %p')}\n"
+                message_content += f"编号：{index}) ：{msg.abstract[:15] or '（无描述）'}... 时间：{datetime.fromtimestamp(msg.time).strftime('%Y-%m-%d %I:%M:%S %p')}\n"
         await matcher.finish(message_content)
 
     async def set_session(
@@ -61,7 +62,7 @@ async def sessions(
             if len(arg_list) >= 2:
                 session = data.sessions.pop(int(arg_list[1]))
                 await session.delete()
-                await data.save(event)
+                await matcher.send("已删除对应的会话。")
             else:
                 await matcher.finish("请输入正确编号")
         except NoneBotException as e:
@@ -76,7 +77,11 @@ async def sessions(
         try:
             if data.memory.messages:
                 data.sessions.append(
-                    SessionMemoryModel(messages=data.memory.messages, time=time.time())
+                    SessionMemoryModel(
+                        messages=data.memory.messages,
+                        time=time.time(),
+                        abstract=data.memory.abstract,
+                    )
                 )
                 data.memory.messages = []
                 data.timestamp = time.time()
@@ -92,18 +97,17 @@ async def sessions(
     async def clear_sessions(data: MemoryModel) -> None:
         """清空所有会话"""
         try:
-            dropped_sessions = data.sessions
-            data.sessions = []
-            async with get_session() as session:
-                for i in dropped_sessions:
-                    await i.delete(session)
-                await session.commit()
+            if len(data.sessions) > 0:
+                async with get_session() as session:
+                    for i in data.sessions:
+                        await i.delete(session)
+                    await session.commit()
             data.timestamp = time.time()
-            await data.save(event)
             await matcher.finish("会话已清空。")
         except NoneBotException as e:
             raise e
         except Exception:
+            logger.exception("清除当前会话失败。")
             await matcher.finish("清空当前会话失败。")
 
     # 检查是否启用了会话管理功能
