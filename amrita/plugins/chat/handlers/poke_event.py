@@ -20,8 +20,8 @@ from ..utils.functions import (
 )
 from ..utils.libchat import get_chat, get_tokens, usage_enough
 from ..utils.lock import get_group_lock, get_private_lock
-from ..utils.memory import Message, get_memory_data
-from ..utils.models import InsightsModel
+from ..utils.memory import get_memory_data
+from ..utils.models import InsightsModel, Message
 from .chat import FakeEvent
 
 
@@ -118,6 +118,7 @@ async def poke_event(event: PokeNotifyEvent, bot: Bot, matcher: Matcher):
                 user_id=event.user_id,
             )
             await MatcherManager.trigger_event(poke_event, event, bot)
+            send_messages = poke_event.get_send_message().unwrap()
         # 获取聊天模型的回复
         response = await get_chat(send_messages)
         tokens = await get_tokens(

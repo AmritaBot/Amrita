@@ -12,6 +12,7 @@ from nonebot.exception import NoneBotException
 from nonebot.log import logger
 
 from amrita.plugins.chat.utils.llm_tools.models import ToolContext
+from amrita.plugins.chat.utils.models import SEND_MESSAGES
 from amrita.utils.admin import send_to_admin
 
 from .config import config_manager
@@ -33,9 +34,11 @@ from .utils.llm_tools.builtin_tools import (
 )
 from .utils.llm_tools.manager import ToolsManager
 from .utils.memory import (
+    get_memory_data,
+)
+from .utils.models import (
     Message,
     ToolResult,
-    get_memory_data,
 )
 
 prehook = on_before_chat(block=False, priority=2)
@@ -66,11 +69,11 @@ async def text_check(event: BeforeChatEvent) -> None:
     logger.info("正在进行内容审查......")
     bot = get_bot()
     tool_list = [REPORT_TOOL]
-    msg = event._send_message
+    msg = event._send_message.unwrap()
     if config.llm_config.tools.report_exclude_system_prompt:
-        msg = [i for i in msg if i.role != "system"]
+        msg = event.get_send_message().get_memory()
     if config.llm_config.tools.report_exclude_context:
-        msg = msg[:-1]
+        msg = event.get_send_message().get_memory()[:-1]
     response = await tools_caller(msg, tool_list)
     nonebot_event = typing.cast(MessageEvent, event.get_nonebot_event())
     if tool_calls := response.tool_calls:
@@ -119,7 +122,7 @@ async def agent_core(event: BeforeChatEvent) -> None:
                 )
                 + (f"\n<INPUT>\n{original_msg}\n</INPUT>\n" if original_msg else "")
                 + (
-                    f"<SYS_SETTINGS>\n{event._send_message[0].content!s}\n</SYS_SETTINGS>"
+                    f"<SYS_SETTINGS>\n{event._send_message.train.content!s}\n</SYS_SETTINGS>"
                 ),
             ),
             *msg,
@@ -130,7 +133,8 @@ async def agent_core(event: BeforeChatEvent) -> None:
             tool = tool_calls[0]
             if reasoning := json.loads(tool.function.arguments).get("reasoning"):
                 agent_last_step = reasoning
-                await bot.send(nonebot_event, f"[Agent] {reasoning}")
+                if not config.llm_config.tools.agent_reasoning_hide:
+                    await bot.send(nonebot_event, f"[Agent] {reasoning}")
                 msg.append(Message.model_validate(response, from_attributes=True))
                 msg.append(
                     ToolResult(
@@ -304,11 +308,15 @@ async def agent_core(event: BeforeChatEvent) -> None:
     if not isinstance(nonebot_event, MessageEvent):
         return
     bot = typing.cast(Bot, get_bot(str(nonebot_event.self_id)))
-    msg_list = [
-        *deepcopy([i for i in event.message if i["role"] == "system"]),
-        deepcopy(event.message)[-1],
-    ]
-    chat_list_backup = deepcopy(event.message.copy())
+    msg_list: SEND_MESSAGES = (
+        [
+            deepcopy(event.message.train),
+            deepcopy(event.message.memory)[-1],
+        ]
+        if config.llm_config.tools.use_minimal_context
+        else event.message.unwrap()
+    )
+    chat_list_backup = event.message.copy()
     tools: list[dict[str, Any]] = []
     if config.llm_config.tools.agent_mode_enable:
         tools.append(STOP_TOOL.model_dump())
@@ -331,8 +339,8 @@ async def agent_core(event: BeforeChatEvent) -> None:
         await run_tools(
             msg_list, nonebot_event, original_msg=nonebot_event.get_plaintext()
         )
-        event._send_message.extend(
-            [msg for msg in msg_list if msg not in event._send_message]
+        event._send_message.memory.extend(
+            [msg for msg in msg_list if msg not in event._send_message.unwrap()]
         )
 
     except Exception as e:

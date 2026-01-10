@@ -19,10 +19,10 @@ __all__ = [
 ]
 
 __plugin_meta__ = PluginMetadata(
-    name="LitePerm 权限管理插件",
-    description="基于权限节点/权限组/特殊权限的权限管理插件。",
+    name="Amrita 权限管理模块",
+    description="Amrita内置的权限组件",
     usage="https://amrita.suggar.top/amrita/plugins/liteperm/",
-    homepage="https://amrita.suggar.top/amrita/plugins/liteperm/",
+    homepage="https://github.com/AmritaBot/Amrita",
     type="library",
     supported_adapters={"~onebot.v11"},
 )

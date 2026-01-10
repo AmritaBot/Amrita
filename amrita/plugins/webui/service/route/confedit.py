@@ -5,7 +5,7 @@ import json
 from ast import literal_eval
 from typing import Any
 
-from fastapi import Request
+from fastapi import HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
@@ -75,7 +75,9 @@ def get_field_info(
                     )
                     return description, default
 
-                if issubclass(field_annotation, BaseModel):
+                if isinstance(field_annotation, type) and issubclass(
+                    field_annotation, BaseModel
+                ):
                     current_model = field_annotation
                 else:
                     # 如果不是Pydantic模型，无法继续深入
@@ -163,64 +165,120 @@ SideBarManager().add_sidebar_category(
 
 @on_page(
     path="/system/confedit",
-    page_name="配置文件修改",
+    page_name="配置管理",
     category="系统管理",
 )
-async def system_config_editor(ctx: PageContext):
+async def system_config_list(ctx: PageContext):
     """
-    系统配置文件编辑页面
-    从配置类的Field读取description作为字段描述信息
+    系统配置列表页面 - 显示所有可配置的插件
     """
     # 获取所有已注册的配置类
     config_manager = UniConfigManager()
     config_classes = config_manager.get_config_classes()
 
-    # 准备配置字段信息
-    config_fields_info = {}
+    # 准备插件列表信息
+    config_list = {}
 
     for plugin_name, config_class in config_classes.items():
-        # 获取当前配置实例
-        if config_manager.has_config_instance(plugin_name):
-            config_instance = config_manager.get_config_instance_not_none(plugin_name)
-            config_data = config_instance.model_dump()
-        else:
-            # 如果还没有配置实例，则创建默认实例
-            config_instance = config_class()
-            config_data = config_instance.model_dump()
-
-        # 展平配置数据
-        flat_config_data = flatten_config_fields(config_data)
-
-        # 获取模型字段信息
-        fields_info = []
-        for flat_key, flat_value in flat_config_data.items():
-            # 获取字段类型信息（如果可能的话）
-            type_name = type(flat_value).__name__
-
-            # 获取字段描述信息和默认值
-            description, default_value = get_field_info(config_class, flat_key)
-            if default_value is not None:
-                dv_str = str(default_value)
-                default_value = dv_str if len(dv_str) <= 20 else dv_str[:20] + "..."
-
-            fields_info.append(
-                {
-                    "name": flat_key,
-                    "description": description,
-                    "type": type_name,
-                    "default": default_value,
-                    "current_value": flat_value,
-                }
-            )
-
-        config_fields_info[plugin_name] = {
+        config_list[plugin_name] = {
             "class_name": config_class.__name__,
-            "fields": fields_info,
         }
 
     return PageResponse(
         name="system_confedit.html",
-        context={"request": ctx.request, "config_fields_info": config_fields_info},
+        context={"request": ctx.request, "config_list": config_list},
+    )
+
+
+@on_page(
+    path="/system/confedit/{owner_name}",
+    page_name="",
+    category="__HIDDEN__",
+)
+async def system_config_editor(ctx: PageContext):
+    """
+    单个插件配置文件编辑页面
+    从配置类的Field读取description作为字段描述信息
+    """
+    owner_name = ctx.request.path_params.get("owner_name")
+
+    if not owner_name:
+        raise HTTPException(404, detail="插件不存在")
+
+    # 获取所有已注册的配置类
+    config_manager = UniConfigManager()
+
+    # 检查插件是否存在
+    if not config_manager.has_config_class(owner_name):
+        return PageResponse(
+            name="error.html",
+            context={
+                "request": ctx.request,
+                "error_message": f"插件 {owner_name} 未注册配置类",
+            },
+        )
+
+    config_class = config_manager.get_config_class_by_name(owner_name)
+
+    if config_class is None:
+        return PageResponse(
+            name="error.html",
+            context={
+                "request": ctx.request,
+                "error_message": f"插件 {owner_name} 配置类不存在",
+            },
+        )
+
+    # 获取当前配置实例
+    if config_manager.has_config_instance(owner_name):
+        config_instance = config_manager.get_config_instance_not_none(owner_name)
+        config_data = config_instance.model_dump()
+    else:
+        # 如果还没有配置实例，则创建默认实例
+        config_instance = config_class()
+        config_data = config_instance.model_dump()
+
+    # 展平配置数据
+    flat_config_data = flatten_config_fields(config_data)
+
+    # 获取模型字段信息
+    fields_info = []
+    for flat_key, flat_value in flat_config_data.items():
+        # 获取字段类型信息（如果可能的话）
+        type_name = type(flat_value).__name__
+
+        # 获取字段描述信息和默认值
+        description, default_value = get_field_info(config_class, flat_key)
+        if default_value is not None:
+            dv_str = str(default_value)
+            default_value = dv_str if len(dv_str) <= 20 else dv_str[:20] + "..."
+
+        fields_info.append(
+            {
+                "name": flat_key,
+                "description": description,
+                "type": type_name,
+                "default": default_value,
+                "current_value": flat_value,
+            }
+        )
+
+    plugin_info = {
+        "class_name": config_class.__name__,
+        "fields": fields_info,
+    }
+
+    # 计算配置哈希
+    config_hash = calculate_config_hash(flat_config_data)
+
+    return PageResponse(
+        name="confedit_edit.html",
+        context={
+            "request": ctx.request,
+            "plugin_name": owner_name,
+            "plugin_info": plugin_info,
+            "config_hash": config_hash,
+        },
     )
 
 

@@ -1,8 +1,10 @@
 from nonebot import on_command
 from nonebot.adapters.onebot.v11 import Bot, MessageEvent, MessageSegment
+from nonebot.permission import Permission
 
 from amrita.plugins.menu.models import MatcherData
 from amrita.plugins.perm.API.admin import is_lp_admin
+from amrita.plugins.perm.API.rules import UserPermissionChecker
 from amrita.utils.send import send_forward_msg
 
 from .blacklist.black import bl_manager
@@ -15,7 +17,9 @@ black_list = on_command(
         description="用于列出黑名单",
         usage="/blacklist",
     ).model_dump(),
-    permission=is_lp_admin,
+    permission=Permission(
+        is_lp_admin, UserPermissionChecker("amrita.blacklist").checker()
+    ),
 )
 
 

@@ -23,19 +23,21 @@ from openai.types.chat.chat_completion_tool_choice_option_param import (
 from pydantic import ValidationError
 from typing_extensions import override
 
+from amrita.plugins.chat.utils.logging import debug_log
 from amrita.plugins.chat.utils.models import SEND_MESSAGES
 from amrita.plugins.chat.utils.tokenizer import hybrid_token_count
 
-from ..chatmanager import chat_manager
 from ..config import ModelPreset, config_manager
 from ..utils.llm_tools.models import ToolFunctionSchema
 from ..utils.models import InsightsModel
 from ..utils.protocol import ToolCall
 from .functions import remove_think_tag
 from .llm_tools.models import ToolChoice
-from .memory import BaseModel, Message, ToolResult, get_memory_data
+from .memory import BaseModel, get_memory_data
 from .models import (
+    Message,
     TextContent,
+    ToolResult,
     UniResponse,
     UniResponseUsage,
 )
@@ -386,8 +388,7 @@ async def get_chat(
     # 调用适配器获取聊天响应
     response = await _call_with_presets(presets, _call_api, messages)
 
-    if chat_manager.debug:
-        logger.debug(response)
+    debug_log(str(response))
     return response
 
 
@@ -436,13 +437,11 @@ class OpenAIAdapter(ModelAdapter):
                         )
                     if chunk.choices[0].delta.content is not None:
                         response += chunk.choices[0].delta.content
-                        if chat_manager.debug:
-                            logger.debug(chunk.choices[0].delta.content)
+                        debug_log(chunk.choices[0].delta.content)
                 except IndexError:
                     break
         else:
-            if chat_manager.debug:
-                logger.debug(response)
+            debug_log(response)
             if isinstance(completion, ChatCompletion):
                 response = (
                     completion.choices[0].message.content

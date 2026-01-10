@@ -22,7 +22,8 @@ from .utils.functions import (
     get_current_datetime_timestamp,
     synthesize_message,
 )
-from .utils.memory import Message, get_memory_data
+from .utils.memory import get_memory_data
+from .utils.models import Message
 
 nb_config = get_driver().config
 
@@ -174,10 +175,16 @@ async def should_respond_to_message(event: MessageEvent, bot: Bot) -> bool:
                 )
             elif isinstance(memory_data.memory.messages[-1].content, str):
                 memory_data.memory.messages[-1].content = [
-                    TextContent(type="text",text=str(memory_data.memory.messages[-1].content)),
+                    TextContent(
+                        type="text", text=str(memory_data.memory.messages[-1].content)
+                    ),
                     TextContent(type="text", text=content_message),
                 ]
             else:
+                if len(memory_data.memory.messages[-1].content) >= 100:
+                    memory_data.memory.messages[
+                        -1
+                    ].content = memory_data.memory.messages[-1].content[:100]
                 memory_data.memory.messages[-1].content.append(
                     TextContent(type="text", text=content_message)
                 )

@@ -10,7 +10,8 @@ from nonebot.adapters.onebot.v11 import (
     Message,
 )
 
-from ..chatmanager import chat_manager
+from amrita.plugins.chat.utils.logging import debug_log
+
 from ..config import config_manager
 
 
@@ -181,8 +182,7 @@ async def synthesize_message(message: Message, bot: Bot) -> str:
             and config_manager.config.function.synthesize_forward_message
         ):
             forward = await bot.get_forward_msg(id=segment.data["id"])
-            if chat_manager.debug:
-                logger.debug(forward)
+            debug_log(str(forward))
             content += (
                 " \\（合并转发\n"
                 + await synthesize_forward_message(forward, bot)

@@ -99,6 +99,10 @@ class ToolsConfig(BaseModel):
         default=True,
         description="是否启用外部工具调用功能（关闭此选项不影响内容审查系统）",
     )
+    use_minimal_context: bool = Field(
+        default=True,
+        description="是否使用最小上下文，即使用系统prompt+用户最后一条消息（关闭此选项将使用消息列表的所有上下文，在Agent工作流执行中可能会消耗大量Tokens，启用此选项可能会有效降低Tokens使用量）",
+    )
     enable_report: bool = Field(default=True, description="是否启用内容审查系统")
     report_exclude_system_prompt: bool = Field(
         default=False,
@@ -114,7 +118,9 @@ class ToolsConfig(BaseModel):
     require_tools: bool = Field(
         default=False, description="是否强制要求每次调用至少使用一个工具"
     )
-    agent_mode_enable: bool = Field(default=False, description="使用实验性的智能体模式")
+    agent_mode_enable: bool = Field(
+        default=False, description="启用智能体模式（实验体验）"
+    )
     agent_tool_call_limit: int = Field(
         default=10, description="智能体模式下的工具调用限制"
     )
@@ -126,10 +132,13 @@ class ToolsConfig(BaseModel):
         "reasoning", "chat", "reasoning-required", "reasoning-optional"
     ] = Field(
         default="chat",
-        description="使用实验性的智能体模式下的思考模式，reasoning模式会先执行思考过程，然后执行任务；"
+        description="智能体模式下的思考模式，reasoning模式会先执行思考过程，然后执行任务；"
         "reasoning-required要求每次Tool Calling都执行任务分析；"
         "reasoning-optional不要求reasoning，但是允许reasoning；"
         "chat模式会直接执行任务",
+    )
+    agent_reasoning_hide: bool = Field(
+        default=False, description="是否隐藏智能体模式下的思考过程"
     )
     agent_mcp_client_enable: bool = Field(
         default=False, description="是否启用MCP客户端"
@@ -239,7 +248,6 @@ class ExtendConfig(BaseModel):
     )
     after_deleted_say_what: list[str] = Field(
         default=[
-            "Suggar说错什么话了吗～下次我会注意的呢～",
             "抱歉啦，不小心说错啦～",
             "嘿，发生什么事啦？我",
             "唔，我是不是说错了什么？",
@@ -249,7 +257,6 @@ class ExtendConfig(BaseModel):
             "哦，看来我又犯错了，真是不好意思！",
             "哈哈，看来我得多读书了~",
             "哎呀，真是个小口误，别在意哦~",
-            "Suggar苯苯的，偶尔说错话很正常嘛！",
             "哎呀，我也有尴尬的时候呢~",
             "希望我能继续为你提供帮助，不要太在意我的小错误哦！",
         ],
@@ -294,55 +301,7 @@ class LLM_Config(BaseModel):
         default=15e-2, description="上下文摘要比例(0.15=15%)"
     )
     block_msg: list[str] = Field(
-        default=[
-            "喵呜～这个问题有点超出Suggar的理解范围啦(歪头)",
-            "（耳朵耷拉）这个...Suggar暂时回答不了呢＞﹏＜",
-            "喵？这个话题好像不太适合讨论呢～",
-            "（玩手指）突然有点不知道该怎么回答喵...",
-            "唔...这个方向Suggar还没学会呢(脸红)",
-            "喵～我们聊点别的开心事好不好？",
-            "（眨眨眼）这个话题好像被魔法封印了喵！",
-            "啊啦～Suggar的知识库这里刚好是空白页呢",
-            "（竖起尾巴）检测到未知领域警报喵！",
-            "喵呜...这个问题让Suggar的CPU过热啦(＞﹏＜)",
-            "（躲到主人身后）这个...好难回答喵...",
-            "叮！话题转换卡生效～我们聊点别的喵？",
-            "（猫耳抖动）信号接收不良喵...换个频道好吗？",
-            "Suggar的喵星语翻译器好像故障了...",
-            "（转圈圈）这个问题转晕Suggar啦～",
-            "喵？刚才风太大没听清...主人再说点别的？",
-            "（翻书状）Suggar的百科全书缺了这一页喵...",
-            "啊呀～这个话题被猫毛盖住了看不见喵！",
-            "（举起爪子投降）这个领域Suggar认输喵～",
-            "检测到话题黑洞...紧急逃离喵！(＞人＜)",
-            "（尾巴打结）这个问题好复杂喵...解不开啦",
-            "喵呜～Suggar的小脑袋暂时处理不了这个呢",
-            "（捂耳朵）不听不听～换话题喵！",
-            "这个...Suggar的猫娘执照没覆盖这个领域喵",
-            "叮咚！您的话题已进入Suggar的认知盲区～",
-            "（装傻）喵？Suggar突然失忆了...",
-            "警报！话题超出Suggar的可爱范围～",
-            "（数爪子）1、2、3...啊数错了！换个话题喵？",
-            "这个方向...Suggar的导航仪失灵了喵(´･_･`)",
-            "喵～话题防火墙启动！我们聊点安全的？",
-            "（转笔状）这个问题...考试不考喵！跳过～",
-            "啊啦～Suggar的答案库正在升级中...",
-            "（做鬼脸）略略略～不回答这个喵！",
-            "检测到超纲内容...启动保护模式喵！",
-            "（抱头蹲防）问题太难了喵！投降～",
-            "喵呜...这个秘密要等Suggar升级才能解锁",
-            "（举白旗）这个话题Suggar放弃思考～",
-            "叮！触发Suggar的防宕机保护机制喵",
-            "（装睡）Zzz...突然好困喵...",
-            "喵？Suggar的思维天线接收不良...",
-            "（画圈圈）这个问题在Suggar的知识圈外...",
-            "啊呀～话题偏离主轨道喵！紧急修正～",
-            "（翻跟头）问题太难度把Suggar绊倒了喵！",
-            "这个...需要猫娘高级权限才能解锁喵～",
-            "（擦汗）Suggar的处理器过载了...",
-            "喵呜～问题太深奥会卡住Suggar的猫脑",
-            "（变魔术状）看！话题消失魔术成功喵～",
-        ],
+        default=["你好，这个问题我暂时无法处理，请稍后再试。"],
         description="触发安全熔断时随机返回的提示消息",
     )
 
