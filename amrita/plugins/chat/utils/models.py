@@ -191,23 +191,31 @@ class SessionMemoryModel(MemoryModel):
                 if not arg_session:
                     await session.commit()
 
-    async def save(self):
+    async def save(self, ins_id: int = 0, is_group: bool = False):
         # 只有在dirty状态下才保存
         if not self.__dirty__:
             return
         async with get_session() as session:
-            stmt = (
-                (
+            if self.id is not None:
+                stmt = (
                     update(MemorySessions)
                     .where(MemorySessions.id == self.id)
-                    .values(messages=self.messages)
+                    .values(data=self.messages)
                 )
-                if self.id is not None
-                else insert(MemorySessions).values(
-                    messages=self.messages, abstract=self.abstract
+                await session.execute(stmt)
+            elif ins_id:
+                session.add(
+                    MemorySessions(
+                        data=self.messages,
+                        created_at=time.time(),
+                        is_group=is_group,
+                        ins_id=ins_id,
+                    )
                 )
-            )
-            await session.execute(stmt)
+            else:
+                raise ValueError(
+                    "Neither id nor ins_id provided; cannot persist memory session"
+                )
             await session.commit()
 
         # 保存后重置dirty标志
