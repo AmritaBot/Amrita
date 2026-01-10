@@ -214,7 +214,7 @@ class SessionMemoryModel(MemoryModel):
                 )
             else:
                 raise ValueError(
-                    "Nither ins_id nor group_id provided, and no memory data to save"
+                    "Neither id nor ins_id provided; cannot persist memory session"
                 )
             await session.commit()
 
