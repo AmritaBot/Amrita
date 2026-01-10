@@ -185,11 +185,15 @@ class SessionMemoryModel(MemoryModel):
 
         async with database_lock(self.id):
             session = arg_session or get_session()
-            async with session:
-                stmt = delete(MemorySessions).where(MemorySessions.id == self.id)
-                await session.execute(stmt)
-                if not arg_session:
+
+            stmt = delete(MemorySessions).where(MemorySessions.id == self.id)
+
+            if not arg_session:
+                async with session:
+                    await session.execute(stmt)
                     await session.commit()
+            else:
+                await session.execute(stmt)
 
     async def save(self, ins_id: int = 0, is_group: bool = False):
         # 只有在dirty状态下才保存
@@ -200,13 +204,13 @@ class SessionMemoryModel(MemoryModel):
                 stmt = (
                     update(MemorySessions)
                     .where(MemorySessions.id == self.id)
-                    .values(data=self.messages)
+                    .values(data=self.model_dump(exclude={"id"}))
                 )
                 await session.execute(stmt)
             elif ins_id:
                 session.add(
                     MemorySessions(
-                        data=self.messages,
+                        data=self.model_dump(exclude={"id"}),
                         created_at=time.time(),
                         is_group=is_group,
                         ins_id=ins_id,
