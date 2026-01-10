@@ -75,7 +75,9 @@ def get_field_info(
                     )
                     return description, default
 
-                if issubclass(field_annotation or type, BaseModel):
+                if isinstance(field_annotation, type) and issubclass(
+                    field_annotation, BaseModel
+                ):
                     current_model = field_annotation
                 else:
                     # 如果不是Pydantic模型，无法继续深入

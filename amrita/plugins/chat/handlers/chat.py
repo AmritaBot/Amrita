@@ -23,6 +23,7 @@ from nonebot.adapters.onebot.v11.event import (
     Reply,
 )
 from nonebot.matcher import Matcher
+from nonebot_plugin_orm import get_session
 from pydantic import BaseModel, Field
 from pytz import utc
 from typing_extensions import Self
@@ -55,6 +56,7 @@ from ..utils.models import (
     ImageContent,
     ImageUrl,
     InsightsModel,
+    SessionMemoryModel,
     TextContent,
     UniResponseUsage,
 )
@@ -220,7 +222,7 @@ class MemoryLimiter:
         usage = await get_tokens(msg_list, response)
         self.usage = usage
         logger.debug(f"获取到上下文摘要：{response.content}")
-        self.memory.memory_abstract = response.content
+        self.memory.memory.abstract = response.content
 
     async def run_enforce(self):
         """执行记忆限制处理
@@ -474,7 +476,7 @@ class ChatObject:
                 .replace("{user_name}", str(event.sender.nickname))
             )
             + "\n</SYSTEM_INSTRUCTIONS>"
-            + f"\n<SUMMARY>{data.memory_abstract if config.llm_config.enable_memory_abstract else ''}\n</SUMMARY>"
+            + f"\n<SUMMARY>{data.memory.abstract if config.llm_config.enable_memory_abstract else ''}\n</SUMMARY>"
         )
         async with MemoryLimiter(self.data, self.train) as lim:
             await lim.run_enforce()
@@ -712,13 +714,25 @@ class ChatObject:
                     float(config_manager.config.session.session_control_time * 60)
                 ):
                     data.sessions.append(
-                        Memory(messages=data.memory.messages, time=time_now)
+                        SessionMemoryModel(messages=data.memory.messages, time=time_now)
                     )
-                    while (
+                    if (
                         len(data.sessions)
                         > config_manager.config.session.session_control_history
                     ):
-                        data.sessions.remove(data.sessions[0])
+                        offset = (
+                            len(data.sessions)
+                            - config_manager.config.session.session_control_history
+                        )
+                        dropped_sesssions = data.sessions[:offset]
+                        data.sessions = data.sessions[offset:]
+                        async with get_session() as session:
+                            for i in dropped_sesssions:
+                                try:
+                                    await i.delete(session)
+                                except Exception as e:  # noqa: PERF203
+                                    logger.warning(f"删除Session{i.id}失败\n{e}")
+                            await session.commit()
                     data.memory.messages = []
                     timestamp = data.timestamp
                     data.timestamp = time_now
@@ -746,10 +760,10 @@ class ChatObject:
                     session_clear_map.pop(session_id, None)
 
                     data.memory.messages = data.sessions[-1].messages
-                    data.sessions.pop()
-                    await matcher.send("让我们继续聊天吧～")
+                    session = data.sessions.pop()
+                    await session.delete()
                     await data.save(event, raise_err=True)
-                    return await matcher.finish()
+                    return await matcher.finish("让我们继续聊天吧～")
 
             finally:
                 data.timestamp = time.time()

@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+import contextlib
 import json
 import time
 import typing
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from copy import deepcopy
 from datetime import datetime, timedelta
 from typing import Any, Generic, Literal, overload
@@ -16,6 +17,7 @@ from sqlalchemy import (
     BigInteger,
     Boolean,
     DateTime,
+    Float,
     ForeignKey,
     Index,
     Integer,
@@ -139,6 +141,77 @@ class ToolResult(BaseModel):
 class MemoryModel(BaseModel):
     messages: list[SEND_MESSAGES_ITEM] = Field(default_factory=list)
     time: float = Field(default_factory=time.time, description="时间戳")
+    abstract: str = Field(default="", description="摘要")
+
+
+class SessionMemoryModel(MemoryModel):
+    id: int | None = Field(None, description="会话在数据库的ID")
+
+    def __init__(self, **data):
+        super().__init__(**data)
+        self.__dict__["_dirty"] = False
+        if "messages" in data:
+            self.__dict__["_dirty"] = True
+
+    def __setattr__(self, name, value):
+        if name == "messages":
+            self.__dict__["_dirty"] = True
+        object.__setattr__(self, name, value)
+
+    def __getattribute__(self, name):
+        # 如果获取的是messages属性，则标记为dirty
+        if name == "messages":
+            value = object.__getattribute__(self, name)
+            with contextlib.suppress(Exception):
+                object.__setattr__(self, "_dirty", True)
+
+            return value
+        else:
+            return object.__getattribute__(self, name)
+
+    @property
+    def __dirty__(self):
+        """获取dirty状态"""
+        return self.__dict__.get("_dirty", False)
+
+    @__dirty__.setter
+    def __dirty__(self, value: bool):
+        """设置dirty状态"""
+        object.__setattr__(self, "_dirty", value)
+
+    async def delete(self, arg_session: AsyncSession | None = None):
+        if self.id is None:
+            raise ValueError("无法删除未保存的模型")
+
+        async with database_lock(self.id):
+            session = arg_session or get_session()
+            async with session:
+                stmt = delete(MemorySessions).where(MemorySessions.id == self.id)
+                await session.execute(stmt)
+                if not arg_session:
+                    await session.commit()
+
+    async def save(self):
+        # 只有在dirty状态下才保存
+        if not self.__dirty__:
+            return
+        async with get_session() as session:
+            stmt = (
+                (
+                    update(MemorySessions)
+                    .where(MemorySessions.id == self.id)
+                    .values(messages=self.messages)
+                )
+                if self.id is not None
+                else insert(MemorySessions).values(
+                    messages=self.messages, abstract=self.abstract
+                )
+            )
+            await session.execute(stmt)
+            await session.commit()
+
+        # 保存后重置dirty标志
+        self.__dirty__ = False
 
 
 SEND_MESSAGES_ITEM = Message | ToolResult
@@ -311,6 +384,70 @@ class GlobalInsights(Model):
     usage_count: Mapped[int] = mapped_column(Integer, default=0)
 
 
+class MemorySessions(Model):
+    __tablename__ = "suggarchat_memory_sessions"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    ins_id: Mapped[int] = mapped_column(
+        ForeignKey("suggarchat_memory_data.ins_id"), nullable=False
+    )
+    is_group: Mapped[bool] = mapped_column(
+        ForeignKey(column="suggarchat_memory_data.is_group"),
+        nullable=False,
+        default=False,
+    )
+    created_at: Mapped[float] = mapped_column(Float, nullable=False)
+    data: Mapped[dict[str, Any]] = mapped_column(
+        JSON, nullable=False, server_default=text("'{}'")
+    )
+    __table_args__ = (
+        Index("idx_sessions_ins_id", "ins_id"),
+        Index("idx_sessions_is_group", "is_group"),
+        Index("idx_sessions_created_at", "created_at"),
+    )
+
+    @classmethod
+    async def _expire(cls, ins_id: int, is_group: bool, keep_count: int = 20):
+        """
+        保留特定数量的sessions，移除多余的会话记录
+
+        Args:
+            session: 数据库会话
+            ins_id: 实例ID
+            is_group: 是否为群组
+            keep_count: 要保留的会话数量，默认为20
+        """
+        # 查询指定ins_id和is_group的所有会话，按创建时间倒序排列
+        async with get_session() as session:
+            stmt = (
+                select(cls.id)
+                .where(cls.ins_id == ins_id, cls.is_group == is_group)
+                .order_by(cls.created_at.desc())
+                .offset(keep_count)  # 跳过要保留的数量，获取需要删除的记录
+            )
+
+            result = await session.execute(stmt)
+            ids_to_delete = [row[0] for row in result.fetchall()]
+
+            if ids_to_delete:
+                # 删除超过保留数量的会话记录
+                delete_stmt = delete(cls).where(cls.id.in_(ids_to_delete))
+                await session.execute(delete_stmt)
+
+                # 提交更改
+                await session.commit()
+
+    @classmethod
+    async def get(
+        cls, session: AsyncSession, ins_id: int, is_group: bool
+    ) -> Sequence[Self]:
+        async with database_lock(ins_id, is_group):
+            await cls._expire(ins_id, is_group)
+            stmt = select(cls).where(cls.ins_id == ins_id, cls.is_group == is_group)
+            data = (await session.execute(stmt)).scalars().all()
+            session.add_all(data)
+            return data
+
+
 class Memory(Model):
     __tablename__ = "suggarchat_memory_data"
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -322,19 +459,12 @@ class Memory(Model):
         nullable=False,
         server_default=text("'{}'"),
     )
-    sessions_json: Mapped[list[dict[str, Any]]] = mapped_column(
-        JSON,
-        default=[],
-        nullable=False,
-        server_default=text("'[]'"),
-    )
     time: Mapped[datetime] = mapped_column(
         DateTime, default=datetime.now, nullable=False
     )
     usage_count: Mapped[int] = mapped_column(Integer, default=0)
     input_token_usage: Mapped[int] = mapped_column(BigInteger, default=0)
     output_token_usage: Mapped[int] = mapped_column(BigInteger, default=0)
-    memory_abstract: Mapped[str] = mapped_column(Text, default="")
     __table_args__ = (
         UniqueConstraint("ins_id", "is_group", name="uq_ins_id_is_group"),
         Index("idx_ins_id", "ins_id"),

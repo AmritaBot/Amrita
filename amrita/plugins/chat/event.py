@@ -166,7 +166,7 @@ class PokeEvent(SuggarEvent):
 
     @override
     def get_event_on_location(self):
-        return "group" if PokeNotifyEvent.group_id else "private"
+        return "group" if getattr(self, "group_id", None) else "private"
 
 
 class BeforePokeEvent(PokeEvent):

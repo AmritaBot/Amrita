@@ -14,7 +14,9 @@ from pydantic import Field
 from ..chatmanager import chat_manager
 from .models import (
     BaseModel,
+    MemorySessions,
     Message,
+    SessionMemoryModel,
     ToolResult,
     get_or_create_data,
 )
@@ -23,17 +25,16 @@ from .models import (
 )
 
 
-class MemoryModel(BaseModel, extra="allow"):
+class MemoryModel(BaseModel):
     enable: bool = Field(default=True, description="是否启用")
     memory: Memory = Field(default=Memory(), description="记忆")
-    sessions: list[Memory] = Field(default_factory=list, description="会话")
+    sessions: list[SessionMemoryModel] = Field(default_factory=list, description="会话")
     timestamp: float = Field(default=time.time(), description="时间戳")
     fake_people: bool = Field(default=False, description="是否启用假人")
     prompt: str = Field(default="", description="用户自定义提示词")
     usage: int = Field(default=0, description="请求次数")
     input_token_usage: int = Field(default=0, description="token使用量")
     output_token_usage: int = Field(default=0, description="token使用量")
-    memory_abstract: str = Field(default="", description="记忆摘要")
 
     async def save(
         self,
@@ -97,7 +98,7 @@ async def get_memory_data(
         session.add(memory)
         await session.refresh(memory)
         memory_data = memory.memory_json
-        sessions_data = memory.sessions_json
+        sessions_data = await MemorySessions.get(session, ins_id, is_group)
         messages = [
             (
                 Message.model_validate(i)
@@ -108,7 +109,7 @@ async def get_memory_data(
         ]
         c_memory = Memory(messages=messages, time=memory.time.timestamp())
 
-        sessions = [Memory.model_validate(i) for i in sessions_data]
+        sessions = [SessionMemoryModel.model_validate(i.data) for i in sessions_data]
         conf = MemoryModel(
             memory=c_memory,
             sessions=sessions,
@@ -116,7 +117,6 @@ async def get_memory_data(
             timestamp=memory.time.timestamp(),
             input_token_usage=memory.input_token_usage,
             output_token_usage=memory.output_token_usage,
-            memory_abstract=memory.memory_abstract or "",
         )
         if group_conf:
             conf.enable = group_conf.enable
@@ -177,12 +177,12 @@ async def write_memory_data(
                 )
             session.add(memory)
             memory.memory_json = data.memory.model_dump()
-            memory.sessions_json = [s.model_dump() for s in data.sessions]
+            for m_session in data.sessions:
+                await m_session.save()
             memory.time = datetime.fromtimestamp(data.timestamp)
             memory.usage_count = data.usage
             memory.input_token_usage = data.input_token_usage
             memory.output_token_usage = data.output_token_usage
-            memory.memory_abstract = data.memory_abstract
             if group_conf:
                 group_conf.enable = data.enable
                 group_conf.prompt = data.prompt

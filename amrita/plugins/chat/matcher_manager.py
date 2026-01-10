@@ -34,6 +34,7 @@ from .handlers.prompt import prompt
 from .handlers.recall import recall
 from .handlers.sessions import sessions
 from .handlers.set_preset import set_preset
+from .handlers.show_abstract import abstract_show
 
 # 创建基础匹配器组，所有匹配器都需满足is_bot_enabled规则
 base_matcher = MatcherGroup(rule=is_bot_enabled)
@@ -61,6 +62,13 @@ base_matcher.on_message(
     rule=Rule(should_respond_with_usage_check, is_bot_enabled),
 ).append_handler(chat)
 
+base_matcher.on_command(
+    "show-abstract",
+    {"abstract"},
+    state=MatcherData(
+        name="查看摘要", description="查看当前会话的摘要", usage="/show-abstract"
+    ).model_dump(),
+).append_handler(abstract_show)
 # 添加各种命令处理器
 base_matcher.on_command(
     "prompt",
@@ -144,7 +152,7 @@ base_matcher.on_command(
     state=MatcherData(
         name="会话管理",
         description="管理当前所有会话",
-        usage="/sessions [list|clear]",
+        usage="/sessions [list|clear|set|del|archive|help]",
     ).model_dump(),
 ).append_handler(sessions)
 
@@ -153,7 +161,6 @@ base_matcher.on_command(
     aliases={"失忆", "删除记忆", "删除历史消息", "删除回忆"},
     block=True,
     priority=10,
-    permission=is_group_admin_if_is_in_group,
     state=MatcherData(
         name="删除记忆",
         description="删除AI的历史记忆",

@@ -130,7 +130,8 @@ async def agent_core(event: BeforeChatEvent) -> None:
             tool = tool_calls[0]
             if reasoning := json.loads(tool.function.arguments).get("reasoning"):
                 agent_last_step = reasoning
-                await bot.send(nonebot_event, f"[Agent] {reasoning}")
+                if not config.llm_config.tools.agent_reasoning_hide:
+                    await bot.send(nonebot_event, f"[Agent] {reasoning}")
                 msg.append(Message.model_validate(response, from_attributes=True))
                 msg.append(
                     ToolResult(
