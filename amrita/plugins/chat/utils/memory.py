@@ -222,7 +222,7 @@ async def write_memory_data(
                 )
 
                 # 调用会话的保存方法
-                await m_session.save()
+                await m_session.save(ins_id, is_group)
 
                 # 检查是否实际进行了保存操作
                 if m_session.__dirty__ is False:
@@ -261,8 +261,8 @@ async def write_memory_data(
 
         except Exception as e:
             await session.rollback()
-            debug_log(f"写入记忆数据时出错: {e}")
+            logger.warning(f"写入记忆数据时出错: {e}")
             if raise_err:
-                raise e
+                raise
             else:
                 logger.opt(exception=e, colors=True).error(f"写入记忆数据时出错: {e}")
