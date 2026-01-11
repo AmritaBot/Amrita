@@ -321,8 +321,8 @@ async def agent_core(event: BeforeChatEvent) -> None:
     if config.llm_config.tools.agent_mode_enable:
         tools.append(STOP_TOOL.model_dump())
         if config.llm_config.tools.agent_thought_mode.startswith("reasoning"):
-            tools.append(REASONING_TOOL.model_dump(exclude_none=True))
-    tools.extend(ToolsManager().tools_meta_dict(exclude_none=True).values())
+            tools.append(REASONING_TOOL.model_dump())
+    tools.extend(ToolsManager().tools_meta_dict().values())
     logger.debug(f"工具列表：{tools}")
     if not tools:
         logger.warning("未定义任何有效工具！Tools Workflow已跳过。")

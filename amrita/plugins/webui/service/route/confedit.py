@@ -3,7 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 from ast import literal_eval
-from typing import Any
+from typing import Any, Literal, get_args, get_origin
 
 from fastapi import HTTPException, Request
 from fastapi.responses import JSONResponse
@@ -34,11 +34,11 @@ def flatten_config_fields(
 
 def get_field_info(
     model: type[BaseModel], field_path: str, sep: str = "."
-) -> tuple[str, Any]:
+) -> tuple[str, Any, Any]:
     """
-    根据字段路径获取Pydantic模型字段的描述信息和默认值
+    根据字段路径获取Pydantic模型字段的描述信息、默认值和类型信息
     例如: 对于路径 "autoreply.enable"，会递归查找autoreply字段，然后查找enable字段的描述和默认值
-    返回元组：(描述信息, 默认值)
+    返回元组：(描述信息, 默认值, 字段类型)
     """
     field_parts = field_path.split(sep)
     current_model = model
@@ -48,13 +48,13 @@ def get_field_info(
         for i, part in enumerate(field_parts):
             # 获取当前模型的字段信息
             if not hasattr(current_model, "model_fields"):
-                return "", None
+                return "", None, None
 
             model_fields = current_model.model_fields
 
             # 检查字段是否存在
             if part not in model_fields:
-                return "", None
+                return "", None, None
 
             current_field_info = model_fields[part]
 
@@ -73,7 +73,7 @@ def get_field_info(
                         if current_field_info.default
                         else None
                     )
-                    return description, default
+                    return description, default, field_annotation
 
                 if isinstance(field_annotation, type) and issubclass(
                     field_annotation, BaseModel
@@ -91,9 +91,9 @@ def get_field_info(
                         if current_field_info.default
                         else None
                     )
-                    return description, default
+                    return description, default, field_annotation
 
-        # 返回最终字段的描述和默认值
+        # 返回最终字段的描述、默认值和类型
         description = (
             current_field_info.description
             if current_field_info and current_field_info.description
@@ -104,10 +104,26 @@ def get_field_info(
             if current_field_info and current_field_info.default
             else None
         )
-        return description, default
+        annotation = (
+            current_field_info.annotation
+            if current_field_info and current_field_info.annotation
+            else None
+        )
+        return description, default, annotation
     except Exception:
         # 出现任何异常都返回空描述和None默认值
-        return "", None
+        return "", None, None
+
+
+def extract_literal_values(annotation):
+    """
+    提取 Literal 类型的值列表
+    """
+    origin = get_origin(annotation)
+    if origin is Literal:
+        args = get_args(annotation)
+        return list(args)
+    return None
 
 
 def try_parse_value(value_str: Any) -> Any:
@@ -244,20 +260,28 @@ async def system_config_editor(ctx: PageContext):
     # 获取模型字段信息
     fields_info = []
     for flat_key, flat_value in flat_config_data.items():
-        # 获取字段类型信息（如果可能的话）
-        type_name = type(flat_value).__name__
-
-        # 获取字段描述信息和默认值
-        description, default_value = get_field_info(config_class, flat_key)
+        # 获取字段描述信息、默认值和类型
+        description, default_value, field_type = get_field_info(config_class, flat_key)
         if default_value is not None:
             dv_str = str(default_value)
             default_value = dv_str if len(dv_str) <= 20 else dv_str[:20] + "..."
+
+        # 获取字段类型名
+        type_name = type(flat_value).__name__
+
+        # 检查是否为 Literal 类型
+        literal_values = extract_literal_values(field_type) if field_type else None
+
+        # 如果是 Literal 类型，更新类型名为 literal
+        if literal_values:
+            type_name = "literal"
 
         fields_info.append(
             {
                 "name": flat_key,
                 "description": description,
                 "type": type_name,
+                "literal_values": literal_values,  # 添加 Literal 值列表
                 "default": default_value,
                 "current_value": flat_value,
             }

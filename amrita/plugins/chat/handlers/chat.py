@@ -51,7 +51,9 @@ from ..utils.memory import (
     get_memory_data,
 )
 from ..utils.models import (
+    CT_MAP,
     SEND_MESSAGES,
+    Content,
     ImageContent,
     ImageUrl,
     InsightsModel,
@@ -256,7 +258,7 @@ class MemoryLimiter:
         is_multimodal = (
             await config_manager.get_preset(config_manager.config.preset)
         ).multimodal
-        data = self.memory
+        data: MemoryModel = self.memory
 
         # Process multimodal messages when needed
         for message in data.memory.messages:
@@ -267,8 +269,15 @@ class MemoryLimiter:
             ):
                 message_text = ""
                 for content_part in message.content:
-                    if content_part.type == "text":
-                        message_text += content_part.text
+                    if isinstance(content_part, dict):
+                        validator = CT_MAP.get(content_part["type"])
+                        if not validator:
+                            raise ValueError(
+                                f"Invalid content type: {content_part['type']}"
+                            )
+                        content_part: Content = validator.model_validate(content_part)
+                    if content_part["type"] == "text":
+                        message_text += content_part["text"]
                 message.content = message_text
 
         # Enforce memory length limit
@@ -606,7 +615,7 @@ class ChatObject:
         tokens = await get_tokens(send_messages, response)
         # 记录模型回复
         data.memory.messages.append(
-            Message(
+            Message[str](
                 content=response.content,
                 role="assistant",
             )

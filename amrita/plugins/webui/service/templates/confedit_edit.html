@@ -538,8 +538,8 @@
     padding-left: 25px;
     border-left: 1px dashed var(--border-color);
     padding-top: 10px;
-    max-height: 1000px;
-    overflow: hidden;
+    max-height: none;
+    overflow: visible;
     transition: max-height 0.3s ease, padding 0.3s ease;
   }
 
@@ -564,6 +564,7 @@
     max-height: 0;
     padding-top: 0;
     padding-bottom: 0;
+    overflow: hidden;
   }
 
   .nested-field-child {
@@ -724,6 +725,21 @@
                 </span>
               </label>
             </div>
+            {% elif field.type == 'literal' %}
+            <select
+              class="field-input-select"
+              id="{{ field.name | replace('.', '_DOT_') }}"
+              name="{{ field.name }}"
+              data-original-value="{{ field.current_value | string }}"
+              onchange="markFieldAsModified()"
+            >
+              {% for value in field.literal_values %}
+              <option value="{{ value }}"
+                {% if field.current_value == value or (field.current_value == 'true' and value == true) or (field.current_value == 'false' and value == false) %}selected{% endif %}>
+                {{ value }}
+              </option>
+              {% endfor %}
+            </select>
             {% elif field.type == 'list' %}
             <div
               class="list-editor"
@@ -810,6 +826,21 @@
                     </span>
                   </label>
                 </div>
+                {% elif field.type == 'literal' %}
+                <select
+                  class="field-input-select"
+                  id="{{ field.name | replace('.', '_DOT_') }}"
+                  name="{{ field.name }}"
+                  data-original-value="{{ field.current_value | string }}"
+                  onchange="markFieldAsModified()"
+                >
+                  {% for value in field.literal_values %}
+                  <option value="{{ value }}"
+                    {% if field.current_value == value or (field.current_value == 'true' and value == true) or (field.current_value == 'false' and value == false) %}selected{% endif %}>
+                    {{ value }}
+                  </option>
+                  {% endfor %}
+                </select>
                 {% elif field.type == 'list' %}
                 <div
                   class="list-editor"

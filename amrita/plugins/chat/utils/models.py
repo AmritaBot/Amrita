@@ -42,6 +42,26 @@ T = typing.TypeVar("T", None, str, None | typing.Literal[""])
 T_INT = typing.TypeVar("T_INT", int, None)
 
 
+class NoActionContext:
+    """NoActionContext，仅作占位符，用于实现 with 语法"""
+
+    async def __aenter__(self) -> Self:
+        """__aenter__"""
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
+        """__aexit__"""
+        pass
+
+    def __enter__(self) -> Self:
+        """__enter__"""
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+        """__exit__"""
+        pass
+
+
 class BaseModel(B_Model):
     """BaseModel+dict鸭子类型"""
 
@@ -99,8 +119,16 @@ class UniResponse(
 
     role: Literal["assistant", "function"] = "assistant"
     usage: UniResponseUsage | None = None
-    content: T
-    tool_calls: T_TOOL
+    content: T = Field(
+        ...,
+        description="内容",
+        exclude_if=lambda x: x is None,
+    )
+    tool_calls: T_TOOL = Field(
+        ...,
+        description="工具调用结果",
+        exclude_if=lambda x: x is None,
+    )
 
 
 class ImageUrl(BaseModel):
@@ -120,15 +148,29 @@ class TextContent(Content):
     text: str = Field(..., description="文本内容")
 
 
-_T = typing.TypeVar("_T", str, None, str | None, list)
+CT_MAP: dict[str, type[Content]] = {
+    "image_url": ImageContent,
+    "text": TextContent,
+}
+
+_T = typing.TypeVar(
+    "_T",
+    str,
+    None,
+    list[TextContent],
+    list[TextContent | ImageContent],
+    list[TextContent | ImageContent] | str,
+)
 
 
 class Message(BaseModel, Generic[_T]):
     role: Literal["user", "assistant", "system"] = Field(
         default="assistant", description="角色"
     )
-    content: list[TextContent | ImageContent] | _T = Field(..., description="内容")
-    tool_calls: list[ToolCall] | None = Field(default=None, description="工具调用")
+    content: _T = Field(..., description="内容")
+    tool_calls: list[ToolCall] | None = Field(
+        default=None, description="工具调用", exclude_if=lambda x: x is None
+    )
 
 
 class ToolResult(BaseModel):
@@ -187,19 +229,22 @@ class SessionMemoryModel(MemoryModel):
             session = arg_session or get_session()
 
             stmt = delete(MemorySessions).where(MemorySessions.id == self.id)
-
-            if not arg_session:
-                async with session:
-                    await session.execute(stmt)
-                    await session.commit()
-            else:
+            async with NoActionContext() if arg_session else session:
                 await session.execute(stmt)
+            if not arg_session:
+                await session.commit()
 
-    async def save(self, ins_id: int = 0, is_group: bool = False):
+    async def save(
+        self,
+        ins_id: int = 0,
+        is_group: bool = False,
+        arg_session: AsyncSession | None = None,
+    ) -> None:
         # 只有在dirty状态下才保存
         if not self.__dirty__:
             return
-        async with get_session() as session:
+        session = arg_session or get_session()
+        async with NoActionContext() if arg_session else session:
             if self.id is not None:
                 stmt = (
                     update(MemorySessions)
@@ -220,7 +265,8 @@ class SessionMemoryModel(MemoryModel):
                 raise ValueError(
                     "Neither id nor ins_id provided; cannot persist memory session"
                 )
-            await session.commit()
+            if not arg_session:
+                await session.commit()
 
         # 保存后重置dirty标志
         self.__dirty__ = False
