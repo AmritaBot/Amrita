@@ -10,6 +10,7 @@ from nonebot.adapters.onebot.v11.event import (
     GroupMessageEvent,
     MessageEvent,
 )
+from nonebot_plugin_orm import get_session
 from typing_extensions import override
 
 from amrita.plugins.chat.utils.libchat import usage_enough
@@ -23,7 +24,7 @@ from .utils.functions import (
     synthesize_message,
 )
 from .utils.memory import get_memory_data
-from .utils.models import Message
+from .utils.models import Message, get_or_create_data
 
 nb_config = get_driver().config
 
@@ -46,8 +47,11 @@ async def is_bot_enabled(event: Event) -> bool:
         if event.get_user_id() in bots:  # 多实例下防止冲突
             return False
     if hasattr(event, "group_id"):
-        data = await get_memory_data(event)
-        return data.enable
+        async with get_session() as session:
+            data, _ = await get_or_create_data(
+                session=session, ins_id=int(getattr(event, "group_id")), is_group=True
+            )
+            return data.enable
     return True
 
 

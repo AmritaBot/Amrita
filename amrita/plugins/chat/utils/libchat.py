@@ -63,10 +63,8 @@ TEST_MSG_LIST: list[Message[list[TextContent]]] = [
 class PresetReport(BaseModel):
     preset_name: str  # 预设名称
     preset_data: ModelPreset  # 预设数据
-    test_input: tuple[
-        Message[list[TextContent]], Message[list[TextContent]]
-    ]  # 测试输入
-    test_output: Message[str] | None  # 测试输出
+    test_input: tuple[Message, Message]  # 测试输入
+    test_output: Message | None  # 测试输出
     token_prompt: int  # 提示词的token数
     token_completion: int  # 回复的token数
     status: bool  # 测试结果
@@ -110,7 +108,7 @@ async def test_presets() -> typing.AsyncGenerator[PresetReport, None]:
                 preset_name=preset.name,
                 preset_data=preset,
                 test_input=(TEST_MSG_PROMPT, TEST_MSG_USER),
-                test_output=Message(
+                test_output=Message[list[TextContent]](
                     content=[TextContent(type="text", text=data.content)]
                 ),
                 token_prompt=prompt_tokens,

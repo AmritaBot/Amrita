@@ -17,6 +17,10 @@ OPEN_AI_PARAM_TYPE = Literal[
 ]
 
 
+def not_none(value: T | None) -> bool:
+    return value is not None
+
+
 class FunctionPropertySchema(BaseModel, Generic[T]):
     """校验函数参数的属性"""
 
@@ -24,25 +28,38 @@ class FunctionPropertySchema(BaseModel, Generic[T]):
         ..., description="参数类型"
     )
     description: str = Field(..., description="参数描述")
-    enum: list[T] | None = Field(default=None, description="枚举的参数")
+    enum: list[T] | None = Field(
+        default=None, description="枚举的参数", exclude_if=not_none
+    )
     properties: dict[str, FunctionPropertySchema] | None = Field(
-        default=None, description="参数属性定义,仅当参数类型为object时有效"
+        default=None,
+        description="参数属性定义,仅当参数类型为object时有效",
+        exclude_if=not_none,
     )
     items: FunctionPropertySchema | None = Field(
-        default=None, description="仅当type='array'时使用，定义数组元素类型"
+        default=None,
+        description="仅当type='array'时使用，定义数组元素类型",
+        exclude_if=not_none,
     )
     minItems: int | None = Field(
-        default=None, description="仅当type='array'时使用，定义数组的最小长度"
+        default=None,
+        description="仅当type='array'时使用，定义数组的最小长度",
+        exclude_if=not_none,
     )
     maxItems: int | None = Field(
-        default=None, description="仅当type='array'时使用，定义数组元素数量最大长度"
+        default=None,
+        description="仅当type='array'时使用，定义数组元素数量最大长度",
+        exclude_if=not_none,
     )
     uniqueItems: bool | None = Field(
         default=None,
         description="是否要求数组元素唯一，当类型为array时，此参数有效默认为False",
+        exclude_if=not_none,
     )
     required: list[str] | None = Field(
-        default=None, description="参数属性定义,仅当参数类型为object时有效"
+        default=None,
+        description="参数属性定义,仅当参数类型为object时有效",
+        exclude_if=not_none,
     )
 
     @model_validator(mode="after")
@@ -83,7 +100,7 @@ class FunctionParametersSchema(BaseModel):
 
     type: Literal["object"] = Field(..., description="参数类型")
     properties: dict[str, FunctionPropertySchema] | None = Field(
-        default=None, description="参数属性定义"
+        default=None, description="参数属性定义", exclude_if=not_none
     )
 
     required: list[str] = Field(default_factory=list, description="必需参数列表")
