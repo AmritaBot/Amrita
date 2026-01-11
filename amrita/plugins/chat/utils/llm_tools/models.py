@@ -18,7 +18,7 @@ OPEN_AI_PARAM_TYPE = Literal[
 
 
 def not_none(value: T | None) -> bool:
-    return value is not None
+    return value is None
 
 
 class FunctionPropertySchema(BaseModel, Generic[T]):

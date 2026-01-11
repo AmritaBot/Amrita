@@ -122,12 +122,12 @@ class UniResponse(
     content: T = Field(
         ...,
         description="内容",
-        exclude_if=lambda x: x is not None,
+        exclude_if=lambda x: x is None,
     )
     tool_calls: T_TOOL = Field(
         ...,
         description="工具调用结果",
-        exclude_if=lambda x: x is not None,
+        exclude_if=lambda x: x is None,
     )
 
 
