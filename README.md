@@ -9,7 +9,7 @@
   <img src="https://img.shields.io/badge/NoneBot-2.0+-red?logo=nonebot" alt="NoneBot">
 </p>
 
-Amrita 是一个基于[NoneBot2](https://nonebot.dev/)的强大聊天机器人框架，专为快速构建和部署智能聊天机器人而设计。它不仅是一个 CLI 工具，更是一个完整的 LLM 聊天机器人解决方案，支持多种大语言模型和适配器。
+Amrita 是一个基于[NoneBot2](https://nonebot.dev/)的强大聊天机器人框架，专为快速构建和部署智能聊天机器人而设计。它是一个完整的 LLM 聊天机器人解决方案，具有强大的功能和灵活性。
 
 ## 🌟 特性亮点
 
