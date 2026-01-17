@@ -129,7 +129,7 @@ class MCPPropertySchemaString(MCPPropertySchema[Literal["string"]]):
     maxLength: int = Field(default=100, description="最大长度")
 
 
-class MCPPropertySchemaNumeric(MCPPropertySchema, Generic[JOT_T, NUM_T]):
+class MCPPropertySchemaNumeric(MCPPropertySchema[JOT_T], Generic[JOT_T, NUM_T]):
     """校验数值类型的MCP属性结构"""
 
     minimum: NUM_T | None = Field(
