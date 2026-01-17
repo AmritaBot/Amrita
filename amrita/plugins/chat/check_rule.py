@@ -189,7 +189,7 @@ async def should_respond_to_message(event: MessageEvent, bot: Bot) -> bool:
                 if len(memory_data.memory.messages[-1].content) >= 100:
                     memory_data.memory.messages[
                         -1
-                    ].content = memory_data.memory.messages[-1].content[99:]
+                    ].content = memory_data.memory.messages[-1].content[-100:]
                 memory_data.memory.messages[-1].content.append(
                     TextContent(type="text", text=content_message)
                 )

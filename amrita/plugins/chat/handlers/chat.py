@@ -313,7 +313,7 @@ class MemoryLimiter:
                 return
             elif data.memory.messages[index].role == "user":
                 self._dropped_messages.append(
-                    data.memory.messages.pop(0)
+                    data.memory.messages.pop(index)
                 )  # 移除用户消息
             else:
                 drop_message(index + 1)  # 进行下一次指针游走

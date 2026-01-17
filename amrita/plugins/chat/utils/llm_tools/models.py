@@ -40,7 +40,7 @@ def on_none(value: Any | None) -> bool:
         value (Any | None): 待判断的值
 
     Returns:
-        bool: return value != None?True:False
+        bool: 当Value为None返回True
     """
     return value is None
 
