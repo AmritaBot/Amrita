@@ -1,6 +1,7 @@
 # TODO: Amrita plugin system
 import sys
 from pathlib import Path
+from venv import logger
 
 import nonebot
 import toml
@@ -25,7 +26,12 @@ def load_plugins():
     for name in (Path(__file__).parent.parent / "plugins").iterdir():
         # 修改说明：为了Amrita项目的完整性，内置插件不会再允许被禁用。
         nonebot.logger.debug(f"Require built-in plugin {name.name}...")
-        nonebot.require(f"amrita.plugins.{name.name}")
+        pl_name: str = f"amrita.plugins.{name.name}"
+        try:
+            nonebot.require(pl_name)
+        except Exception:
+            logger.debug("Try to load plugin manually...")
+            nonebot.load_plugin(pl_name)
     nonebot.logger.debug("Appling Patches")
     apply_alias()
     nonebot.logger.info("Loading built-in plugins...")

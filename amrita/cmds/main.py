@@ -132,14 +132,7 @@ class SetupTool(BaseModel):
 class UVTool(BaseModel):
     """uv工具配置模型"""
 
-    dev_denpencies: list[str] = Field(
-        default_factory=lambda: [
-            "ruff>=0.12.8",
-            "nonebot-plugin-orm[default]>=0.8.2",
-            "pyright>=1.1.407",
-        ],
-        alias="dev-dependencies",
-    )
+    # 修改说明：此处不应该提供一个dev-dependency，开发环境怎么配该交给用户。
     package: bool = True
 
 

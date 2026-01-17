@@ -14,8 +14,10 @@ from amrita.plugins.chat.utils.llm_tools.manager import ToolsManager
 from amrita.plugins.chat.utils.llm_tools.models import (
     FunctionDefinitionSchema,
     FunctionParametersSchema,
+    MCPToolSchema,
     ToolData,
     ToolFunctionSchema,
+    cast_mcp_properties_to_openai,
 )
 
 MCP_SERVER_SCRIPT_TYPE = ClientTransportT
@@ -28,6 +30,9 @@ class NOT_GIVEN:
 class MCPClient:
     """可复用的MCP Client"""
 
+    mcp_client: Client | None = None
+    server_script: MCP_SERVER_SCRIPT_TYPE
+
     def __init__(
         self,
         server_script: MCP_SERVER_SCRIPT_TYPE,
@@ -35,8 +40,8 @@ class MCPClient:
     ):
         self.mcp_client = None
         self.server_script = server_script
-        self.tools = []
-        self.openai_tools = []
+        self.tools: list[MCPToolSchema] = []
+        self.openai_tools: list[ToolFunctionSchema] = []
 
     async def __aenter__(self):
         await self._connect()
@@ -68,13 +73,16 @@ class MCPClient:
         await self.mcp_client.__aenter__()
         logger.info(f"✅ 成功连接到 MCP Server@{server_script}")
         if not self.tools or update_tools:
-            tools = await self.mcp_client.list_tools()
-            self.tools = tools
-            logger.info(f"🛠️  可用工具: {[tool.name for tool in tools]}")
+            self.tools = [
+                MCPToolSchema.model_validate(i.model_dump())
+                for i in await self.mcp_client.list_tools()
+            ]
+            logger.info(f"🛠️  可用工具: {[tool.name for tool in self.tools]}")
+        self._cast_tool_to_openai()
 
     def _format_tools_for_openai(self):
         """将 MCP 工具格式转换为 OpenAI 工具格式"""
-        openai_tools = [
+        openai_tools: list[ToolFunctionSchema] = [
             ToolFunctionSchema(
                 strict=True,
                 type="function",
@@ -83,8 +91,10 @@ class MCPClient:
                     description=tool.description or f"运行名为：{tool.name}的工具",
                     parameters=FunctionParametersSchema(
                         type="object",
-                        required=tool.inputSchema.get("required", []),
-                        properties=tool.inputSchema.get("properties", {}),
+                        required=tool.inputSchema.required,
+                        properties=cast_mcp_properties_to_openai(
+                            property=tool.inputSchema.properties
+                        ),
                     ),
                 ),
             )
@@ -92,12 +102,16 @@ class MCPClient:
         ]
         return openai_tools
 
-    def _cast_tool_to_openai(self):
+    def _cast_tool_to_openai(self) -> None:
         self.openai_tools = self._format_tools_for_openai()
 
-    def get_tools(self):
-        """获取 MCP 工具列表，并转换为 OpenAI 工具列表"""
-        return self._format_tools_for_openai()
+    def get_tools(self) -> list[ToolFunctionSchema]:
+        """获取 MCP 工具列表"""
+        return self.openai_tools
+
+    def get_original_tools(self) -> list[MCPToolSchema]:
+        """获取原始的 MCP 工具列表"""
+        return self.tools
 
     async def _close(self):
         """关闭连接"""
