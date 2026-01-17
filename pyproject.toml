@@ -12,7 +12,6 @@ dependencies = [
     "colorama>=0.4",
     "toml>=0.10.2",
     "pip>=25.2",
-    "nb-cli>=1.0.0",
     "nonebot-plugin-localstore>=0.7.4",
     "typing-extensions>=4.6.0",
     "uv>=0.8.12",
@@ -24,6 +23,8 @@ dependencies = [
     "pytz>=2025.2",
     "tomlkit>=0.13.3",
     "nonebot-plugin-orm>=0.8.3",        # See https://github.com/nonebot/plugin-orm/issues/33
+    "nb-cli==1.6.0",
+    "watchfiles>=1.1.1",
 ]
 
 [project.optional-dependencies]
@@ -45,7 +46,6 @@ full = [
     "stubs>=1.0.0",
     "dotenv>=0.9.9",
     "importlib>=1.0.4",
-    "watchfiles<1.0.0",
     "openai>=1.66.3, <=1.99.0",
     "pydantic>=2.4.2",
     "jieba>=0.42.1",

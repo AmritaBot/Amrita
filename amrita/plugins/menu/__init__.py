@@ -12,6 +12,6 @@ __all__ = [
 ]
 __plugin_meta__ = PluginMetadata(
     name="Amrita菜单",
-    description="菜单功能管理器",
+    description="菜单功能",
     usage="菜单功能",
 )

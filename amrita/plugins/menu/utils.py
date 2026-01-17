@@ -3,7 +3,7 @@ from .models import PluginData
 
 def generate_menu(plugins: list[PluginData]) -> list[str]:
     head = "这是菜单列表，包含所有可用的功能和用法。\n"
-    head += "模块列表\n"
+    head += "模块列表：\n\n"
     for plugin in plugins:
         if not plugin.metadata or not plugin.matcher_grouping:
             continue

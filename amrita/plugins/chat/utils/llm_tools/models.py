@@ -112,7 +112,7 @@ class MCPPropertySchema(BaseModel, Generic[JOT_T]):
 
     type: JOT_T = Field(..., description="参数类型")
     title: str = Field(..., description="参数标题")
-    description: str = Field(default=..., description="参数描述")
+    description: str = Field(default="No description", description="参数描述")
     default: None = Field(default=None, description="参数默认值", exclude_if=on_none)
     enum: list[str | int | float] | None = Field(
         default=None, description="枚举的参数", exclude_if=on_none
@@ -154,7 +154,7 @@ class MCPPropertySchemaInteger(MCPPropertySchemaNumeric[Literal["integer"], int]
     """校验整数类型的MCP属性结构"""
 
 
-class MCPPropertySchemaNumber(MCPPropertySchema[Literal["number"]], float):
+class MCPPropertySchemaNumber(MCPPropertySchemaNumeric[Literal["number"], float]):
     """校验浮点数类型的MCP属性结构"""
 
 
@@ -207,7 +207,7 @@ class MCPToolSchema(BaseModel):
     """定义MCP工具的结构"""
 
     name: str = Field(..., description="工具名称")
-    description: str = Field(..., description="工具描述")
+    description: str = Field("No description", description="工具描述")
     inputSchema: MCPPropertySchemaObject = Field(..., description="工具参数定义")
 
 
@@ -217,7 +217,7 @@ class FunctionPropertySchema(BaseModel, Generic[T]):
     type: Literal[JSON_OBJECT_TYPE] | list[JSON_OBJECT_TYPE] = Field(
         ..., description="参数类型"
     )
-    description: str = Field(..., description="参数描述")
+    description: str = Field("No description", description="参数描述")
     enum: list[T] | None = Field(
         default=None, description="枚举的参数", exclude_if=on_none
     )
