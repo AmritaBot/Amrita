@@ -12,7 +12,7 @@ from nonebot.exception import NoneBotException
 from nonebot.log import logger
 
 from amrita.plugins.chat.utils.llm_tools.models import ToolContext
-from amrita.plugins.chat.utils.models import SEND_MESSAGES
+from amrita.plugins.chat.utils.models import SEND_MESSAGES, ToolCall, UniResponse
 from amrita.utils.admin import send_to_admin
 
 from .config import config_manager
@@ -73,8 +73,17 @@ async def text_check(event: BeforeChatEvent) -> None:
     if config.llm_config.tools.report_exclude_system_prompt:
         msg = event.get_send_message().get_memory()
     if config.llm_config.tools.report_exclude_context:
-        msg = event.get_send_message().get_memory()[:-1]
-    response = await tools_caller(msg, tool_list)
+        msg = (
+            [event.get_send_message().get_memory()[-1]]
+            if event.get_send_message().get_memory()
+            else []
+        )
+    if not msg:
+        logger.warning("消息列表为空，跳过内容审查")
+        return
+    response: UniResponse[None, list[ToolCall] | None] = await tools_caller(
+        msg, tool_list
+    )
     nonebot_event = typing.cast(MessageEvent, event.get_nonebot_event())
     if tool_calls := response.tool_calls:
         for tool_call in tool_calls:

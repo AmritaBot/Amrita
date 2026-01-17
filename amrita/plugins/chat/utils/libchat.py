@@ -314,7 +314,10 @@ async def _determine_presets(
 
 
 async def _call_with_presets(
-    presets: list[str], call_func: typing.Callable, *args, **kwargs
+    presets: list[str],
+    call_func: typing.Callable[..., typing.Awaitable[UniResponse]],
+    *args,
+    **kwargs,
 ) -> UniResponse:
     """使用预设列表调用指定函数"""
     if not presets:

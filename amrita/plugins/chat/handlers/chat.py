@@ -299,7 +299,7 @@ class MemoryLimiter:
         逐步删除最早的消息直到满足token数量限制。
         """
 
-        def get_token(memory: list[Message | ToolResult]) -> int:
+        def get_token(memory: SEND_MESSAGES) -> int:
             tk_tmp: int = 0
             for msg in text_generator(memory):
                 tk_tmp += hybrid_token_count(
@@ -308,11 +308,21 @@ class MemoryLimiter:
                 )
             return tk_tmp
 
+        def drop_message(index: int = 0) -> None:
+            if len(data.memory.messages) - 1 < index:  # 不满足条件
+                return
+            elif data.memory.messages[index].role == "user":
+                self._dropped_messages.append(
+                    data.memory.messages.pop(0)
+                )  # 移除用户消息
+            else:
+                drop_message(index + 1)  # 进行下一次指针游走
+
         train = self._train
         train_model = Message.model_validate(train)
         data = self.memory
         debug_log("开始执行token数量限制...")
-        memory_l: list[Message | ToolResult] = [train_model, *data.memory.messages]
+        memory_l: SEND_MESSAGES = [train_model, *data.memory.messages]
         if not config_manager.config.llm_config.enable_tokens_limit:
             debug_log("token限制未启用，跳过处理")
             return
@@ -327,7 +337,7 @@ class MemoryLimiter:
         initial_count = len(data.memory.messages)
         while tk_tmp > config_manager.config.session.session_max_tokens:
             if len(data.memory.messages) > 1:
-                self._dropped_messages.append(data.memory.messages.pop(0))
+                drop_message()
             else:
                 break
 

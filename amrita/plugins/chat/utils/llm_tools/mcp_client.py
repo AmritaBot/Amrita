@@ -79,6 +79,7 @@ class MCPClient:
             ]
             logger.info(f"🛠️  可用工具: {[tool.name for tool in self.tools]}")
         self._cast_tool_to_openai()
+
     def _format_tools_for_openai(self):
         """将 MCP 工具格式转换为 OpenAI 工具格式"""
         openai_tools: list[ToolFunctionSchema] = [
