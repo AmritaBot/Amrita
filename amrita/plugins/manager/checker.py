@@ -45,7 +45,7 @@ watch_user = defaultdict(
 )
 
 
-class APITimeCostRepo:
+class APICalledRepo:
     _repo: defaultdict[str, tuple[int, int]]  # (count, successful_count, cost)
     _instance = None
 
@@ -168,7 +168,7 @@ async def _(
             except Exception as e:
                 logger.warning(e)
 
-    await APITimeCostRepo().push(api, exception is None)
+    await APICalledRepo().push(api, exception is None)
 
     asyncio.create_task(_add())  # noqa: RUF006
 

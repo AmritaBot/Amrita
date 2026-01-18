@@ -10,6 +10,7 @@ from fastapi import Request
 from fastapi.responses import HTMLResponse
 
 from amrita.config import get_amrita_config
+from amrita.plugins.webui.API import PageContext, PageResponse, on_page
 from amrita.utils.system_health import calculate_system_usage
 from amrita.utils.utils import get_amrita_version
 
@@ -17,24 +18,14 @@ from ..main import TemplatesManager, app, try_get_bot
 from ..sidebar import SideBarManager
 
 
-@app.get("/bot/status", response_class=HTMLResponse)
-async def _(request: Request):
+@on_page("/bot/status", "Bot状态", "系统信息")
+async def _(ctx: PageContext):
     bot = try_get_bot()
     sys_info = calculate_system_usage()
-    side_bar = SideBarManager().get_sidebar_dump()
-    for bar in side_bar:
-        if bar.get("name") == "机器人管理":
-            bar["active"] = True
-            for child in bar.get("children", []):
-                if child.get("name") == "状态监控":
-                    child["active"] = True
-                    break
-            break
-    return TemplatesManager().TemplateResponse(
+    return PageResponse(
         "status.html",
         {
-            "request": request,
-            "sidebar_items": side_bar,  # 侧边栏菜单项
+            "request": ctx.request,
             "bot_static_info": {  # 机器人静态信息
                 "id": bot.self_id if bot else "未连接",
                 "name": get_amrita_config().bot_name,

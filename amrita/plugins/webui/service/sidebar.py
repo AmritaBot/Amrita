@@ -30,7 +30,6 @@ class SideBar(BaseModel):
             url="#",
             active=False,
             children=[
-                SideBarItem(name="状态监控", url="/bot/status", active=False),
                 SideBarItem(name="插件管理", url="/bot/plugins", active=False),
                 SideBarItem(name="Dotenv编辑", url="/bot/config", active=False),
             ],
@@ -44,6 +43,13 @@ class SideBar(BaseModel):
                 SideBarItem(name="权限管理", url="/users/permissions", active=False),
                 SideBarItem(name="黑名单管理", url="/user/blacklist", active=False),
             ],
+        ),
+        SideBarCategory(
+            name="系统信息",
+            icon="fas fa-info-circle",
+            url="#",
+            active=False,
+            children=[],
         ),
     ]
 

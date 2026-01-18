@@ -311,7 +311,7 @@ class MemoryLimiter:
         def drop_message(index: int = 0) -> None:
             if len(data.memory.messages) - 1 < index:  # 不满足条件
                 return
-            elif data.memory.messages[index].role == "user":
+            elif data.memory.messages[index].role in ("user", "assistant"):
                 self._dropped_messages.append(
                     data.memory.messages.pop(index)
                 )  # 移除用户消息
