@@ -5,7 +5,7 @@ from amrita.API import send_forward_msg
 from amrita.plugins.menu.manager import MatcherData
 from amrita.plugins.perm.API.admin import is_lp_admin
 
-from .checker import APITimeCostRepo
+from .checker import APICalledRepo
 
 
 @on_command(
@@ -17,7 +17,7 @@ from .checker import APITimeCostRepo
     ).model_dump(),
 ).handle()
 async def _(bot: Bot, event: MessageEvent):
-    data = await APITimeCostRepo().query_all()
+    data = await APICalledRepo().query_all()
     msg = "API情况:\n" + "\n".join(
         [
             f"API:{name},调用次数：{dt[0]!s},失败次数：{dt[0] - dt[1]!s}\n"

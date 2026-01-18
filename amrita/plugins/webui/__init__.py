@@ -27,6 +27,7 @@ if webui_config.webui_enable:
         api,
         bot,
         confedit,
+        dbmeta,
         index,
         user,
     )
@@ -36,6 +37,7 @@ if webui_config.webui_enable:
         "api",
         "bot",
         "confedit",
+        "dbmeta",
         "index",
         "main",
         "route_config",
