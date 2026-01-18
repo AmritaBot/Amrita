@@ -3,13 +3,15 @@ from dataclasses import asdict
 from nonebot import logger
 from nonebot_plugin_orm import get_session
 from sqlalchemy import Connection, Engine
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
 from amrita.plugins.webui.API import PageContext, PageResponse, on_page
 from amrita.utils.dbmetadata import AsyncDatabasePerformanceCollector, DatabaseType
 
 
-def get_databse_type(bind: Engine | Connection | AsyncSession) -> DatabaseType:
+def get_database_type(
+    bind: Engine | Connection | AsyncSession | AsyncEngine,
+) -> DatabaseType:
     if isinstance(bind, AsyncSession):
         bind = bind.get_bind()
     if isinstance(bind, Connection):
@@ -32,7 +34,7 @@ async def db_metadata_page(ctx: PageContext) -> PageResponse:
     """数据库元信息页面"""
     try:
         session: AsyncSession = get_session()
-        db_type = get_databse_type(session)
+        db_type = get_database_type(session)
 
         async with session:
             collector = AsyncDatabasePerformanceCollector(session, db_type)

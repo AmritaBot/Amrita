@@ -186,9 +186,9 @@ class AsyncDatabasePerformanceCollector:
             if self.db_type in ("mysql", "mariadb"):
                 result = await self.session.execute(
                     text(
-                        text="SELECT VERSION() as version, DATABASE() as db_name, "
-                        "USER() as current_user, @@hostname as server_host, "
-                        "@@version_comment as version_comment"
+                        "SELECT VERSION() as version, DATABASE() as db_name, "
+                        + "USER() as current_user, @@hostname as server_host, "
+                        + "@@version_comment as version_comment"
                     )
                 )
                 row = result.fetchone()
@@ -655,14 +655,14 @@ class AsyncDatabasePerformanceCollector:
                     SELECT
                         locktype,
                         mode,
-                        COUNT(*) as count,
+                        COUNT(*) as lock_count,
                         COUNT(*) FILTER (WHERE granted = false) as waiting_count,
                         ARRAY_AGG(DISTINCT pid) as pids
                     FROM pg_locks
                     WHERE pid <> pg_backend_pid()
                     GROUP BY locktype, mode
                     HAVING COUNT(*) > 0
-                    ORDER BY count DESC
+                    ORDER BY lock_count DESC
                 """)
                 )
 
@@ -683,7 +683,7 @@ class AsyncDatabasePerformanceCollector:
                         LockInfo(
                             lock_type=row.locktype,
                             lock_mode=row.mode,
-                            lock_count=len(row),
+                            lock_count=row.lock_count,
                             waiting_count=row.waiting_count,
                             blocked_pids=list(row.pids) if row.pids else None,
                             blocked_queries=blocked_queries
