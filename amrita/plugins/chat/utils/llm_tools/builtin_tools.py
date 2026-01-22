@@ -19,12 +19,7 @@ from .models import (
 )
 
 
-class ReportData(typing.TypedDict):
-    content: str
-    invoke: bool
-
-
-async def report(event: BeforeChatEvent, data: ReportData, bot: Bot):
+async def report(event: BeforeChatEvent, data: dict[str, str], bot: Bot):
     message = data["content"]
     nb_event = typing.cast(MessageEvent, event.get_nonebot_event())
     logger.warning(f"{nb_event.user_id} 被举报了 ：{message}")
