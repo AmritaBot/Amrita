@@ -1,11 +1,15 @@
 # mcp_client.py
+import json
 import random
 from asyncio import Lock
+from collections.abc import Awaitable, Callable
 from copy import deepcopy
 from typing import Any, overload
 
 from fastmcp import Client
+from fastmcp.client.client import CallToolResult
 from fastmcp.client.transports import ClientTransportT
+from mcp.types import TextContent
 from nonebot import logger
 from typing_extensions import Self
 from zipp import Path
@@ -39,18 +43,18 @@ class MCPClient:
         # headers: dict | None = None,
     ):
         self.mcp_client = None
-        self.server_script = server_script
+        self.server_script: MCP_SERVER_SCRIPT_TYPE = server_script
         self.tools: list[MCPToolSchema] = []
         self.openai_tools: list[ToolFunctionSchema] = []
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> Self:
         await self._connect()
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         await self._close()
 
-    async def simple_call(self, tool_name: str, data: dict[str, Any]):
+    async def simple_call(self, tool_name: str, data: dict[str, Any]) -> str:
         """调用 MCP 工具
         Args:
             tool_name (str): 工具名称
@@ -58,7 +62,17 @@ class MCPClient:
         """
         if self.mcp_client is None:
             raise RuntimeError("MCP Server 未连接！")
-        return await self.mcp_client.call_tool(tool_name, data)
+        try:
+            response: CallToolResult = await self.mcp_client.call_tool(tool_name, data)
+            ct: list[TextContent] = [
+                i for i in response.content if isinstance(i, TextContent)
+            ]
+            return "".join([f"{i.text}\n\n" for i in ct])
+        except Exception as e:
+            logger.opt(exception=e, colors=True).error(
+                f"Failed to call tool:{tool_name}, because {e}."
+            )
+            return json.dumps({"success": False, "error": str(e)})
 
     async def _connect(self, update_tools: bool = False):
         """连接到 MCP Server
@@ -164,10 +178,10 @@ class ClientManager:
             )
 
     @staticmethod
-    def _tools_wrapper(tool_name: str):
+    def _tools_wrapper(tool_name: str) -> Callable[dict[str, Any], Awaitable[str]]:
         async def tools_runner(data: dict[str, Any]) -> str:
             client = await ClientManager().get_client_by_tool_name(tool_name)
-            return (await client.simple_call(tool_name, data)).data
+            return await client.simple_call(tool_name, data)
 
         return tools_runner
 
@@ -211,7 +225,7 @@ class ClientManager:
 
     async def initialize_this(self, server_script: MCP_SERVER_SCRIPT_TYPE) -> Self:
         """注册并初始化单个MCP Server"""
-        client = self.get_client_by_script(server_script)
+        client: MCPClient = self.get_client_by_script(server_script)
         async with self._lock:
             try:
                 await self._load_this(client)
@@ -235,7 +249,7 @@ class ClientManager:
                         or tool.function.name in self.name_to_clients
                     ):
                         logger.warning(
-                            f"{client}@{client.server_script} has a tool named {tool.function.name}, which is already registered"
+                            f"{client}@{client.server_script} has a tool named {tool.function.name}, which is already registered, the old tool will be replaced."
                         )
                     name_to_clients_tmp[tool.function.name] = client
                     if ToolsManager().has_tool(tool.function.name):
@@ -245,15 +259,14 @@ class ClientManager:
                         logger.warning(
                             f"⚠️  工具已存在：{tool.function.name}，它将被重映射到：{remapped_name}"
                         )
-                        tools_remapping_tmp[tool.function.name] = remapped_name
-                        reversed_remappings_tmp[remapped_name] = tool.function.name
+                        origin_name = tool.function.name
+                        tools_remapping_tmp[origin_name] = remapped_name
+                        reversed_remappings_tmp[remapped_name] = origin_name
                         tool.function.name = remapped_name
 
-                        ToolsManager().register_tool(
-                            ToolData(
-                                data=tool, func=self._tools_wrapper(tool.function.name)
-                            )
-                        )
+                    ToolsManager().register_tool(
+                        ToolData(data=tool, func=self._tools_wrapper(origin_name))
+                    )
 
         except Exception as e:
             if fail_then_raise:

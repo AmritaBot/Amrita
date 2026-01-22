@@ -61,6 +61,9 @@ AGENT_PROCESS_TOOLS = (
 )
 
 
+class Continue(BaseException): ...
+
+
 @checkhook.handle()
 async def text_check(event: BeforeChatEvent) -> None:
     config = config_manager.config
@@ -89,10 +92,12 @@ async def text_check(event: BeforeChatEvent) -> None:
         for tool_call in tool_calls:
             function_name = tool_call.function.name
             function_args: dict[str, Any] = json.loads(tool_call.function.arguments)
+            if not function_args.get("invoke"):
+                return
             if function_name == REPORT_TOOL.function.name:
                 await report(
                     event,
-                    function_args.get("content", ""),
+                    function_args,
                     typing.cast(Bot, bot),
                 )
                 if config_manager.config.llm_config.tools.report_then_block:
@@ -114,16 +119,42 @@ async def text_check(event: BeforeChatEvent) -> None:
 async def agent_core(event: BeforeChatEvent) -> None:
     agent_last_step = ""
 
+    async def _append_reasoning(
+        msg: SEND_MESSAGES, response: UniResponse[None, list[ToolCall] | None]
+    ):
+        nonlocal agent_last_step
+        tool_calls: list[ToolCall] | None = response.tool_calls
+        if tool_calls:
+            for tool in tool_calls:
+                if tool.function.name == REASONING_TOOL.function.name:
+                    break
+            else:
+                raise ValueError(f"No reasoning tool found in response \n\n{response}")
+            if reasoning := json.loads(tool.function.arguments).get("reasoning"):
+                msg.append(Message.model_validate(response, from_attributes=True))
+                msg.append(
+                    ToolResult(
+                        role="tool",
+                        name=tool.function.name,
+                        content=reasoning,
+                        tool_call_id=tool.id,
+                    )
+                )
+                agent_last_step = reasoning
+                if not config.llm_config.tools.agent_reasoning_hide:
+                    await bot.send(nonebot_event, f"[AmritaAgent] {reasoning}")
+
     async def append_reasoning_msg(
-        msg: list,
+        msg: SEND_MESSAGES,
         original_msg: str = "",
         last_step: str = "",
+        tools_ctx: list[dict[str, Any]] = [],
     ):
         nonlocal agent_last_step
         reasoning_msg = [
             Message(
                 role="system",
-                content="请根据上文用户输入，分析任务需求，并给出你该步应执行的摘要与原因，如果不需要执行任务则不需要填写描述。"
+                content="请根据上文用户输入，分析任务需求，并给出你该步应执行的摘要与原因，如果不需要执行任务则不需要填写描述；请根据<SYS_SETTINGS>设定的角色口吻进行分析（如果有）。"
                 + (
                     f"\n你的上一步任务为：\n```text\n{last_step}\n```\n"
                     if last_step
@@ -136,23 +167,10 @@ async def agent_core(event: BeforeChatEvent) -> None:
             ),
             *msg,
         ]
-        response = await tools_caller(reasoning_msg, [REASONING_TOOL])
-        tool_calls = response.tool_calls
-        if tool_calls:
-            tool = tool_calls[0]
-            if reasoning := json.loads(tool.function.arguments).get("reasoning"):
-                agent_last_step = reasoning
-                if not config.llm_config.tools.agent_reasoning_hide:
-                    await bot.send(nonebot_event, f"[Agent] {reasoning}")
-                msg.append(Message.model_validate(response, from_attributes=True))
-                msg.append(
-                    ToolResult(
-                        role="tool",
-                        name=tool.function.name,
-                        content=reasoning,
-                        tool_call_id=tool.id,
-                    )
-                )
+        response: UniResponse[None, list[ToolCall] | None] = await tools_caller(
+            reasoning_msg, [REASONING_TOOL.model_dump(), *tools_ctx], REASONING_TOOL
+        )
+        await _append_reasoning(msg, response)
 
     async def run_tools(
         msg_list: list,
@@ -170,7 +188,7 @@ async def agent_core(event: BeforeChatEvent) -> None:
             or config_manager.config.llm_config.tools.agent_thought_mode
             == "reasoning-required"
         ):
-            await append_reasoning_msg(msg_list, original_msg)
+            await append_reasoning_msg(msg_list, original_msg, tools_ctx=tools)
 
         if call_count > config_manager.config.llm_config.tools.agent_tool_call_limit:
             await bot.send(nonebot_event, "调用工具次数过多，Agent工作已终止。")
@@ -190,12 +208,8 @@ async def agent_core(event: BeforeChatEvent) -> None:
                     match function_name:
                         case REASONING_TOOL.function.name:
                             logger.debug("正在生成任务摘要与原因。")
-                            await append_reasoning_msg(
-                                msg_list,
-                                original_msg,
-                                agent_last_step,
-                            )
-                            continue
+                            await _append_reasoning(msg_list, response=response_msg)
+                            raise Continue()
                         case STOP_TOOL.function.name:
                             logger.debug("Agent工作已终止。")
                             msg_list.append(
@@ -250,6 +264,8 @@ async def agent_core(event: BeforeChatEvent) -> None:
                                     f"ChatHook中遇到了未定义的函数：{function_name}"
                                 )
                                 continue
+                except Continue:
+                    continue
                 except Exception as e:
                     if isinstance(e, ChatException):
                         raise
@@ -287,20 +303,20 @@ async def agent_core(event: BeforeChatEvent) -> None:
                     config_manager.config.llm_config.tools.agent_tool_call_notice
                     == "notify"
                 ):
-                    message = "".join(
-                        f"✅ 调用了工具 {i.name}\n"
-                        for i in result_msg_list
-                        if getattr(ToolsManager().get_tool(i.name), "on_call", "")
-                        == "show"
-                    )
-                    await bot.send(nonebot_event, message)
+                    if message := (
+                        "".join(
+                            f"✅ 调用了工具 {i.name}\n"
+                            for i in result_msg_list
+                            if getattr(ToolsManager().get_tool(i.name), "on_call", "")
+                            == "show"
+                        )
+                    ):
+                        await bot.send(nonebot_event, message)
                 if result_msg_list:
-                    observation_msg = "".join(
-                        [
-                            f"{result.name}: {result.content}\n"
-                            for result in result_msg_list
-                        ]
-                    )
+                    observation_msg = "".join([
+                        f"{result.name}: {result.content}\n"
+                        for result in result_msg_list
+                    ])
                     msg_list.append(
                         Message(
                             role="user",
@@ -348,9 +364,9 @@ async def agent_core(event: BeforeChatEvent) -> None:
         await run_tools(
             msg_list, nonebot_event, original_msg=nonebot_event.get_plaintext()
         )
-        event._send_message.memory.extend(
-            [msg for msg in msg_list if msg not in event._send_message.unwrap()]
-        )
+        event._send_message.memory.extend([
+            msg for msg in msg_list if msg not in event._send_message.unwrap()
+        ])
 
     except Exception as e:
         if isinstance(e, ChatException):
