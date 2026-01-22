@@ -19,7 +19,8 @@ from .models import (
 )
 
 
-async def report(event: BeforeChatEvent, message: str, bot: Bot):
+async def report(event: BeforeChatEvent, data: dict[str, str], bot: Bot):
+    message = data["content"]
     nb_event = typing.cast(MessageEvent, event.get_nonebot_event())
     logger.warning(f"{nb_event.user_id} 被举报了 ：{message}")
     content = deepcopy(event.get_send_message().memory[-1].content)
@@ -54,8 +55,12 @@ REPORT_TOOL = ToolFunctionSchema(
                     description="举报信息：举报内容/理由",
                     type="string",
                 ),
+                "invoke": FunctionPropertySchema(
+                    description="是否是违规消息",
+                    type="boolean",  # 好吧，有些时候即使没有违规内容模型还是会call这个工具，所以用个Boolean标记下。
+                ),
             },
-            required=["content"],
+            required=["content", "invoke"],
             type="object",
         ),
     ),

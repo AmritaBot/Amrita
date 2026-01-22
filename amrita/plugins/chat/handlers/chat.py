@@ -283,7 +283,7 @@ class MemoryLimiter:
         # Enforce memory length limit
         initial_count = len(data.memory.messages)
         while len(data.memory.messages) > 0:
-            if data.memory.messages[0].role != "user":
+            if data.memory.messages[0].role not in ("assistant", "user"):
                 del data.memory.messages[0]
             elif len(data.memory.messages) > self.config.llm_config.memory_lenth_limit:
                 self._dropped_messages.append(data.memory.messages.pop(0))
