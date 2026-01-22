@@ -313,10 +313,12 @@ async def agent_core(event: BeforeChatEvent) -> None:
                     ):
                         await bot.send(nonebot_event, message)
                 if result_msg_list:
-                    observation_msg = "".join([
-                        f"{result.name}: {result.content}\n"
-                        for result in result_msg_list
-                    ])
+                    observation_msg = "".join(
+                        [
+                            f"{result.name}: {result.content}\n"
+                            for result in result_msg_list
+                        ]
+                    )
                     msg_list.append(
                         Message(
                             role="user",
@@ -364,9 +366,9 @@ async def agent_core(event: BeforeChatEvent) -> None:
         await run_tools(
             msg_list, nonebot_event, original_msg=nonebot_event.get_plaintext()
         )
-        event._send_message.memory.extend([
-            msg for msg in msg_list if msg not in event._send_message.unwrap()
-        ])
+        event._send_message.memory.extend(
+            [msg for msg in msg_list if msg not in event._send_message.unwrap()]
+        )
 
     except Exception as e:
         if isinstance(e, ChatException):

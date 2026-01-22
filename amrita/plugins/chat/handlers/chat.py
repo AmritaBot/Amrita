@@ -94,13 +94,15 @@ async def synthesize_message_to_msg(
         转换后的消息内容
     """
     is_multimodal: bool = (
-        any([
-            (await config_manager.get_preset(preset=preset)).multimodal
-            for preset in [
-                config_manager.config.preset,
-                *config_manager.config.preset_extension.backup_preset_list,
+        any(
+            [
+                (await config_manager.get_preset(preset=preset)).multimodal
+                for preset in [
+                    config_manager.config.preset,
+                    *config_manager.config.preset_extension.backup_preset_list,
+                ]
             ]
-        ])
+        )
         or len(config_manager.config.preset_extension.multi_modal_preset_list) > 0
     )
 
@@ -208,12 +210,14 @@ class MemoryLimiter:
             Message[str](
                 role="user",
                 content=(
-                    "消息列表：\n```text\n".join([
-                        f"{it}\n"
-                        for it in text_generator(
-                            self._dropped_messages + dropped_part, split_role=True
-                        )
-                    ])
+                    "消息列表：\n```text\n".join(
+                        [
+                            f"{it}\n"
+                            for it in text_generator(
+                                self._dropped_messages + dropped_part, split_role=True
+                            )
+                        ]
+                    )
                     + "\n```"
                 ),
             ),
@@ -511,8 +515,7 @@ class ChatObject:
             + "\n</SCHEMA>\n"
             + "<SYSTEM_INSTRUCTIONS>\n"
             + (
-                self
-                .train["content"]
+                self.train["content"]
                 .replace("{cookie}", config.cookies.cookie)
                 .replace("{self_id}", str(event.self_id))
                 .replace("{user_id}", str(event.user_id))

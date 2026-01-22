@@ -177,10 +177,11 @@ class ClientManager:
                 f"未找到工具：{tool_name}{f'（由`{name}`重映射）' if name != tool_name else ''}"
             )
 
-    @staticmethod
-    def _tools_wrapper(tool_name: str) -> Callable[dict[str, Any], Awaitable[str]]:
+    def _tools_wrapper(
+        self, tool_name: str
+    ) -> Callable[[dict[str, Any]], Awaitable[str]]:
         async def tools_runner(data: dict[str, Any]) -> str:
-            client = await ClientManager().get_client_by_tool_name(tool_name)
+            client = await self.get_client_by_tool_name(tool_name)
             return await client.simple_call(tool_name, data)
 
         return tools_runner
@@ -252,6 +253,7 @@ class ClientManager:
                             f"{client}@{client.server_script} has a tool named {tool.function.name}, which is already registered, the old tool will be replaced."
                         )
                     name_to_clients_tmp[tool.function.name] = client
+                    origin_name = tool.function.name
                     if ToolsManager().has_tool(tool.function.name):
                         remapped_name = (
                             f"referred_{random.randint(1, 100)}_{tool.function.name}"
@@ -259,7 +261,6 @@ class ClientManager:
                         logger.warning(
                             f"⚠️  工具已存在：{tool.function.name}，它将被重映射到：{remapped_name}"
                         )
-                        origin_name = tool.function.name
                         tools_remapping_tmp[origin_name] = remapped_name
                         reversed_remappings_tmp[remapped_name] = origin_name
                         tool.function.name = remapped_name
