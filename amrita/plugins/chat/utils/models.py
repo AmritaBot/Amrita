@@ -164,9 +164,7 @@ _T = typing.TypeVar(
 
 
 class Message(BaseModel, Generic[_T]):
-    role: Literal["user", "assistant", "system"] = Field(
-        default="assistant", description="角色"
-    )
+    role: Literal["user", "assistant", "system"] = Field(..., description="角色")
     content: _T = Field(..., description="内容")
     tool_calls: list[ToolCall] | None = Field(
         default=None, description="工具调用", exclude_if=lambda x: x is None
@@ -174,7 +172,7 @@ class Message(BaseModel, Generic[_T]):
 
 
 class ToolResult(BaseModel):
-    role: Literal["tool"] = Field(default="tool", description="角色")
+    role: Literal["tool"] = Field(..., description="角色")
     name: str = Field(..., description="工具名称")
     content: str = Field(..., description="工具返回内容")
     tool_call_id: str = Field(..., description="工具调用ID")

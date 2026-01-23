@@ -57,31 +57,39 @@ async def _(request: Request):
                     break
             break
     plugins = nonebot.get_loaded_plugins()
-    plugin_list = [
-        {
-            "name": (plugin.metadata.name if plugin.metadata else plugin.name),
-            "homepage": (plugin.metadata.homepage if plugin.metadata else None),
-            "is_local": "." in plugin.module_name,
-            "type": (
-                (plugin.metadata.type or "Unknown") if plugin.metadata else "Unknown"
-            ),
-            "description": (
-                plugin.metadata.description or "(还没有介绍呢)"
-                if plugin.metadata
-                else "（还没有介绍呢）"
-            ),
-            "version": (
-                importlib.metadata.version(plugin.module_name)
-                if "." not in plugin.module_name
-                else (
-                    "(不适用)"
-                    if "amrita.plugins." not in plugin.module_name
-                    else "Amrita内置插件"
-                )
-            ),
-        }
-        for plugin in plugins
-    ]
+    plugin_list = []
+    for plugin in plugins:
+        version = "Unknown"
+        try:
+            version = importlib.metadata.version(plugin.module_name)
+        except Exception as e:
+            nonebot.logger.warning(f"获取插件 {plugin.module_name} 的版本信息失败: {e}")
+        plugin_list.append(
+            {
+                "name": (plugin.metadata.name if plugin.metadata else plugin.name),
+                "homepage": (plugin.metadata.homepage if plugin.metadata else None),
+                "is_local": "." in plugin.module_name,
+                "type": (
+                    (plugin.metadata.type or "Unknown")
+                    if plugin.metadata
+                    else "Unknown"
+                ),
+                "description": (
+                    plugin.metadata.description or "(还没有介绍呢)"
+                    if plugin.metadata
+                    else "（还没有介绍呢）"
+                ),
+                "version": (
+                    version
+                    if "." not in plugin.module_name
+                    else (
+                        "(不适用)"
+                        if "amrita.plugins." not in plugin.module_name
+                        else "Amrita内置插件"
+                    )
+                ),
+            }
+        )
     return TemplatesManager().TemplateResponse(
         "plugins.html",
         context={

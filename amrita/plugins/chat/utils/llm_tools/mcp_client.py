@@ -60,9 +60,11 @@ class MCPClient:
             tool_name (str): 工具名称
             data (dict[str, Any]): 工具参数
         """
-        if self.mcp_client is None:
-            raise RuntimeError("MCP Server 未连接！")
+
         try:
+            if self.mcp_client is None:
+                await self._connect()
+            assert self.mcp_client is not None
             response: CallToolResult = await self.mcp_client.call_tool(tool_name, data)
             ct: list[TextContent] = [
                 i for i in response.content if isinstance(i, TextContent)
@@ -73,6 +75,8 @@ class MCPClient:
                 f"Failed to call tool:{tool_name}, because {e}."
             )
             return json.dumps({"success": False, "error": str(e)})
+        finally:
+            await self._close()
 
     async def _connect(self, update_tools: bool = False):
         """连接到 MCP Server
@@ -92,7 +96,7 @@ class MCPClient:
                 for i in await self.mcp_client.list_tools()
             ]
             logger.info(f"🛠️  可用工具: {[tool.name for tool in self.tools]}")
-        self._cast_tool_to_openai()
+            self._cast_tool_to_openai()
 
     def _format_tools_for_openai(self):
         """将 MCP 工具格式转换为 OpenAI 工具格式"""
@@ -181,7 +185,7 @@ class ClientManager:
         self, tool_name: str
     ) -> Callable[[dict[str, Any]], Awaitable[str]]:
         async def tools_runner(data: dict[str, Any]) -> str:
-            client = await self.get_client_by_tool_name(tool_name)
+            client: MCPClient = await self.get_client_by_tool_name(tool_name)
             return await client.simple_call(tool_name, data)
 
         return tools_runner
@@ -266,7 +270,11 @@ class ClientManager:
                         tool.function.name = remapped_name
 
                     ToolsManager().register_tool(
-                        ToolData(data=tool, func=self._tools_wrapper(origin_name))
+                        ToolData(
+                            data=tool,
+                            func=self._tools_wrapper(origin_name),
+                            on_call="show",
+                        )
                     )
 
         except Exception as e:

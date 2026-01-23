@@ -20,7 +20,11 @@ class MenuManager:
             for matcher in plugin.matcher:
                 if not matcher._default_state:
                     continue
-                matcher_info = MatcherData.model_validate(matcher._default_state)
+                try:
+                    matcher_info = MatcherData.model_validate(matcher._default_state)
+                except Exception as e:
+                    logger.info(f"检测到菜单数据格式错误，已跳过: {plugin.name} {e}")
+                    continue
                 logger.debug(f"加载菜单: {matcher_info.model_dump_json(indent=2)}")
                 matchers.append(matcher_info)
             self.plugins.append(PluginData(matchers=matchers, metadata=plugin.metadata))
