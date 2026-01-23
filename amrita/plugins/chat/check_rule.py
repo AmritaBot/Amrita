@@ -47,8 +47,9 @@ async def is_bot_enabled(event: Event) -> bool:
         and not config_manager.config.function.enable_group_chat
     ):
         return False
-    elif not config_manager.config.function.enable_private_chat:
-        return False
+    else:
+        if not config_manager.config.function.enable_private_chat:
+            return False
     with contextlib.suppress(Exception):
         bots = set(nonebot.get_bots().keys())
         if event.get_user_id() in bots:  # 多实例下防止冲突
