@@ -386,7 +386,7 @@ async def agent_core(event: BeforeChatEvent) -> None:
         await run_tools(
             msg_list, nonebot_event, original_msg=nonebot_event.get_plaintext()
         )
-        event._send_message.memory.extend(msg_list[current_length - 1 :])
+        event._send_message.memory.extend(msg_list[current_length:])
 
     except Exception as e:
         if isinstance(e, ChatException):
