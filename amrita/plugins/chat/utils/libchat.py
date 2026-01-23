@@ -109,7 +109,8 @@ async def test_presets() -> typing.AsyncGenerator[PresetReport, None]:
                 preset_data=preset,
                 test_input=(TEST_MSG_PROMPT, TEST_MSG_USER),
                 test_output=Message[list[TextContent]](
-                    content=[TextContent(type="text", text=data.content)]
+                    role="assistant",
+                    content=[TextContent(type="text", text=data.content)],
                 ),
                 token_prompt=prompt_tokens,
                 token_completion=hybrid_token_count(data.content),

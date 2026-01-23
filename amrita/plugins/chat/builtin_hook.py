@@ -12,6 +12,7 @@ from nonebot.exception import NoneBotException
 from nonebot.log import logger
 
 from amrita.plugins.chat.utils.llm_tools.models import ToolContext
+from amrita.plugins.chat.utils.logging import debug_log
 from amrita.plugins.chat.utils.models import SEND_MESSAGES, ToolCall, UniResponse
 from amrita.utils.admin import send_to_admin
 
@@ -27,12 +28,14 @@ from .utils.libchat import (
     tools_caller,
 )
 from .utils.llm_tools.builtin_tools import (
+    PROCESS_MESSAGE,
+    PROCESS_MESSAGE_TOOL,
     REASONING_TOOL,
     REPORT_TOOL,
     STOP_TOOL,
     report,
 )
-from .utils.llm_tools.manager import ToolsManager
+from .utils.llm_tools.manager import ToolsManager, on_tools
 from .utils.memory import (
     get_memory_data,
 )
@@ -53,11 +56,13 @@ BUILTIN_TOOLS_NAME = {
     REPORT_TOOL.function.name,
     STOP_TOOL.function.name,
     REASONING_TOOL.function.name,
+    PROCESS_MESSAGE.function.name,
 }
 
 AGENT_PROCESS_TOOLS = (
     REASONING_TOOL,
     STOP_TOOL,
+    PROCESS_MESSAGE,
 )
 
 
@@ -69,7 +74,7 @@ async def text_check(event: BeforeChatEvent) -> None:
     config = config_manager.config
     if not config.llm_config.tools.enable_report:
         checkhook.pass_event()
-    logger.info("正在进行内容审查......")
+    logger.info("Content checking in progress......")
     bot = get_bot()
     tool_list = [REPORT_TOOL]
     msg = event._send_message.unwrap()
@@ -82,7 +87,7 @@ async def text_check(event: BeforeChatEvent) -> None:
             else []
         )
     if not msg:
-        logger.warning("消息列表为空，跳过内容审查")
+        logger.warning("Message list is empty, skipping content check")
         return
     response: UniResponse[None, list[ToolCall] | None] = await tools_caller(
         msg, tool_list
@@ -92,9 +97,9 @@ async def text_check(event: BeforeChatEvent) -> None:
         for tool_call in tool_calls:
             function_name = tool_call.function.name
             function_args: dict[str, Any] = json.loads(tool_call.function.arguments)
-            if not function_args.get("invoke"):
-                return
             if function_name == REPORT_TOOL.function.name:
+                if not function_args.get("invoke"):
+                    return
                 await report(
                     event,
                     function_args,
@@ -111,13 +116,23 @@ async def text_check(event: BeforeChatEvent) -> None:
                     prehook.cancel_nonebot_process()
             else:
                 await send_to_admin(
-                    f"[LLM-Report] 检测到非传入工具调用：{function_name}，请向模型提供商反馈此问题。"
+                    f"[LLM-Report] Detected non-passed tool call: {function_name}, please feedback this issue to the model provider."
                 )
+
+
+@on_tools(PROCESS_MESSAGE_TOOL, True, show_call=False)
+async def _(ctx: ToolContext) -> str | None:
+    if not config_manager.config.llm_config.tools.agent_middle_message:
+        return "Process message tool is disabled,it's not allowed to use."
+    msg: str = ctx.data["content"]
+    debug_log(f"[LLM-ProcessMessage] {msg}")
+    await ctx.bot.send(ctx.event.get_nonebot_event(), msg)
+    return f"Sent a message to user:\n\n```text\n{msg}\n```\n"
 
 
 @prehook.handle()
 async def agent_core(event: BeforeChatEvent) -> None:
-    agent_last_step = ""
+    agent_last_step: str = ""
 
     async def _append_reasoning(
         msg: SEND_MESSAGES, response: UniResponse[None, list[ToolCall] | None]
@@ -141,6 +156,7 @@ async def agent_core(event: BeforeChatEvent) -> None:
                     )
                 )
                 agent_last_step = reasoning
+                debug_log(f"[AmritaAgent] {reasoning}")
                 if not config.llm_config.tools.agent_reasoning_hide:
                     await bot.send(nonebot_event, f"[AmritaAgent] {reasoning}")
 
@@ -154,9 +170,12 @@ async def agent_core(event: BeforeChatEvent) -> None:
         reasoning_msg = [
             Message(
                 role="system",
-                content="请根据上文用户输入，分析任务需求，并给出你该步应执行的摘要与原因，如果不需要执行任务则不需要填写描述；请根据<SYS_SETTINGS>设定的角色口吻进行分析（如果有）。"
+                content="Please analyze the task requirements based on the user input above,"
+                + " summarize the current step's purpose and reasons, and execute accordingly."
+                + " If no task needs to be performed, no description is needed;"
+                + " please analyze according to the character tone set in <SYS_SETTINGS> (if present)."
                 + (
-                    f"\n你的上一步任务为：\n```text\n{last_step}\n```\n"
+                    f"\nYour previous task was:\n```text\n{last_step}\n```\n"
                     if last_step
                     else ""
                 )
@@ -175,13 +194,21 @@ async def agent_core(event: BeforeChatEvent) -> None:
     async def run_tools(
         msg_list: list,
         nonebot_event: MessageEvent,
-        call_count: int = 0,
+        call_count: int = 1,
         original_msg: str = "",
     ):
-        logger.debug(f"开始第{call_count + 1}轮工具调用，当前消息数: {len(msg_list)}")
+        running_stop: bool = False
+
+        def stop_running():
+            nonlocal running_stop
+            running_stop = True
+
+        logger.debug(
+            f"Starting round {call_count} tool call, current message count: {len(msg_list)}"
+        )
         if config_manager.config.llm_config.tools.agent_mode_enable and (
             (
-                call_count == 0
+                call_count == 1
                 and config_manager.config.llm_config.tools.agent_thought_mode
                 == "reasoning"
             )
@@ -191,38 +218,32 @@ async def agent_core(event: BeforeChatEvent) -> None:
             await append_reasoning_msg(msg_list, original_msg, tools_ctx=tools)
 
         if call_count > config_manager.config.llm_config.tools.agent_tool_call_limit:
-            await bot.send(nonebot_event, "调用工具次数过多，Agent工作已终止。")
+            await bot.send(
+                nonebot_event, "[AmritaAgent] 过多次的工具调用！已取消Workflow！"
+            )
             return
         response_msg = await tools_caller(
             msg_list,
             tools,
         )
+
         if tool_calls := response_msg.tool_calls:
             result_msg_list: list[ToolResult] = []
             for tool_call in tool_calls:
                 function_name = tool_call.function.name
                 function_args: dict[str, Any] = json.loads(tool_call.function.arguments)
-                logger.debug(f"函数参数为{tool_call.function.arguments}")
-                logger.debug(f"正在调用函数{function_name}")
+                logger.debug(f"Function arguments are {tool_call.function.arguments}")
+                logger.debug(f"Calling function {function_name}")
                 try:
                     match function_name:
                         case REASONING_TOOL.function.name:
-                            logger.debug("正在生成任务摘要与原因。")
+                            logger.debug("Generating task summary and reason.")
                             await _append_reasoning(msg_list, response=response_msg)
                             raise Continue()
                         case STOP_TOOL.function.name:
-                            logger.debug("Agent工作已终止。")
-                            msg_list.append(
-                                Message(
-                                    role="user",
-                                    content="你已经完成了聊天前任务，请继续完成对话补全。"
-                                    + (
-                                        f"\n<INPUT>{original_msg}</INPUT>"
-                                        if original_msg
-                                        else ""
-                                    ),
-                                )
-                            )
+                            logger.debug("Agent work has been terminated.")
+                            if "result" in function_args:
+                                logger.debug(f"[Done] {function_args['result']}")
                             return
                         case _:
                             if (
@@ -251,7 +272,7 @@ async def agent_core(event: BeforeChatEvent) -> None:
                                         )
                                     )
                                 ) is None:
-                                    continue
+                                    raise Continue()
                                 else:
                                     msg_list.append(
                                         Message.model_validate(
@@ -261,7 +282,7 @@ async def agent_core(event: BeforeChatEvent) -> None:
                                     func_response = tool_response
                             else:
                                 logger.opt(exception=True, colors=True).error(
-                                    f"ChatHook中遇到了未定义的函数：{function_name}"
+                                    f"Encountered undefined function in ChatHook: {function_name}"
                                 )
                                 continue
                 except Continue:
@@ -269,26 +290,29 @@ async def agent_core(event: BeforeChatEvent) -> None:
                 except Exception as e:
                     if isinstance(e, ChatException):
                         raise
-                    logger.warning(f"函数{function_name}执行失败：{e}")
+                    logger.warning(f"Function {function_name} execution failed: {e}")
                     if (
                         config_manager.config.llm_config.tools.agent_mode_enable
                         and function_name not in BUILTIN_TOOLS_NAME
+                        and config_manager.config.llm_config.tools.agent_tool_call_notice
                     ):
                         await bot.send(
                             nonebot_event, f"ERR: Tool {function_name} 执行失败"
                         )
                     msg_list.append(
                         ToolResult(
+                            role="tool",
                             name=function_name,
-                            content=f"ERR: Tool {function_name} 执行失败\n{e!s}",
+                            content=f"ERR: Tool {function_name} execution failed\n{e!s}",
                             tool_call_id=tool_call.id,
                         )
                     )
                     continue
                 else:
-                    logger.debug(f"函数{function_name}返回：{func_response}")
+                    logger.debug(f"Function {function_name} returned: {func_response}")
 
                     msg: ToolResult = ToolResult(
+                        role="tool",
                         content=func_response,
                         name=function_name,
                         tool_call_id=tool_call.id,
@@ -307,26 +331,14 @@ async def agent_core(event: BeforeChatEvent) -> None:
                         "".join(
                             f"✅ 调用了工具 {i.name}\n"
                             for i in result_msg_list
-                            if getattr(ToolsManager().get_tool(i.name), "on_call", "")
+                            if getattr(ToolsManager().get_tool(i.name), "on_call", None)
                             == "show"
                         )
                     ):
                         await bot.send(nonebot_event, message)
-                if result_msg_list:
-                    observation_msg = "".join(
-                        [
-                            f"{result.name}: {result.content}\n"
-                            for result in result_msg_list
-                        ]
-                    )
-                    msg_list.append(
-                        Message(
-                            role="user",
-                            content=f"观察结果:\n```text\n{observation_msg}\n```"
-                            + f"\n请基于以上工具执行结果继续完成任务，如果任务已完成请使用工具 '{STOP_TOOL.function.name}' 结束。",
-                        )
-                    )
-                await run_tools(msg_list, nonebot_event, call_count, original_msg)
+
+                if not running_stop:
+                    await run_tools(msg_list, nonebot_event, call_count, original_msg)
 
     config = config_manager.config
     if not config.llm_config.tools.enable_tools:
@@ -343,6 +355,7 @@ async def agent_core(event: BeforeChatEvent) -> None:
         if config.llm_config.tools.use_minimal_context
         else event.message.unwrap()
     )
+    current_length = len(msg_list)
     chat_list_backup = event.message.copy()
     tools: list[dict[str, Any]] = []
     if config.llm_config.tools.agent_mode_enable:
@@ -350,7 +363,14 @@ async def agent_core(event: BeforeChatEvent) -> None:
         if config.llm_config.tools.agent_thought_mode.startswith("reasoning"):
             tools.append(REASONING_TOOL.model_dump())
     tools.extend(ToolsManager().tools_meta_dict().values())
-    logger.debug(f"工具列表：{tools}")
+    logger.debug(
+        "工具列表："
+        + "".join(
+            f"{tool['function']['name']}: {tool['function']['description']}\n\n"
+            for tool in tools
+        )
+    )
+    debug_log(f"工具列表：{tools}")
     if not tools:
         logger.warning("未定义任何有效工具！Tools Workflow已跳过。")
         return
@@ -366,15 +386,13 @@ async def agent_core(event: BeforeChatEvent) -> None:
         await run_tools(
             msg_list, nonebot_event, original_msg=nonebot_event.get_plaintext()
         )
-        event._send_message.memory.extend(
-            [msg for msg in msg_list if msg not in event._send_message.unwrap()]
-        )
+        event._send_message.memory.extend(msg_list[current_length - 1 :])
 
     except Exception as e:
         if isinstance(e, ChatException):
             raise
         logger.opt(colors=True, exception=e).exception(
-            f"ERROR\n{e!s}\n!调用Tools失败！已旧数据继续处理..."
+            f"ERROR\n{e!s}\n!Failed to call Tools! Continuing with old data..."
         )
         event._send_message = chat_list_backup
 

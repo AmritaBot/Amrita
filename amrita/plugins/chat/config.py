@@ -110,7 +110,7 @@ class ToolsConfig(BaseModel):
     )
     report_exclude_context: bool = Field(
         default=False,
-        description="是否排除上下文，默认情况下，内容审查会检查系统提示和上下文",
+        description="是否排除上下文，仅检查最后一条消息，默认情况下，内容审查会检查系统提示和上下文",
     )
     report_then_block: bool = Field(
         default=True, description="检测到违规内容后是否熔断会话"
@@ -139,6 +139,9 @@ class ToolsConfig(BaseModel):
     )
     agent_reasoning_hide: bool = Field(
         default=False, description="是否隐藏智能体模式下的思考过程"
+    )
+    agent_middle_message: bool = Field(
+        default=True, description="是否在智能体模式下允许Agent向用户发送中间消息"
     )
     agent_mcp_client_enable: bool = Field(
         default=False, description="是否启用MCP客户端"

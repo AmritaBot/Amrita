@@ -111,7 +111,7 @@ class MCPPropertySchema(BaseModel, Generic[JOT_T]):
     """MCP属性的基础结构定义"""
 
     type: JOT_T = Field(..., description="参数类型")
-    title: str = Field(..., description="参数标题")
+    title: str = Field("NO_TITLE", description="参数标题")
     description: str = Field(default="No description", description="参数描述")
     default: None = Field(default=None, description="参数默认值", exclude_if=on_none)
     enum: list[str | int | float] | None = Field(
