@@ -114,7 +114,7 @@ async def send_status_report(
         event,
         "Amrita-ChatOBJ",
         uin=str(event.self_id),
-        msgs=[MessageSegment.text(i) for i in report_parts],
+        msgs=[MessageSegment.text("".join(report_parts))],
     )
 
 
