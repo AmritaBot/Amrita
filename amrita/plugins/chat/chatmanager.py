@@ -1000,6 +1000,7 @@ class ChatManager:
             dropped_obj = [obj for obj in dropped_obj if obj.is_done()]
             for obj in dropped_obj:
                 self.running_chat_object_id2map.pop(obj.stream_id, None)
+            self.running_chat_object[k] = objs
 
     def get_obj_key(self, event: MessageEvent) -> tuple[int, bool]:
         """
