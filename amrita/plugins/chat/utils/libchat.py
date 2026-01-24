@@ -457,6 +457,7 @@ class OpenAIAdapter(ModelAdapter):
             else:
                 raise RuntimeError("收到意外的响应类型")
         uni_response = UniResponse(
+            role="assistant",
             content=response,
             usage=uni_usage,
             tool_calls=None,
@@ -517,6 +518,7 @@ class OpenAIAdapter(ModelAdapter):
                 )
                 msg = completion.choices[0].message
                 return UniResponse(
+                    role="assistant",
                     tool_calls=[
                         ToolCall.model_validate(i, from_attributes=True)
                         for i in msg.tool_calls
@@ -534,6 +536,7 @@ class OpenAIAdapter(ModelAdapter):
         if err is not None:
             raise err
         return UniResponse(
+            role="assistant",
             tool_calls=None,
             content=None,
         )

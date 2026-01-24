@@ -192,6 +192,7 @@ async def agent_core(event: BeforeChatEvent) -> None:
         running_stop: bool = False
 
         def stop_running():
+            """Mark agent workflow as completed."""
             nonlocal running_stop
             running_stop = True
 
@@ -234,9 +235,19 @@ async def agent_core(event: BeforeChatEvent) -> None:
                             raise Continue()
                         case STOP_TOOL.function.name:
                             logger.debug("Agent work has been terminated.")
+                            func_response = "Agent work is completed, please continue to completion."
                             if "result" in function_args:
                                 logger.debug(f"[Done] {function_args['result']}")
-                            return
+                                func_response += (
+                                    f"\nWork summary :\n{function_args['result']}"
+                                )
+                            msg_list.append(
+                                Message.model_validate(
+                                    response_msg, from_attributes=True
+                                )
+                            )
+
+                            stop_running()
                         case _:
                             if (
                                 tool_data := ToolsManager().get_tool(function_name)
@@ -323,8 +334,13 @@ async def agent_core(event: BeforeChatEvent) -> None:
                         "".join(
                             f"✅ 调用了工具 {i.name}\n"
                             for i in result_msg_list
-                            if getattr(ToolsManager().get_tool(i.name), "on_call", None)
-                            == "show"
+                            if (
+                                getattr(
+                                    ToolsManager().get_tool(i.name), "on_call", None
+                                )
+                                == "show"
+                                and i.name not in AGENT_PROCESS_TOOLS
+                            )
                         )
                     ):
                         await bot.send(nonebot_event, message)

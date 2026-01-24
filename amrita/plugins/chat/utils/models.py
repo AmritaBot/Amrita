@@ -117,7 +117,11 @@ class UniResponse(
 ):
     """统一响应格式"""
 
-    role: Literal["assistant", "function"] = "assistant"
+    role: Literal["assistant"] = Field(
+        default="assistant",  # 不管有没有content/tool_call，role都是assistant
+        description="角色",
+    )
+
     usage: UniResponseUsage | None = None
     content: T = Field(
         ...,
