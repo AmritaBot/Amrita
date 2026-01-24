@@ -137,7 +137,7 @@ async def agent_core(event: BeforeChatEvent) -> None:
                     break
             else:
                 raise ValueError(f"No reasoning tool found in response \n\n{response}")
-            if reasoning := json.loads(tool.function.arguments).get("reasoning"):
+            if reasoning := json.loads(tool.function.arguments).get("content"):
                 msg.append(Message.model_validate(response, from_attributes=True))
                 msg.append(
                     ToolResult(
@@ -151,6 +151,8 @@ async def agent_core(event: BeforeChatEvent) -> None:
                 debug_log(f"[AmritaAgent] {reasoning}")
                 if not config.llm_config.tools.agent_reasoning_hide:
                     await bot.send(nonebot_event, f"[AmritaAgent] {reasoning}")
+            else:
+                raise ValueError("Reasoning tool has no content!")
 
     async def append_reasoning_msg(
         msg: SEND_MESSAGES,
@@ -176,7 +178,7 @@ async def agent_core(event: BeforeChatEvent) -> None:
                     f"<SYS_SETTINGS>\n{event._send_message.train.content!s}\n</SYS_SETTINGS>"
                 ),
             ),
-            *msg,
+            *deepcopy(msg),
         ]
         response: UniResponse[None, list[ToolCall] | None] = await tools_caller(
             reasoning_msg, [REASONING_TOOL.model_dump(), *tools_ctx], REASONING_TOOL
@@ -189,12 +191,12 @@ async def agent_core(event: BeforeChatEvent) -> None:
         call_count: int = 1,
         original_msg: str = "",
     ):
-        running_stop: bool = False
+        suggested_stop: bool = False
 
         def stop_running():
             """Mark agent workflow as completed."""
-            nonlocal running_stop
-            running_stop = True
+            nonlocal suggested_stop
+            suggested_stop = True
 
         logger.debug(
             f"Starting round {call_count} tool call, current message count: {len(msg_list)}"
@@ -218,6 +220,14 @@ async def agent_core(event: BeforeChatEvent) -> None:
         response_msg = await tools_caller(
             msg_list,
             tools,
+            (
+                "required"
+                if (
+                    config_manager.config.llm_config.tools.require_tools
+                    and not suggested_stop
+                )
+                else "auto"
+            ),
         )
 
         if tool_calls := response_msg.tool_calls:
@@ -235,7 +245,10 @@ async def agent_core(event: BeforeChatEvent) -> None:
                             raise Continue()
                         case STOP_TOOL.function.name:
                             logger.debug("Agent work has been terminated.")
-                            func_response = "Agent work is completed, please continue to completion."
+                            func_response = (
+                                "You have indicated readiness to provide the final answer."
+                                + "Please now generate the final, comprehensive response for the user."
+                            )
                             if "result" in function_args:
                                 logger.debug(f"[Done] {function_args['result']}")
                                 func_response += (
@@ -275,7 +288,7 @@ async def agent_core(event: BeforeChatEvent) -> None:
                                         )
                                     )
                                 ) is None:
-                                    raise Continue()
+                                    func_response = "(this tool returned no content)"
                                 else:
                                     msg_list.append(
                                         Message.model_validate(
@@ -345,8 +358,7 @@ async def agent_core(event: BeforeChatEvent) -> None:
                     ):
                         await bot.send(nonebot_event, message)
 
-                if not running_stop:
-                    await run_tools(msg_list, nonebot_event, call_count, original_msg)
+                await run_tools(msg_list, nonebot_event, call_count, original_msg)
 
     config = config_manager.config
     if not config.llm_config.tools.enable_tools:

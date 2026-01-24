@@ -472,14 +472,7 @@ class OpenAIAdapter(ModelAdapter):
         tool_choice: ToolChoice | None = None,
     ) -> UniResponse[None, list[ToolCall] | None]:
         if not tool_choice:
-            choice: ChatCompletionToolChoiceOptionParam = (
-                "required"
-                if (
-                    config_manager.config.llm_config.tools.require_tools
-                    and len(tools) > 1
-                )  # 排除默认工具
-                else "auto"
-            )
+            choice: ChatCompletionToolChoiceOptionParam = "auto"
         elif isinstance(tool_choice, ToolFunctionSchema):
             choice = ChatCompletionNamedToolChoiceParam(
                 function=OPENAI_Function(name=tool_choice.function.name),
