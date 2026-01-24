@@ -1,10 +1,7 @@
 import contextlib
-from datetime import datetime
+from datetime import datetime, timezone
 
-from nonebot.adapters.onebot.v11 import (
-    Bot,
-    Message,
-)
+from nonebot.adapters.onebot.v11 import Bot, Message, MessageSegment
 from nonebot.adapters.onebot.v11.event import (
     MessageEvent,
 )
@@ -13,6 +10,7 @@ from nonebot.params import CommandArg
 
 from amrita.plugins.chat import chatmanager
 from amrita.plugins.chat.chatmanager import ChatObject, chat_manager
+from amrita.utils.send import send_forward_msg
 
 
 def get_chat_objects_status(event: MessageEvent) -> dict[str, list[ChatObject]]:
@@ -68,10 +66,8 @@ def format_chat_object_info(obj: ChatObject) -> str:
     elif obj.is_done():
         status = "✅ Done"
 
-    time_diff = (datetime.now() - obj.last_call).total_seconds()
-    time_cost: float = (
-        (datetime.now() - obj.end_at).total_seconds() if obj.end_at else 0
-    )
+    time_diff = (datetime.now(tz=timezone.utc) - obj.last_call).total_seconds()
+    time_cost: float = (obj.time - obj.end_at).total_seconds() if obj.end_at else 0
 
     info = (
         f"🆔 ID: {obj.stream_id[:8]}...\n"
@@ -88,7 +84,7 @@ def format_chat_object_info(obj: ChatObject) -> str:
 
 
 async def send_status_report(
-    matcher: Matcher, status_dict: dict[str, list[ChatObject]]
+    bot: Bot, event: MessageEvent, status_dict: dict[str, list[ChatObject]]
 ) -> None:
     """发送状态报告"""
     report_parts = ["📋【会话运行状态】\n"]
@@ -113,9 +109,13 @@ async def send_status_report(
             }[status_type]
             report_parts.append(f"\n🔸--- {status_name} (0) ---")
             report_parts.append(" 无")
-
-    full_report = "\n".join(report_parts)
-    await matcher.send(full_report)
+    await send_forward_msg(
+        bot,
+        event,
+        "Amrita-ChatOBJ",
+        uin=str(event.self_id),
+        msgs=[MessageSegment.text(i) for i in report_parts],
+    )
 
 
 async def terminate_chat_object(stream_id: str, event: MessageEvent) -> bool:
@@ -146,7 +146,7 @@ async def chatobj_manage(
     if plain_args in ["", "status", "show"]:
         # 显示所有ChatObject的状态
         status_dict = get_chat_objects_status(event)
-        await send_status_report(matcher, status_dict)
+        await send_status_report(bot, event, status_dict)
 
     elif plain_args.startswith("terminate ") or plain_args.startswith("kill "):
         # 终止指定的ChatObject

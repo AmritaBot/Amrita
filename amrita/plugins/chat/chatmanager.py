@@ -980,7 +980,6 @@ class SessionTemp(BaseModel):
 
 @dataclass
 class ChatManager:
-    debug: bool = False
     session_clear_group: dict[str, SessionTemp] = field(default_factory=dict)
     session_clear_user: dict[str, SessionTemp] = field(default_factory=dict)
     custom_menu: list[dict[str, str]] = field(default_factory=list)

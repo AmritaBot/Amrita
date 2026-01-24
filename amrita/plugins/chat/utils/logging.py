@@ -2,7 +2,7 @@ from typing import Protocol
 
 from nonebot import logger
 
-from ..chatmanager import chat_manager
+debug: bool = False
 
 
 class CastToStringAble(Protocol):
@@ -10,5 +10,6 @@ class CastToStringAble(Protocol):
 
 
 def debug_log(msg: CastToStringAble):
-    if chat_manager.debug:
+    global debug
+    if debug:
         logger.debug(msg)
