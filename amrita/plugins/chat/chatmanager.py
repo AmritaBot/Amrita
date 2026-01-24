@@ -1,4 +1,5 @@
 import asyncio
+from collections.abc import Awaitable
 import contextlib
 import copy
 import random
@@ -449,14 +450,10 @@ class ChatObject:
         self._is_running = False
         self._task.cancel()
 
-    async def __await__(self) -> None:
-        if self._is_done:
-            return
+    def __await__(self):
         if not hasattr(self, "_task"):
-            raise RuntimeError(
-                "ChatObject of event <{event.model_dump_json()}> is not running"
-            )
-        await self._task
+            raise RuntimeError("ChatObject not running")
+        return self._task.__await__()
 
     async def __call__(self, event: MessageEvent, matcher: Matcher, bot: Bot) -> None:
         """调用聊天对象处理消息
@@ -991,7 +988,7 @@ class ChatManager:
 
     def clean_obj(self, k: tuple[int, bool], maxitems: int = 10):
         """
-        清理指定键下的运行中的聊天对象，只保留前10个对象，超出的部分会被删除
+        清理指定键下的运行中的聊天对象，只保留前10个对象，超出的未完成部分会被删除
 
         Args:
             k (tuple[int, bool]): 键值，由实例ID和是否为群聊组成
@@ -1000,7 +997,8 @@ class ChatManager:
         objs = self.running_chat_object[k]
         if len(objs) > maxitems:
             dropped_obj = objs[maxitems:]
-            objs = objs[:maxitems]
+            objs = [obj for obj in dropped_obj if not obj.is_done()] + objs[:maxitems]
+            dropped_obj = [obj for obj in dropped_obj if obj.is_done()]
             for obj in dropped_obj:
                 self.running_chat_object_id2map.pop(obj.stream_id, None)
 

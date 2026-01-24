@@ -558,6 +558,42 @@ class GroupConfig(Model):
         Index("idx_suggarchat_group_id", "group_id"),
     )
 
+async def create_data(
+    *, ins_id: int, is_group: bool, for_update: bool = False
+) -> Memory:
+    async with get_session() as session:
+        stmt = insert(Memory).values(ins_id=ins_id, is_group=is_group)
+        await session.execute(stmt)
+        await session.commit()
+        stmt = select(Memory).where(
+            Memory.ins_id == ins_id, Memory.is_group == is_group
+        )
+        stmt = stmt.with_for_update() if for_update else stmt
+        memory = (await session.execute(stmt)).scalar_one()
+        return memory
+
+
+async def create_group_config(*, ins_id: int, for_update: bool = False) -> GroupConfig:
+    async with get_session() as session:
+        stmt = insert(GroupConfig).values(group_id=ins_id)
+        await session.execute(stmt)
+        await session.commit()
+        stmt = select(GroupConfig).where(GroupConfig.group_id == ins_id)
+        stmt = stmt.with_for_update() if for_update else stmt
+        group_config = (await session.execute(stmt)).scalar_one()
+        return group_config
+
+
+async def get_or_create_group_config(
+    session: AsyncSession, ins_id: int, for_update: bool = False
+) -> GroupConfig:
+    stmt = select(GroupConfig).where(GroupConfig.group_id == ins_id)
+    stmt = stmt.with_for_update() if for_update else stmt
+    result = await session.execute(stmt)
+    if not (group_config := result.scalar_one_or_none()):
+        group_config = await create_group_config(ins_id=ins_id, for_update=for_update)
+    session.add(group_config)
+    return group_config
 
 @overload
 async def get_or_create_data(
@@ -587,25 +623,21 @@ async def get_or_create_data(
         stmt = stmt.with_for_update() if for_update else stmt
         result = await session.execute(stmt)
         if not (memory := result.scalar_one_or_none()):
-            stmt = insert(Memory).values(ins_id=ins_id, is_group=is_group)
-            await session.execute(stmt)
-            await session.commit()
-            stmt = select(Memory).where(
-                Memory.ins_id == ins_id, Memory.is_group == is_group
+            memory = await create_data(
+                ins_id=ins_id, is_group=is_group, for_update=for_update
             )
-            stmt = stmt.with_for_update() if for_update else stmt
-            memory = (await session.execute(stmt)).scalar_one()
-        session.add(memory)
+            session.add(memory)
+            await session.refresh(memory)
+        else:
+            session.add(memory)
         if not is_group:
             return memory
         stmt = select(GroupConfig).where(GroupConfig.group_id == ins_id)
         stmt = stmt.with_for_update() if for_update else stmt
         result = await session.execute(stmt)
         if not (group_config := result.scalar_one_or_none()):
-            stmt = insert(GroupConfig).values(group_id=ins_id)
-            await session.execute(stmt)
-            await session.commit()
-            stmt = select(GroupConfig).where(GroupConfig.group_id == ins_id)
-            group_config = (await session.execute(stmt)).scalar_one()
+            group_config = await get_or_create_group_config(
+                session=session, ins_id=ins_id, for_update=for_update
+            )
         session.add(group_config)
         return group_config, memory

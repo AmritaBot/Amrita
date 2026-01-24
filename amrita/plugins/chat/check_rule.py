@@ -24,7 +24,7 @@ from .utils.functions import (
     synthesize_message,
 )
 from .utils.memory import get_memory_data
-from .utils.models import Message, get_or_create_data
+from .utils.models import Message, get_or_create_group_config
 
 nb_config = get_driver().config
 
@@ -54,11 +54,9 @@ async def is_bot_enabled(event: Event) -> bool:
         bots = set(nonebot.get_bots().keys())
         if event.get_user_id() in bots:  # 多实例下防止冲突
             return False
-    if hasattr(event, "group_id"):
+    if getattr(event, "group_id", None) is not None:
         async with get_session() as session:
-            data, _ = await get_or_create_data(
-                session=session, ins_id=int(getattr(event, "group_id")), is_group=True
-            )
+            data = await get_or_create_group_config(session, getattr(event, "group_id"))
             return data.enable
     return True
 
