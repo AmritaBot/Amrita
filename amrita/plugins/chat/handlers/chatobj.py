@@ -1,5 +1,5 @@
 import contextlib
-from datetime import datetime, timezone
+from datetime import datetime
 
 from nonebot.adapters.onebot.v11 import Bot, Message, MessageSegment
 from nonebot.adapters.onebot.v11.event import (
@@ -7,12 +7,13 @@ from nonebot.adapters.onebot.v11.event import (
 )
 from nonebot.matcher import Matcher
 from nonebot.params import CommandArg
+from pytz import timezone, utc
 
 from amrita.plugins.chat import chatmanager
 from amrita.plugins.chat.chatmanager import ChatObject, chat_manager
 from amrita.utils.send import send_forward_msg
 
-from pytz import timezone, utc
+
 def get_chat_objects_status(event: MessageEvent) -> dict[str, list[ChatObject]]:
     """获取所有ChatObject的状态分类"""
     running_objects = []
@@ -23,15 +24,14 @@ def get_chat_objects_status(event: MessageEvent) -> dict[str, list[ChatObject]]:
     all_objects = chat_manager.get_objs(event)
 
     for obj_instance in all_objects:
-        if obj_instance:
-            if obj_instance.is_running():
-                running_objects.append(obj_instance)
-            elif obj_instance.is_waitting():
-                pending_objects.append(obj_instance)
-            elif obj_instance.get_exception():
-                error_objects.append(obj_instance)
-            elif obj_instance.is_done():
-                done_objects.append(obj_instance)
+        if obj_instance.is_running():
+            running_objects.append(obj_instance)
+        elif obj_instance.is_waitting():
+            pending_objects.append(obj_instance)
+        elif obj_instance.get_exception():
+            error_objects.append(obj_instance)
+        elif obj_instance.is_done():
+            done_objects.append(obj_instance)
 
     return {
         "running": running_objects,

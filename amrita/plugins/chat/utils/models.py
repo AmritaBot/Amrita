@@ -558,6 +558,7 @@ class GroupConfig(Model):
         Index("idx_suggarchat_group_id", "group_id"),
     )
 
+
 async def create_data(
     *, ins_id: int, is_group: bool, for_update: bool = False
 ) -> Memory:
@@ -594,6 +595,7 @@ async def get_or_create_group_config(
         group_config = await create_group_config(ins_id=ins_id, for_update=for_update)
     session.add(group_config)
     return group_config
+
 
 @overload
 async def get_or_create_data(

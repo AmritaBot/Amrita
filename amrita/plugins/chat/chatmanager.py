@@ -1,5 +1,4 @@
 import asyncio
-from collections.abc import Awaitable
 import contextlib
 import copy
 import random
