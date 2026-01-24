@@ -26,6 +26,7 @@ from .models import (
 )
 
 
+# TODO: 拆分(提高颗粒度与提升性能)+弃用
 class MemoryModel(BaseModel):
     enable: bool = Field(default=True, description="是否启用")
     memory: Memory = Field(default=Memory(), description="记忆")

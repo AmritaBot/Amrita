@@ -457,6 +457,7 @@ class OpenAIAdapter(ModelAdapter):
             else:
                 raise RuntimeError("收到意外的响应类型")
         uni_response = UniResponse(
+            role="assistant",
             content=response,
             usage=uni_usage,
             tool_calls=None,
@@ -471,14 +472,7 @@ class OpenAIAdapter(ModelAdapter):
         tool_choice: ToolChoice | None = None,
     ) -> UniResponse[None, list[ToolCall] | None]:
         if not tool_choice:
-            choice: ChatCompletionToolChoiceOptionParam = (
-                "required"
-                if (
-                    config_manager.config.llm_config.tools.require_tools
-                    and len(tools) > 1
-                )  # 排除默认工具
-                else "auto"
-            )
+            choice: ChatCompletionToolChoiceOptionParam = "auto"
         elif isinstance(tool_choice, ToolFunctionSchema):
             choice = ChatCompletionNamedToolChoiceParam(
                 function=OPENAI_Function(name=tool_choice.function.name),
@@ -517,6 +511,7 @@ class OpenAIAdapter(ModelAdapter):
                 )
                 msg = completion.choices[0].message
                 return UniResponse(
+                    role="assistant",
                     tool_calls=[
                         ToolCall.model_validate(i, from_attributes=True)
                         for i in msg.tool_calls
@@ -534,6 +529,7 @@ class OpenAIAdapter(ModelAdapter):
         if err is not None:
             raise err
         return UniResponse(
+            role="assistant",
             tool_calls=None,
             content=None,
         )

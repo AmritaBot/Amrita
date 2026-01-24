@@ -8,9 +8,10 @@ from nonebot.adapters.onebot.v11 import Bot, MessageSegment
 from nonebot.adapters.onebot.v11.event import PokeNotifyEvent
 from nonebot.matcher import Matcher
 
+from amrita.plugins.chat.utils import logging
 from amrita.utils.admin import send_to_admin
 
-from ..chatmanager import chat_manager
+from ..chatmanager import FakeEvent
 from ..config import config_manager
 from ..event import BeforePokeEvent, PokeEvent  # 自定义事件类型
 from ..matcher import MatcherManager  # 自定义匹配器
@@ -22,7 +23,6 @@ from ..utils.libchat import get_chat, get_tokens, usage_enough
 from ..utils.lock import get_group_lock, get_private_lock
 from ..utils.memory import get_memory_data
 from ..utils.models import InsightsModel, Message
-from .chat import FakeEvent
 
 
 async def poke_event(event: PokeNotifyEvent, bot: Bot, matcher: Matcher):
@@ -165,7 +165,7 @@ async def poke_event(event: PokeNotifyEvent, bot: Bot, matcher: Matcher):
             response.content = poke_event.model_response
 
         # 如果开启调试模式，发送调试信息给管理员
-        if chat_manager.debug:
+        if logging.debug:
             await send_to_admin(f"POKEMSG {send_messages}")
 
         return response.content

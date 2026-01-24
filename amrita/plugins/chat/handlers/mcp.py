@@ -84,7 +84,7 @@ async def add_mcp_server(
         await ClientManager().initialize_this(mcp_server)
         config.llm_config.tools.agent_mcp_server_scripts.append(mcp_server)
         await config_manager.save_config()
-        await matcher.finish("添加成功")
+        await matcher.send("添加成功")
     except Exception as e:
         if isinstance(e, ChatException):
             raise
@@ -104,7 +104,7 @@ async def del_mcp_server(matcher: Matcher, mcp_server: str):
         await ClientManager().unregister_client(mcp_server)
         config.llm_config.tools.agent_mcp_server_scripts.remove(mcp_server)
         await config_manager.save_config()
-        await matcher.finish("删除成功")
+        await matcher.send("删除成功")
     except Exception as e:
         logger.opt(exception=e, colors=True).exception(e)
         await matcher.finish("删除失败")

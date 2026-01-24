@@ -9,10 +9,13 @@ import psutil
 from nonebot import on_command
 from nonebot.adapters.onebot.v11 import Bot, MessageSegment
 from nonebot.matcher import Matcher
+from nonebot.permission import Permission
 from PIL import Image, ImageDraw, ImageFont
 
 from amrita.config import get_amrita_config
 from amrita.plugins.menu.models import MatcherData
+from amrita.plugins.perm.API.admin import is_lp_admin
+from amrita.plugins.perm.API.rules import any_has_permission
 from amrita.utils.utils import get_amrita_version
 
 from .models import get_usage
@@ -135,6 +138,7 @@ def create_system_info_image(system_info: list[str]):
     state=MatcherData(
         description="查看系统状态", name="查看系统状态", usage="/status"
     ).model_dump(),
+    permission=Permission(any_has_permission("amrita.status"), is_lp_admin),
 ).handle()
 async def _(matcher: Matcher, bot: Bot):
     img = create_system_info_image(await generate_info(bot=bot))
