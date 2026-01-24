@@ -10,7 +10,7 @@ from nonebot.matcher import Matcher
 
 from amrita.utils.admin import send_to_admin
 
-from ..chatmanager import chat_manager
+from ..chatmanager import FakeEvent, chat_manager
 from ..config import config_manager
 from ..event import BeforePokeEvent, PokeEvent  # 自定义事件类型
 from ..matcher import MatcherManager  # 自定义匹配器
@@ -22,7 +22,6 @@ from ..utils.libchat import get_chat, get_tokens, usage_enough
 from ..utils.lock import get_group_lock, get_private_lock
 from ..utils.memory import get_memory_data
 from ..utils.models import InsightsModel, Message
-from .chat import FakeEvent
 
 
 async def poke_event(event: PokeNotifyEvent, bot: Bot, matcher: Matcher):

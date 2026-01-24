@@ -4,11 +4,10 @@ import random
 import typing
 from collections.abc import Awaitable, Callable
 from copy import deepcopy
-from typing import Any, TypeAlias
+from typing import Any
 
 from nonebot import get_bot
 from nonebot.adapters.onebot.v11 import Bot, MessageEvent
-from nonebot.exception import NoneBotException
 from nonebot.log import logger
 
 from amrita.plugins.chat.utils.llm_tools.models import ToolContext
@@ -18,11 +17,7 @@ from amrita.utils.admin import send_to_admin
 
 from .config import config_manager
 from .event import BeforeChatEvent, ChatEvent
-from .exception import (
-    BlockException,
-    CancelException,
-    PassException,
-)
+from .matcher import ChatException
 from .on_event import on_before_chat, on_chat
 from .utils.libchat import (
     tools_caller,
@@ -48,9 +43,6 @@ prehook = on_before_chat(block=False, priority=2)
 checkhook = on_before_chat(block=False, priority=1)
 posthook = on_chat(block=False, priority=1)
 
-ChatException: TypeAlias = (
-    BlockException | CancelException | PassException | NoneBotException
-)
 
 BUILTIN_TOOLS_NAME = {
     REPORT_TOOL.function.name,

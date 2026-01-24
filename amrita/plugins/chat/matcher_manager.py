@@ -17,6 +17,7 @@ from .check_rule import (
 )
 from .handlers.add_notices import add_notices
 from .handlers.chat import entry as chat
+from .handlers.chatobj import chatobj_manage
 from .handlers.choose_prompt import choose_prompt
 from .handlers.debug_switchs import debug_switchs
 from .handlers.del_memory import del_memory
@@ -229,3 +230,20 @@ base_matcher.on_command(
         usage="/mcp <stats [-d|--details];add <server_script>;del <server_script>;reload>",
     ).model_dump(),
 ).append_handler(mcp_command)
+
+base_matcher.on_command(
+    "chatobj",
+    aliases={"chat_obj"},
+    permission=is_group_admin_if_is_in_group,
+    state=MatcherData(
+        name="chatobj",
+        description="管理聊天对话",
+        usage=(
+            "/chatobj - 显示所有会话状态;"
+            "/chatobj status - 显示所有会话状态;"
+            "/chatobj terminate <ID前缀> - 终止指定会话;"
+            "/chatobj kill <ID前缀> - 终止指定会话;"
+            "/chatobj clear - 清除已完成的会话;"
+        ),
+    ).model_dump(),
+).append_handler(chatobj_manage)

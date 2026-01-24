@@ -2,7 +2,7 @@ import inspect
 from collections.abc import Awaitable, Callable
 from copy import deepcopy
 from types import FrameType
-from typing import Any, ClassVar
+from typing import Any, ClassVar, TypeAlias
 
 from nonebot import logger
 from nonebot.dependencies import Dependent
@@ -21,6 +21,10 @@ from .exception import BlockException, CancelException, PassException
 """
 suggar matcher
 """
+
+ChatException: TypeAlias = (
+    BlockException | CancelException | PassException | NoneBotException
+)
 
 
 class FunctionData(BaseModel, arbitrary_types_allowed=True):

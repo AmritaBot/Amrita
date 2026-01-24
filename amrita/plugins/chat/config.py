@@ -202,6 +202,9 @@ class FunctionConfig(BaseModel):
     use_user_nickname: bool = Field(
         default=False, description="在群聊中使用QQ昵称而非群名片"
     )
+    chat_object_keep_count: int = Field(
+        default=10, description="单会话聊天对象保存数量限制"
+    )
 
     @property
     def pattern(self) -> re.Pattern:
