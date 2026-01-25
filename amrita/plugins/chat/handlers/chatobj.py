@@ -60,7 +60,7 @@ def format_chat_object_info(obj: ChatObject) -> str:
     time_cost: float = (obj.end_at - obj.time).total_seconds() if obj.end_at else 0
 
     info = (
-        f"🆔 ID: {obj.stream_id[:8]}...\n"
+        f"\n🆔 ID: {obj.stream_id[:8]}...\n"
         + f"💬 类型: {'👥 群聊' if is_group else '👤 私聊'}\n"
         + f"👤 用户ID: {user_id}\n"
         + f"🔢 实例ID: {instance_id}\n"
@@ -77,10 +77,11 @@ async def send_status_report(
     bot: Bot, event: MessageEvent, status_dict: dict[str, list[ChatObject]]
 ) -> None:
     """发送状态报告"""
-    report_parts = ["📋【会话运行状态】\n"]
+    report_parts = ["📋【会话运行状态】"]
 
     for status_type, objects in status_dict.items():
         if objects:
+            s_part = ""
             status_name = {
                 "running": "🟢 运行中 (Running)",
                 "pending": "⏳ 等待中 (Pending)",
@@ -88,23 +89,26 @@ async def send_status_report(
                 "error": "❌ 错误 (Error)",
             }[status_type]
 
-            report_parts.append(f"\n🔸--- {status_name} ({len(objects)}) ---")
-            report_parts.extend([format_chat_object_info(obj) for obj in objects])
+            s_part += f"\n🔸--- {status_name} ({len(objects)}) ---"
+            s_part.join([format_chat_object_info(obj) for obj in objects])
+            report_parts.append(s_part)
         else:
+            s_part = ""
             status_name = {
                 "running": "🟢 运行中 (Running)",
                 "pending": "⏳ 等待中 (Pending)",
                 "done": "✅ 已完成 (Done)",
                 "error": "❌ 错误 (Error)",
             }[status_type]
-            report_parts.append(f"\n🔸--- {status_name} (0) ---")
-            report_parts.append(" 无")
+            s_part += f"\n🔸--- {status_name} (0) ---"
+            s_part += " 无"
+            report_parts.append(s_part)
     await send_forward_msg(
         bot,
         event,
         "Amrita-ChatOBJ",
         uin=str(event.self_id),
-        msgs=[MessageSegment.text("".join(report_parts))],
+        msgs=[MessageSegment.text(i) for i in report_parts],
     )
 
 

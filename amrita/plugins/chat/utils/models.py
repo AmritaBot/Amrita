@@ -564,18 +564,17 @@ class GroupConfig(Model):
 
 
 async def create_data(
-    *, ins_id: int, is_group: bool, for_update: bool = False
+    *, session: AsyncSession, ins_id: int, is_group: bool, for_update: bool = False
 ) -> Memory:
-    async with get_session() as session:
+    async with get_session() as tsession:
         stmt = insert(Memory).values(ins_id=ins_id, is_group=is_group)
-        await session.execute(stmt)
-        await session.commit()
-        stmt = select(Memory).where(
-            Memory.ins_id == ins_id, Memory.is_group == is_group
-        )
-        stmt = stmt.with_for_update() if for_update else stmt
-        memory = (await session.execute(stmt)).scalar_one()
-        return memory
+        await tsession.execute(stmt)
+        await tsession.commit()
+
+    stmt = select(Memory).where(Memory.ins_id == ins_id, Memory.is_group == is_group)
+    stmt = stmt.with_for_update() if for_update else stmt
+    memory = (await session.execute(stmt)).scalar_one()
+    return memory
 
 
 async def create_group_config(*, ins_id: int, for_update: bool = False) -> GroupConfig:
@@ -630,10 +629,9 @@ async def get_or_create_data(
         result = await session.execute(stmt)
         if not (memory := result.scalar_one_or_none()):
             memory = await create_data(
-                ins_id=ins_id, is_group=is_group, for_update=for_update
+                session=session, ins_id=ins_id, is_group=is_group, for_update=for_update
             )
             session.add(memory)
-            await session.refresh(memory)
         else:
             session.add(memory)
         if not is_group:
