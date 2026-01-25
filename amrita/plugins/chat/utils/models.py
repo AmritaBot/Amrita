@@ -566,11 +566,9 @@ class GroupConfig(Model):
 async def create_data(
     *, session: AsyncSession, ins_id: int, is_group: bool, for_update: bool = False
 ) -> Memory:
-    async with get_session() as tsession:
-        stmt = insert(Memory).values(ins_id=ins_id, is_group=is_group)
-        await tsession.execute(stmt)
-        await tsession.commit()
-
+    stmt = insert(Memory).values(ins_id=ins_id, is_group=is_group)
+    await session.execute(stmt)
+    await session.commit()
     stmt = select(Memory).where(Memory.ins_id == ins_id, Memory.is_group == is_group)
     stmt = stmt.with_for_update() if for_update else stmt
     memory = (await session.execute(stmt)).scalar_one()

@@ -90,7 +90,7 @@ async def send_status_report(
             }[status_type]
 
             s_part += f"\n🔸--- {status_name} ({len(objects)}) ---"
-            s_part = s_part.join([format_chat_object_info(obj) for obj in objects])
+            s_part += "\n".join([format_chat_object_info(obj) for obj in objects])
             report_parts.append(s_part)
         else:
             s_part = ""
