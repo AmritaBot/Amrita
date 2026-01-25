@@ -24,7 +24,7 @@ from .utils.functions import (
     synthesize_message,
 )
 from .utils.memory import get_memory_data
-from .utils.models import Message, get_or_create_group_config
+from .utils.models import Message, get_or_create_data
 
 nb_config = get_driver().config
 
@@ -56,7 +56,9 @@ async def is_bot_enabled(event: Event) -> bool:
             return False
     if getattr(event, "group_id", None) is not None:
         async with get_session() as session:
-            data = await get_or_create_group_config(session, getattr(event, "group_id"))
+            data, _ = await get_or_create_data(
+                session=session, ins_id=getattr(event, "group_id"), is_group=True
+            )
             return data.enable
     return True
 
