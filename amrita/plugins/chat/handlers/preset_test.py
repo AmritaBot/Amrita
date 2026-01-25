@@ -8,7 +8,10 @@ from nonebot.params import CommandArg
 
 from amrita.plugins.chat.check_rule import is_bot_admin
 from amrita.plugins.chat.config import config_manager
-from amrita.plugins.chat.utils.libchat import PresetReport, test_presets
+from amrita.plugins.chat.utils.libchat import (
+    PresetReport,
+    test_single_preset,
+)
 from amrita.utils.send import send_forward_msg
 
 TEST_LOCK = Lock()
@@ -26,11 +29,11 @@ async def t_preset(
         await matcher.send(
             MessageSegment.text(f"开始测试所有(共计{len(presets)}个)预设...")
         )
-        results: list[PresetReport] = []
+        # 使用asyncio.gather并行执行所有预设测试
+        presets = await config_manager.get_all_presets(True)
+        tasks = [test_single_preset(preset) for preset in presets]
+        results: list[PresetReport] = await asyncio.gather(*tasks)
         arg_list = args.extract_plain_text().strip().split()
-        async for result in test_presets():
-            results.append(result)
-            await asyncio.sleep(0)
         if "--detail" in arg_list or "-d" in arg_list:
             msg = [
                 MessageSegment.text(

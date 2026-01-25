@@ -486,6 +486,8 @@ class ChatObject:
                     if isinstance(event, GroupMessageEvent)
                     else get_private_lock(event.user_id)
                 )
+                await chat_manager.add_chat_object(self)
+
                 match self.config.function.chat_pending_mode:
                     case "queue":
                         debug_log("聊天队列模式")
@@ -498,13 +500,14 @@ class ChatObject:
                         if lock.locked():
                             debug_log("聊天已被锁定，发送报告")
                             await matcher.finish("聊天任务正在处理中，请稍后再试")
+
                 async with lock:
-                    self._pending = False
                     self.last_call = datetime.now(utc)
+                    self._pending = False
                     debug_log("获取锁成功，开始获取记忆数据")
                     self.data = await get_memory_data(event)
                     debug_log("记忆数据获取完成，开始运行聊天流程")
-                    await chat_manager.add_chat_object(self)
+
                     await self._run()
             except BaseException as e:
                 if isinstance(e, ChatException):

@@ -72,65 +72,71 @@ class PresetReport(BaseModel):
     time_used: float
 
 
-async def test_presets() -> typing.AsyncGenerator[PresetReport, None]:
-    presets = await config_manager.get_all_presets(True)
-    logger.debug(f"开始测试所有(共计{len(presets)}个)预设...")
+async def test_single_preset(preset: ModelPreset) -> PresetReport:
+    """测试单个预设，用于并行执行"""
+    logger.debug(f"正在测试预设：{preset.name}...")
     prompt_tokens = hybrid_token_count(
         "".join(
             [typing.cast(TextContent, msg.content[0]).text for msg in TEST_MSG_LIST]
         )
     )
+
+    adapter = AdapterManager().safe_get_adapter(preset.protocol)
+    if adapter is None:
+        logger.warning(f"未定义的协议适配器：{preset.protocol}")
+        return PresetReport(
+            preset_name=preset.name,
+            preset_data=preset,
+            test_input=(TEST_MSG_PROMPT, TEST_MSG_USER),
+            test_output=None,
+            token_prompt=prompt_tokens,
+            token_completion=0,
+            status=False,
+            message=f"未定义的协议适配器: {preset.protocol}",
+            time_used=0,
+        )
+
+    try:
+        time_start = time.time()
+        logger.debug(f"正在调用预设：{preset.name}...")
+        data = await adapter(preset, config_manager.config).call_api(TEST_MSG_LIST)
+        time_end = time.time()
+        time_delta = time_end - time_start
+        logger.debug(f"调用预设 {preset.name} 成功，耗时 {time_delta:.2f} 秒")
+        return PresetReport(
+            preset_name=preset.name,
+            preset_data=preset,
+            test_input=(TEST_MSG_PROMPT, TEST_MSG_USER),
+            test_output=Message[list[TextContent]](
+                role="assistant",
+                content=[TextContent(type="text", text=data.content)],
+            ),
+            token_prompt=prompt_tokens,
+            token_completion=hybrid_token_count(data.content),
+            status=True,
+            message="",
+            time_used=time_delta,
+        )
+    except Exception as e:
+        logger.error(f"测试预设 {preset.name} 时发生错误：{e}")
+        return PresetReport(
+            preset_name=preset.name,
+            preset_data=preset,
+            test_input=(TEST_MSG_PROMPT, TEST_MSG_USER),
+            test_output=None,
+            token_prompt=prompt_tokens,
+            token_completion=0,
+            status=False,
+            message=str(e),
+            time_used=0,
+        )
+
+
+async def test_presets() -> typing.AsyncGenerator[PresetReport, None]:
+    presets = await config_manager.get_all_presets(True)
+    logger.debug(f"开始测试所有(共计{len(presets)}个)预设...")
     for preset in presets:
-        logger.debug(f"正在测试预设：{preset.name}...")
-        adapter = AdapterManager().safe_get_adapter(preset.protocol)
-        if adapter is None:
-            logger.warning(f"未定义的协议适配器：{preset.protocol}")
-            yield PresetReport(
-                preset_name=preset.name,
-                preset_data=preset,
-                test_input=(TEST_MSG_PROMPT, TEST_MSG_USER),
-                test_output=None,
-                token_prompt=prompt_tokens,
-                token_completion=0,
-                status=False,
-                message=f"未定义的协议适配器: {preset.protocol}",
-                time_used=0,
-            )
-            continue
-        try:
-            time_start = time.time()
-            logger.debug(f"正在调用预设：{preset.name}...")
-            data = await adapter(preset, config_manager.config).call_api(TEST_MSG_LIST)
-            time_end = time.time()
-            time_delta = time_end - time_start
-            logger.debug(f"调用预设 {preset.name} 成功，耗时 {time_delta:.2f} 秒")
-            yield PresetReport(
-                preset_name=preset.name,
-                preset_data=preset,
-                test_input=(TEST_MSG_PROMPT, TEST_MSG_USER),
-                test_output=Message[list[TextContent]](
-                    role="assistant",
-                    content=[TextContent(type="text", text=data.content)],
-                ),
-                token_prompt=prompt_tokens,
-                token_completion=hybrid_token_count(data.content),
-                status=True,
-                message="",
-                time_used=time_delta,
-            )
-        except Exception as e:
-            logger.error(f"测试预设 {preset.name} 时发生错误：{e}")
-            yield PresetReport(
-                preset_name=preset.name,
-                preset_data=preset,
-                test_input=(TEST_MSG_PROMPT, TEST_MSG_USER),
-                test_output=None,
-                token_prompt=prompt_tokens,
-                token_completion=0,
-                status=False,
-                message=str(e),
-                time_used=0,
-            )
+        yield await test_single_preset(preset)
 
 
 def text_generator(
