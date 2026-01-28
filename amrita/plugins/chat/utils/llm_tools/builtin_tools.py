@@ -23,7 +23,7 @@ async def report(event: BeforeChatEvent, data: dict[str, str], bot: Bot):
     message = data["content"]
     nb_event = typing.cast(MessageEvent, event.get_nonebot_event())
     logger.warning(f"{nb_event.user_id} 被举报了 ：{message}")
-    content = deepcopy(event.get_send_message().memory[-1].content)
+    content = deepcopy(event.get_send_message().get_user_query().content)
     if not isinstance(content, str):
         content = "".join([f"{i.model_dump_json()}\n" for i in content])
     await send_to_admin(
