@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import time
+from contextlib import nullcontext
 from datetime import datetime
 from typing import overload
 
@@ -17,7 +18,6 @@ from .logging import debug_log
 from .models import (
     BaseModel,
     MemorySessions,
-    NoActionContext,
     SessionMemoryModel,
     get_or_create_data,
 )
@@ -193,7 +193,7 @@ async def write_memory_data(
     )
 
     debug_log(f"识别事件类型：{'群组' if is_group else '用户'}，ID: {ins_id}")
-    async with NoActionContext() if no_locking else transaction_lock(ins_id, is_group):
+    async with nullcontext() if no_locking else transaction_lock(ins_id, is_group):
         debug_log(
             f"已获取事务锁，开始写入数据库，ins_id: {ins_id}, is_group: {is_group}"
         )

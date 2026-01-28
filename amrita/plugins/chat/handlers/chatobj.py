@@ -47,10 +47,10 @@ def format_chat_object_info(obj: ChatObject) -> str:
     user_id = event.user_id
     instance_id, is_group = chatmanager.chat_manager.get_obj_key(event)
     status = "❓ Unknown"
-    if obj.is_running():
-        status = "🟢 Running"
-    elif obj.is_waitting():
+    if obj.is_waitting():
         status = "⏳ Pending"
+    elif obj.is_running():
+        status = "🟢 Running"
     elif obj.get_exception():
         status = f"❌ Error ({type(obj.get_exception()).__name__})"
     elif obj.is_done():

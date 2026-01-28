@@ -115,6 +115,10 @@ class ToolsConfig(BaseModel):
     report_then_block: bool = Field(
         default=True, description="检测到违规内容后是否熔断会话"
     )
+    report_invoke_level: Literal["low", "medium", "high"] = Field(
+        default="medium",
+        description="内容审查的严格程度，可选值：low, medium, high",
+    )
     require_tools: bool = Field(
         default=False, description="是否强制要求每次调用至少使用一个工具"
     )

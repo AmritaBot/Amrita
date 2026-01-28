@@ -146,6 +146,7 @@ def text_generator(
     role_map = {
         "assistant": "<BOT的回答>",
         "user": "<用户的提问>",
+        "tool": "<工具调用>",
     }
     for st in memory_l:
         if st["content"] is None:

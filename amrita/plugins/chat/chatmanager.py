@@ -3,7 +3,7 @@ import contextlib
 import copy
 import random
 import time
-from asyncio import Lock, Task
+from asyncio import CancelledError, Lock, Task
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -200,33 +200,51 @@ class MemoryLimiter:
         """
         debug_log("开始进行上下文摘要..")
         proportion = self.config.llm_config.memory_abstract_proportion  # 摘要比例
-        index = int(len(self.memory.memory.messages) * proportion)
-        dropped_part = self.memory.memory.messages[index:]
-        self.memory.memory.messages = self.memory.memory.messages[:index]
-        msg_list: SEND_MESSAGES = [
-            Message[str](role="system", content=self._abstract_instruction),
-            Message[str](
-                role="user",
-                content=(
-                    "消息列表：\n```text\n".join(
-                        [
-                            f"{it}\n"
-                            for it in text_generator(
-                                self._dropped_messages + dropped_part, split_role=True
-                            )
-                        ]
-                    )
-                    + "\n```"
-                ),
-            ),
+        dropped_part: SEND_MESSAGES = self._dropped_messages
+        index = int(len(self.memory.memory.messages) * proportion) - len(dropped_part)
+        if index < 0:
+            index = 0
+        idx: int | None = None
+        if index:
+            for idx, element in enumerate(self.memory.memory.messages):
+                dropped_part.append(element)
+                if (
+                    getattr(element, "tool_calls", None) is not None
+                ):  # 连带去除工具调用(system(tool_call),tool_call)
+                    continue
+                elif idx >= index:
+                    break
+        self.memory.memory.messages = self.memory.memory.messages[
+            (idx if idx is not None else index) :  # 删除部分消息
         ]
-        debug_log("正在进行上下文摘要...")
-        response = await get_chat(msg_list)
-        usage = await get_tokens(msg_list, response)
-        self.usage = usage
-        debug_log(f"获取到上下文摘要：{response.content}")
-        self.memory.memory.abstract = response.content
-        debug_log("上下文摘要完成")
+        if dropped_part:
+            msg_list: SEND_MESSAGES = [
+                Message[str](role="system", content=self._abstract_instruction),
+                Message[str](
+                    role="user",
+                    content=(
+                        "消息列表：\n```text\n".join(
+                            [
+                                f"{it}\n"
+                                for it in text_generator(
+                                    self._dropped_messages + dropped_part,
+                                    split_role=True,
+                                )
+                            ]
+                        )
+                        + "\n```"
+                    ),
+                ),
+            ]
+            debug_log("正在进行上下文摘要...")
+            response = await get_chat(msg_list)
+            usage = await get_tokens(msg_list, response)
+            self.usage = usage
+            debug_log(f"获取到上下文摘要：{response.content}")
+            self.memory.memory.abstract = response.content
+            debug_log("上下文摘要完成")
+        else:
+            debug_log("未进行上下文摘要")
 
     async def run_enforce(self):
         """执行记忆限制处理
@@ -282,7 +300,7 @@ class MemoryLimiter:
         initial_count = len(data.memory.messages)
         while len(data.memory.messages) > 0:
             if data.memory.messages[0].role not in ("assistant", "user"):
-                del data.memory.messages[0]
+                data.memory.messages.pop(0)
             elif len(data.memory.messages) > self.config.llm_config.memory_lenth_limit:
                 self._dropped_messages.append(data.memory.messages.pop(0))
             else:
@@ -306,15 +324,10 @@ class MemoryLimiter:
                 )
             return tk_tmp
 
-        def drop_message(index: int = 0) -> None:
-            if len(data.memory.messages) - 1 < index:  # 不满足条件
-                return
-            elif data.memory.messages[index].role in ("user", "assistant"):
-                self._dropped_messages.append(
-                    data.memory.messages.pop(index)
-                )  # 移除用户消息
-            else:
-                drop_message(index + 1)  # 进行下一次指针游走
+        def drop_message():
+            self._dropped_messages.append(data.memory.messages.pop(0))
+            if data.memory.messages[0].role == "tool":
+                self._dropped_messages.append(data.memory.messages.pop(0))
 
         train = self._train
         train_model = Message.model_validate(train)
@@ -517,7 +530,9 @@ class ChatObject:
             finally:
                 self._is_running = False
                 self._is_done = True
+                self._pending = False
                 self.end_at = datetime.now(utc)
+                chat_manager.running_chat_object_id2map.pop(self.stream_id, None)
                 debug_log("聊天事件处理完成")
 
         else:
@@ -958,6 +973,9 @@ class ChatObject:
         Args:
             e: 异常对象
         """
+        if isinstance(e, CancelledError):
+            if hasattr(self, "matcher"):
+                await self.matcher.send("成功终止了对话。")
         self._err = e
         if hasattr(self, "matcher"):
             await self.matcher.send("出错了稍后试试吧（错误已反馈）")

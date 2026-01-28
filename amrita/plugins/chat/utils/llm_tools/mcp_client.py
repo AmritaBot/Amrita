@@ -3,6 +3,7 @@ import json
 import random
 from asyncio import Lock
 from collections.abc import Awaitable, Callable
+from contextlib import nullcontext
 from copy import deepcopy
 from typing import Any, overload
 
@@ -290,26 +291,34 @@ class ClientManager:
                 server_script = str(client.server_script)
                 self.script_to_clients[server_script] = client
 
-    async def initialize_all(self):
-        """连接所有 MCP Server"""
+    async def reinitalize_all(self):
         async with self._lock:
+            for client in self.clients:
+                await self.unregister_client(client.server_script, False)
+                await self._load_this(client.server_script, fail_then_raise=False)
+
+    async def initialize_all(self, lock: bool = True):
+        """连接所有 MCP Server"""
+        async with self._lock if lock else nullcontext():
             for client in self.clients:
                 await self._load_this(client, False)
             self._is_initialized = True
 
-    async def unregister_client(self, script_name: str | Path):
+    async def unregister_client(self, script_name: str | Path, lock: bool = True):
         """注销一个 MCP Server"""
-        async with self._lock:
+        tools_manager = ToolsManager()
+        async with self._lock if lock else nullcontext():
             script_name = str(script_name)
             if script_name in self.script_to_clients:
                 client = self.script_to_clients.pop(script_name)
                 for tool in client.openai_tools:
                     name = tool.function.name
-                    ToolsManager().remove_tool(name)
-                    ClientManager.name_to_clients.pop(name, None)
-                    if remap := ClientManager.tools_remapping.pop(name, None):
-                        ClientManager.reversed_remappings.pop(remap, None)
-                for client in self.clients:
+                    tools_manager.remove_tool(name)
+                    self.name_to_clients.pop(name, None)
+                    if remap := self.tools_remapping.pop(name, None):
+                        tools_manager.remove_tool(remap)
+                        self.reversed_remappings.pop(remap, None)
+                for idx, client in enumerate(self.clients):
                     if client.server_script == script_name:
-                        self.clients.remove(client)
+                        self.clients.pop(idx)
                         break

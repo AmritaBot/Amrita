@@ -578,7 +578,7 @@ extra_css %}
                 text: promptText,
                 name: newPromptName,
               }),
-            }
+            },
           );
         } else {
           // 创建提示词
@@ -596,7 +596,7 @@ extra_css %}
         if (result.success) {
           showAlert(
             "success",
-            result.message || (editingPrompt ? "提示词已更新" : "提示词已创建")
+            result.message || (editingPrompt ? "提示词已更新" : "提示词已创建"),
           );
           location.reload();
         } else {
@@ -618,7 +618,7 @@ extra_css %}
       !confirm(
         `确定要删除${
           promptType === "group" ? "群组" : "私聊"
-        }提示词 "${promptName}" 吗？此操作不可撤销。`
+        }提示词 "${promptName}" 吗？此操作不可撤销。`,
       )
     ) {
       return;
@@ -629,7 +629,7 @@ extra_css %}
         `/api/chat/prompts/${promptType}/${encodeURIComponent(promptName)}`,
         {
           method: "DELETE",
-        }
+        },
       );
 
       const result = await response.json();

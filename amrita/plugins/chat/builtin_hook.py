@@ -15,7 +15,7 @@ from amrita.plugins.chat.utils.logging import debug_log
 from amrita.plugins.chat.utils.models import SEND_MESSAGES, ToolCall, UniResponse
 from amrita.utils.admin import send_to_admin
 
-from .config import config_manager
+from .config import Config, config_manager
 from .event import BeforeChatEvent, ChatEvent
 from .matcher import ChatException
 from .on_event import on_before_chat, on_chat
@@ -26,7 +26,9 @@ from .utils.llm_tools.builtin_tools import (
     PROCESS_MESSAGE,
     PROCESS_MESSAGE_TOOL,
     REASONING_TOOL,
-    REPORT_TOOL,
+    REPORT_TOOL_HIGH,
+    REPORT_TOOL_LOW,
+    REPORT_TOOL_MEDIUM,
     STOP_TOOL,
     report,
 )
@@ -45,7 +47,7 @@ posthook = on_chat(block=False, priority=1)
 
 
 BUILTIN_TOOLS_NAME = {
-    REPORT_TOOL.function.name,
+    REPORT_TOOL_MEDIUM.function.name,
     STOP_TOOL.function.name,
     REASONING_TOOL.function.name,
     PROCESS_MESSAGE.function.name,
@@ -63,21 +65,33 @@ class Continue(BaseException): ...
 
 @checkhook.handle()
 async def text_check(event: BeforeChatEvent) -> None:
-    config = config_manager.config
+    config: Config = config_manager.config
     if not config.llm_config.tools.enable_report:
         checkhook.pass_event()
     logger.info("Content checking in progress......")
     bot = get_bot()
-    tool_list = [REPORT_TOOL]
-    msg = event._send_message.unwrap()
-    if config.llm_config.tools.report_exclude_system_prompt:
+    match config.llm_config.tools.report_invoke_level:
+        case "low":
+            tool_list = [REPORT_TOOL_LOW]
+        case "medium":
+            tool_list = [REPORT_TOOL_MEDIUM]
+        case "high":
+            tool_list = [REPORT_TOOL_HIGH]
+        case _:
+            raise ValueError("Invalid report_invoke_level")
+    msg: SEND_MESSAGES = event._send_message.unwrap()
+    if (
+        config.llm_config.tools.report_exclude_context
+        and config.llm_config.tools.report_exclude_system_prompt
+    ):
+        msg = [event.get_send_message().get_user_query()]
+    elif config.llm_config.tools.report_exclude_system_prompt:
         msg = event.get_send_message().get_memory()
-    if config.llm_config.tools.report_exclude_context:
-        msg = (
-            [event.get_send_message().get_memory()[-1]]
-            if event.get_send_message().get_memory()
-            else []
-        )
+    elif config.llm_config.tools.report_exclude_context:
+        msg = [
+            event.get_send_message().get_train(),
+            event.get_send_message().get_user_query(),
+        ]
     if not msg:
         logger.warning("Message list is empty, skipping content check")
         return
@@ -89,7 +103,7 @@ async def text_check(event: BeforeChatEvent) -> None:
         for tool_call in tool_calls:
             function_name = tool_call.function.name
             function_args: dict[str, Any] = json.loads(tool_call.function.arguments)
-            if function_name == REPORT_TOOL.function.name:
+            if function_name == REPORT_TOOL_MEDIUM.function.name:
                 if not function_args.get("invoke"):
                     return
                 await report(
@@ -112,10 +126,13 @@ async def text_check(event: BeforeChatEvent) -> None:
                 )
 
 
-@on_tools(PROCESS_MESSAGE_TOOL, True, show_call=False)
+@on_tools(
+    data=PROCESS_MESSAGE_TOOL,
+    custom_run=True,
+    show_call=False,
+    enable_if=lambda: config_manager.config.llm_config.tools.agent_middle_message,
+)
 async def _(ctx: ToolContext) -> str | None:
-    if not config_manager.config.llm_config.tools.agent_middle_message:
-        return "Process message tool is disabled,it's not allowed to use."
     msg: str = ctx.data["content"]
     debug_log(f"[LLM-ProcessMessage] {msg}")
     await ctx.bot.send(ctx.event.get_nonebot_event(), msg)
@@ -214,7 +231,14 @@ async def agent_core(event: BeforeChatEvent) -> None:
 
         if call_count > config_manager.config.llm_config.tools.agent_tool_call_limit:
             await bot.send(
-                nonebot_event, "[AmritaAgent] 过多次的工具调用！已取消Workflow！"
+                nonebot_event, "[AmritaAgent] 过多次的工具调用！已中止Workflow！"
+            )
+            msg_list.append(
+                Message(
+                    role="user",
+                    content="Too much tools called,please call later or follow user's instruction."
+                    + "Now please continue to completion.",
+                )
             )
             return
         response_msg = await tools_caller(
