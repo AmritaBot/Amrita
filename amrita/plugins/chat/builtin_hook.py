@@ -394,7 +394,7 @@ async def agent_core(event: BeforeChatEvent) -> None:
     msg_list: SEND_MESSAGES = (
         [
             deepcopy(event.message.train),
-            deepcopy(event.message.memory)[-1],
+            deepcopy(event.message.user_query),
         ]
         if config.llm_config.tools.use_minimal_context
         else event.message.unwrap()
