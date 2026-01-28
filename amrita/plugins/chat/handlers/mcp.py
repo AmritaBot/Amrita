@@ -66,8 +66,8 @@ async def mcp_status(bot: Bot, matcher: Matcher, event: MessageEvent, arg: list[
         await send_forward_msg(
             bot, event, "Amrita-MCP", str(event.self_id), detailed_info
         )
-
-    await matcher.finish(std_txt)
+    else:
+        await matcher.finish(std_txt)
 
 
 async def add_mcp_server(
@@ -114,7 +114,7 @@ async def reload(matcher: Matcher):
     if not config_manager.config.llm_config.tools.agent_mcp_client_enable:
         return
     try:
-        await ClientManager().initialize_all()
+        await ClientManager().reinitalize_all()
         await matcher.send("重载成功")
     except Exception as e:
         logger.opt(exception=e, colors=True).exception(e)

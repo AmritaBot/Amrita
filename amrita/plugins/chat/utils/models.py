@@ -42,26 +42,6 @@ T = typing.TypeVar("T", None, str, None | typing.Literal[""])
 T_INT = typing.TypeVar("T_INT", int, None)
 
 
-class NoActionContext:
-    """NoActionContext，仅作占位符，用于实现 with 语法"""
-
-    async def __aenter__(self) -> Self:
-        """__aenter__"""
-        return self
-
-    async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
-        """__aexit__"""
-        pass
-
-    def __enter__(self) -> Self:
-        """__enter__"""
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
-        """__exit__"""
-        pass
-
-
 class BaseModel(B_Model):
     """BaseModel+dict鸭子类型"""
 
@@ -231,7 +211,7 @@ class SessionMemoryModel(MemoryModel):
             session = arg_session or get_session()
 
             stmt = delete(MemorySessions).where(MemorySessions.id == self.id)
-            async with NoActionContext() if arg_session else session:
+            async with contextlib.nullcontext() if arg_session else session:
                 await session.execute(stmt)
             if not arg_session:
                 await session.commit()
@@ -246,7 +226,7 @@ class SessionMemoryModel(MemoryModel):
         if not self.__dirty__:
             return
         session = arg_session or get_session()
-        async with NoActionContext() if arg_session else session:
+        async with contextlib.nullcontext() if arg_session else session:
             if self.id is not None:
                 stmt = (
                     update(MemorySessions)
@@ -281,8 +261,9 @@ SEND_MESSAGES = list[SEND_MESSAGES_ITEM]
 class SendMessageWrap(Iterable[SEND_MESSAGES_ITEM]):
     """SEND_MESSAGES的包装类"""
 
-    train: Message  # system 消息
+    train: Message[str]  # system 消息
     memory: SEND_MESSAGES  # 无system消息的消息
+    user_query: Message
 
     def __init__(
         self, train: dict[str, str] | Message[str], memory: SEND_MESSAGES | MemoryModel
@@ -291,6 +272,11 @@ class SendMessageWrap(Iterable[SEND_MESSAGES_ITEM]):
             train if isinstance(train, Message) else Message.model_validate(train)
         )
         self.memory = memory if isinstance(memory, list) else memory.messages
+        query = self.memory[-1]
+        if isinstance(query, ToolResult) or query.role != "user":
+            raise ValueError("Invalid query message, expecting user message!")
+        self.user_query = query
+        self.memory.pop()
 
     @classmethod
     def validate_messages(cls, messages: SEND_MESSAGES) -> SendMessageWrap:
@@ -309,23 +295,29 @@ class SendMessageWrap(Iterable[SEND_MESSAGES_ITEM]):
         return cls(train, memory)
 
     def __len__(self) -> int:
-        return len(self.memory) + 1
+        return len(self.memory) + 2
 
     def __iter__(self) -> typing.Iterator[SEND_MESSAGES_ITEM]:
         yield self.train
         yield from self.memory
+        yield self.user_query
 
     def copy(self) -> SendMessageWrap:
-        return SendMessageWrap(deepcopy(self.train), deepcopy(self.memory))
+        return SendMessageWrap(
+            deepcopy(self.train), deepcopy([*self.memory, self.user_query])
+        )
 
     def unwrap(self) -> SEND_MESSAGES:
-        return [self.train, *self.memory]
+        return [self.train, *self.memory, self.user_query]
 
-    def get_train(self) -> Message:
+    def get_train(self) -> Message[str]:
         return self.train
 
     def get_memory(self) -> SEND_MESSAGES:
         return self.memory
+
+    def get_user_query(self) -> Message:
+        return self.user_query
 
 
 class InsightsModel(BaseModel):

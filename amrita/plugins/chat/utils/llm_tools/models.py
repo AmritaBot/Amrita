@@ -339,3 +339,7 @@ class ToolData(BaseModel):
         default="show",
         description="是否显示此工具调用",
     )
+    enable_if: Callable[[], bool] = Field(
+        default=lambda: True,
+        description="是否启用此工具",
+    )

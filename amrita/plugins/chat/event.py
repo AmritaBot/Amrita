@@ -165,7 +165,7 @@ class PokeEvent(SuggarEvent):
         return EventTypeEnum.POKE
 
     @override
-    def get_event_on_location(self):
+    def get_event_on_location(self) -> Literal["group", "private"]:
         return "group" if getattr(self._nbevent, "group_id", None) else "private"
 
 
