@@ -42,8 +42,6 @@ T = typing.TypeVar("T", None, str, None | typing.Literal[""])
 T_INT = typing.TypeVar("T_INT", int, None)
 
 
-
-
 class BaseModel(B_Model):
     """BaseModel+dict鸭子类型"""
 
@@ -306,7 +304,7 @@ class SendMessageWrap(Iterable[SEND_MESSAGES_ITEM]):
 
     def copy(self) -> SendMessageWrap:
         return SendMessageWrap(
-            deepcopy(self.train), deepcopy([self.user_query, *self.memory])
+            deepcopy(self.train), deepcopy([*self.memory, self.user_query])
         )
 
     def unwrap(self) -> SEND_MESSAGES:

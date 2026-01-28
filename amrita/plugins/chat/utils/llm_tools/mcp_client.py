@@ -293,7 +293,7 @@ class ClientManager:
 
     async def reinitalize_all(self):
         async with self._lock:
-            for client in self.clients:
+            for client in deepcopy(self.clients):
                 await self.unregister_client(client.server_script, False)
                 await self._load_this(client.server_script, fail_then_raise=False)
 

@@ -200,7 +200,7 @@ class MemoryLimiter:
         """
         debug_log("开始进行上下文摘要..")
         proportion = self.config.llm_config.memory_abstract_proportion  # 摘要比例
-        dropped_part: SEND_MESSAGES = self._dropped_messages
+        dropped_part: SEND_MESSAGES = copy.deepcopy(self._dropped_messages)
         index = int(len(self.memory.memory.messages) * proportion) - len(dropped_part)
         if index < 0:
             index = 0
@@ -976,6 +976,7 @@ class ChatObject:
         if isinstance(e, CancelledError):
             if hasattr(self, "matcher"):
                 await self.matcher.send("成功终止了对话。")
+            return
         self._err = e
         if hasattr(self, "matcher"):
             await self.matcher.send("出错了稍后试试吧（错误已反馈）")
