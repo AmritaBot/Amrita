@@ -227,7 +227,7 @@ class MemoryLimiter:
                             [
                                 f"{it}\n"
                                 for it in text_generator(
-                                    self._dropped_messages + dropped_part,
+                                    dropped_part,
                                     split_role=True,
                                 )
                             ]
@@ -245,6 +245,14 @@ class MemoryLimiter:
             debug_log("上下文摘要完成")
         else:
             debug_log("未进行上下文摘要")
+
+    def _drop_message(self):
+        data = self.memory
+        if len(data.memory.messages) < 2:
+            return
+        self._dropped_messages.append(data.memory.messages.pop(0))
+        if data.memory.messages[0].role == "tool":
+            self._dropped_messages.append(data.memory.messages.pop(0))
 
     async def run_enforce(self):
         """执行记忆限制处理
@@ -299,10 +307,10 @@ class MemoryLimiter:
         # Enforce memory length limit
         initial_count = len(data.memory.messages)
         while len(data.memory.messages) > 0:
-            if data.memory.messages[0].role not in ("assistant", "user"):
+            if data.memory.messages[0].role == "tool":
                 data.memory.messages.pop(0)
             elif len(data.memory.messages) > self.config.llm_config.memory_lenth_limit:
-                self._dropped_messages.append(data.memory.messages.pop(0))
+                self._drop_message()
             else:
                 break
         final_count = len(data.memory.messages)
@@ -324,11 +332,6 @@ class MemoryLimiter:
                 )
             return tk_tmp
 
-        def drop_message():
-            self._dropped_messages.append(data.memory.messages.pop(0))
-            if data.memory.messages[0].role == "tool":
-                self._dropped_messages.append(data.memory.messages.pop(0))
-
         train = self._train
         train_model = Message.model_validate(train)
         data = self.memory
@@ -348,7 +351,7 @@ class MemoryLimiter:
         initial_count = len(data.memory.messages)
         while tk_tmp > config_manager.config.session.session_max_tokens:
             if len(data.memory.messages) > 1:
-                drop_message()
+                self._drop_message()
             else:
                 break
 
@@ -492,7 +495,6 @@ class ChatObject:
                 else config_manager.private_train
             )
 
-            self._is_running = True
             try:
                 lock = (
                     get_group_lock(event.group_id)
@@ -515,6 +517,7 @@ class ChatObject:
                             await matcher.finish("聊天任务正在处理中，请稍后再试")
 
                 async with lock:
+                    self._is_running = True
                     self.last_call = datetime.now(utc)
                     self._pending = False
                     debug_log("获取锁成功，开始获取记忆数据")

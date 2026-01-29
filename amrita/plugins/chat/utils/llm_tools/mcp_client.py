@@ -281,7 +281,9 @@ class ClientManager:
         except Exception as e:
             if fail_then_raise:
                 raise
-            logger.error(f"❌ 连接到 MCP Server@{client.server_script} 失败：{e}")
+            logger.opt(exception=e, colors=True).error(
+                f"❌ 连接到 MCP Server@{client.server_script} 失败：{e}"
+            )
         else:
             logger.info(f"✅ 加载到 MCP Server@{client.server_script} 成功")
             self.tools_remapping.update(tools_remapping_tmp)
@@ -295,7 +297,7 @@ class ClientManager:
         async with self._lock:
             for client in deepcopy(self.clients):
                 await self.unregister_client(client.server_script, False)
-                await self._load_this(client.server_script, fail_then_raise=False)
+                await self._load_this(client, fail_then_raise=False)
 
     async def initialize_all(self, lock: bool = True):
         """连接所有 MCP Server"""
