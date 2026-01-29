@@ -306,7 +306,7 @@ class MemoryLimiter:
 
         # Enforce memory length limit
         initial_count = len(data.memory.messages)
-        while len(data.memory.messages) > 0:
+        while len(data.memory.messages) >= 2:
             if data.memory.messages[0].role == "tool":
                 data.memory.messages.pop(0)
             elif len(data.memory.messages) > self.config.llm_config.memory_lenth_limit:
@@ -350,7 +350,7 @@ class MemoryLimiter:
 
         initial_count = len(data.memory.messages)
         while tk_tmp > config_manager.config.session.session_max_tokens:
-            if len(data.memory.messages) > 1:
+            if len(data.memory.messages) >= 2:
                 self._drop_message()
             else:
                 break
