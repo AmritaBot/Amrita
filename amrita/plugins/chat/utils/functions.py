@@ -3,14 +3,13 @@ from datetime import datetime
 from typing import Any
 
 import pytz
+from amrita_core.logging import debug_log
 from nonebot import logger
 from nonebot.adapters.onebot.v11 import (
     Bot,
     GroupMessageEvent,
     Message,
 )
-
-from amrita.plugins.chat.utils.logging import debug_log
 
 from ..config import config_manager
 

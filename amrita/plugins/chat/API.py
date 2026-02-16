@@ -29,7 +29,7 @@ from .utils.llm_tools.models import (
     ToolFunctionSchema,
 )
 from .utils.memory import get_memory_data
-from .utils.models import InsightsModel
+from .utils.sql import InsightsModel
 from .utils.tokenizer import Tokenizer, hybrid_token_count
 
 

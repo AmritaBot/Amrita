@@ -9,8 +9,8 @@ from nonebot.matcher import Matcher
 from nonebot.params import CommandArg
 from pytz import timezone, utc
 
-from amrita.plugins.chat import chatmanager
-from amrita.plugins.chat.chatmanager import ChatObject, chat_manager
+from amrita.plugins.chat import runtime
+from amrita.plugins.chat.runtime import ChatObject, chat_manager
 from amrita.utils.send import send_forward_msg
 
 
@@ -45,7 +45,7 @@ def format_chat_object_info(obj: ChatObject) -> str:
     """格式化单个ChatObject的信息"""
     event = obj.event
     user_id = event.user_id
-    instance_id, is_group = chatmanager.chat_manager.get_obj_key(event)
+    instance_id, is_group = runtime.chat_manager.get_obj_key(event)
     status = "❓ Unknown"
     if obj.is_waitting():
         status = "⏳ Pending"

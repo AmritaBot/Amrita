@@ -10,7 +10,7 @@ from nonebot.params import CommandArg
 from ..check_rule import is_bot_admin
 from ..config import config_manager
 from ..utils.memory import get_memory_data
-from ..utils.models import InsightsModel
+from ..utils.sql import InsightsModel
 
 
 async def insights(event: MessageEvent, matcher: Matcher, args: Message = CommandArg()):

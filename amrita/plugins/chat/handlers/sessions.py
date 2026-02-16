@@ -9,7 +9,7 @@ from nonebot.matcher import Matcher
 from nonebot.params import CommandArg
 from nonebot_plugin_orm import get_session
 
-from amrita.plugins.chat.utils.models import SessionMemoryModel
+from amrita.plugins.chat.utils.sql import SessionMemoryModel
 
 from ..check_rule import is_group_admin_if_is_in_group
 from ..config import config_manager
