@@ -15,14 +15,14 @@ dependencies = [
     "nonebot-plugin-localstore>=0.7.4",
     "typing-extensions>=4.6.0",
     "uv>=0.8.12",
-    "requests>=2.0", # See https://github.com/twindb/backup/pull/465
+    "requests>=2.0",                    # See https://github.com/twindb/backup/pull/465
     "python-multipart>=0.0.20",
     "aiofiles>=24.1.0",
     "packaging>=25.0",
     "zipp>=3.23.0",
     "pytz>=2025.2",
     "tomlkit>=0.13.3",
-    "nonebot-plugin-orm>=0.8.3", # See https://github.com/nonebot/plugin-orm/issues/33
+    "nonebot-plugin-orm>=0.8.3",        # See https://github.com/nonebot/plugin-orm/issues/33
     "nb-cli==1.6.0",
     "watchfiles>=1.1.1",
 
@@ -30,7 +30,7 @@ dependencies = [
 
 [project.optional-dependencies]
 full = [
-        "amrita-core==0.4.1",
+    "amrita-core==0.4.2.1",
     "nonebot-plugin-uniconf>=0.1.3",
     "aiomysql>=0.3.2",
     "aiopg>=1.4.0",

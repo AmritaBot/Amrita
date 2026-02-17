@@ -1,6 +1,4 @@
-import asyncio
 import contextlib
-import random
 import time
 from asyncio import CancelledError, Lock
 from dataclasses import dataclass, field
@@ -14,10 +12,10 @@ from amrita_core import (
 )
 from amrita_core.config import AmritaConfig
 from amrita_core.logging import debug_log
+from amrita_core.types import ImageContent, ImageUrl, TextContent
 from nonebot import logger
 from nonebot.adapters.onebot.v11 import (
     Bot,
-    MessageSegment,
 )
 from nonebot.adapters.onebot.v11.event import (
     GroupMessageEvent,
@@ -25,35 +23,27 @@ from nonebot.adapters.onebot.v11.event import (
     Reply,
 )
 from nonebot.matcher import Matcher
-from nonebot_plugin_orm import get_session
 from pydantic import BaseModel, Field
 from pytz import utc
+from typing_extensions import override
 
+from amrita.plugins.chat.utils.app import (
+    AwaredMemory,
+    CachedUserDataRepository,
+    MemorySchema,
+)
 from amrita.plugins.chat.utils.event import GroupEvent
 
-from .check_rule import FakeEvent
 from .config import Config, config_manager
-from .matcher import MatcherManager
 from .utils.functions import (
     get_friend_name,
-    split_message_into_chats,
     synthesize_message,
 )
-from .utils.libchat import get_chat, get_tokens
-from .utils.memory import (
-    MemoryModel,
-    get_memory_data,
-)
-from .utils.protocol import UniResponse
 from .utils.sql import (
-    SEND_MESSAGES,
-    ImageContent,
-    ImageUrl,
-    InsightsModel,
-    Message,
-    SessionMemoryModel,
-    TextContent,
-    UniResponseUsage,
+    MemorySessions,
+    UserDataExecutor,
+    get_any_id,
+    get_uni_user_id,
 )
 
 LOCK = Lock()
@@ -132,6 +122,8 @@ class AmritaChatObject(CoreChatObject):
     """
 
     matcher: Matcher  # (lateinit) 匹配器
+    data: AwaredMemory  # type: ignore
+    memory: MemorySchema
     bot: Bot  # (lateinit) Bot实例
     event: MessageEvent  # (lateinit) 消息事件
     config: AmritaConfig  # 配置
@@ -149,7 +141,12 @@ class AmritaChatObject(CoreChatObject):
         return self._pending
 
     def __init__(
-        self, event: MessageEvent, matcher: Matcher, bot: Bot, *args, **kwargs
+        self,
+        event: MessageEvent,
+        matcher: Matcher,
+        bot: Bot,
+        *args,
+        **kwargs,
     ):
         """Initialize chat object
 
@@ -187,7 +184,9 @@ class AmritaChatObject(CoreChatObject):
         data = self.data
         bot = self.bot
         user_id = event.user_id
-        config = self.config
+        config = self.bot_config
+        self.memory = await CachedUserDataRepository().get_memory(*get_any_id(event))
+        self.data = self.memory.memory_json  # type: ignore[Assignment]
         debug_log("管理会话上下文..")
         await self._manage_sessions()
         debug_log("会话管理完成")
@@ -234,17 +233,15 @@ class AmritaChatObject(CoreChatObject):
         )
         if isinstance(content, list):
             content.extend(reply_pics)
-        data.memory.messages.append(Message(role="user", content=content))
-        debug_log(f"添加用户消息到记忆，当前消息总数: {len(data.memory.messages)}")
+        self.user_input = content
+        debug_log(f"添加用户消息到记忆，当前消息总数: {len(data.messages)}")
 
         self.train["content"] = (
-            "<SCHEMA>\n"
+            "<SCHEMA_EXTENSIONS>\n"
             + "你在纯文本环境工作，不允许使用MarkDown回复，你的工作环境是一个社交软件，我会提供聊天记录，你可以从这里面获取一些关键信息，比如时间与用户身份"
             + "（e.g.: [管理员/群主/自己/群员][YYYY-MM-DD weekday hh:mm:ss AM/PM][昵称（QQ号）]说:<内容>），但是请不要以聊天记录的格式做回复，而是纯文本方式。"
             + "请以你自己的角色身份参与讨论，交流时不同话题尽量不使用相似句式回复，用户与你交谈的信息在用户的消息输入内。"
-            + "你的设定将在<SYSTEM_INSTRUCTIONS>标签对内，对于先前对话的摘要位于<SUMMARY>标签对内，"
-            + "\n</SCHEMA>\n"
-            + "<SYSTEM_INSTRUCTIONS>\n"
+            + "\n</SCHEMA_EXTENSION>\n"
             + (
                 self.train["content"]
                 .replace("{cookie}", config.cookies.cookie)
@@ -252,156 +249,9 @@ class AmritaChatObject(CoreChatObject):
                 .replace("{user_id}", str(event.user_id))
                 .replace("{user_name}", str(event.sender.nickname))
             )
-            + "\n</SYSTEM_INSTRUCTIONS>"
-            + f"\n<SUMMARY>\n{data.memory.abstract if config.llm_config.enable_memory_abstract else ''}\n</SUMMARY>"
         )
 
-        debug_msg = (
-            f"当前群组提示词：\n{config_manager.group_train}"
-            if isinstance(event, GroupMessageEvent)
-            else f"当前私聊提示词：\n{config_manager.private_train}"
-        )
-        debug_log(debug_msg)
-        debug_log(self.train["content"])
-
-        debug_log("开始应用记忆限制..")
-        async with MemoryLimiter(self.data, self.train) as lim:
-            await lim.run_enforce()
-            abs_usage = lim.usage
-            self.data = lim.memory
-        debug_log("记忆限制应用完成")
-
-        send_messages = self._prepare_send_messages()
-        debug_log(f"准备发送消息完成，消息数量: {len(send_messages)}")
-        response = await self._process_chat(send_messages, abs_usage)
-        debug_log("聊天处理完成，准备发送响应")
-        await self.send_response(response.content)
-        debug_log("开始保存记忆数据..")
-        await self.data.save(event)
-        debug_log("记忆数据保存完成")
-
-    async def send_response(self, response: str):
-        """发送聊天模型的回复，根据配置选择不同的发送方式。
-
-        Args:
-            response: 模型响应内容
-        """
-        self.last_call = datetime.now(utc)
-        debug_log(f"发送响应: {response[:50]}..")  # 只显示前50个字符
-        if not self.config.function.nature_chat_style:
-            await self.matcher.send(
-                MessageSegment.reply(self.event.message_id)
-                + MessageSegment.text(response)
-            )
-        elif response_list := split_message_into_chats(response):
-            for message in response_list:
-                await self.matcher.send(MessageSegment.text(message))
-                await asyncio.sleep(
-                    random.randint(1, 3) + (len(message) // random.randint(80, 100))
-                )
-
-    async def _process_chat(
-        self,
-        send_messages: SEND_MESSAGES,
-        extra_usage: UniResponseUsage[int] | None = None,
-    ) -> UniResponse[str, None]:
-        """调用聊天模型生成回复，并触发相关事件。
-
-        Args:
-            send_messages: 发送消息列表
-            extra_usage: 额外的token使用量信息
-
-        Returns:
-            模型响应
-        """
-        self.last_call = datetime.now(utc)
-
-        def add_usage(ins: InsightsModel | MemoryModel, usage: UniResponseUsage[int]):
-            if isinstance(ins, InsightsModel):
-                ins.token_output += usage.completion_tokens
-                ins.token_input += usage.prompt_tokens
-            else:
-                ins.input_token_usage += usage.prompt_tokens
-                ins.output_token_usage += usage.completion_tokens
-
-        event = self.event
-        bot = self.bot
-        data = self.data
-        debug_log(f"开始处理聊天，发送消息数量: {len(send_messages)}")
-
-        if config_manager.config.matcher_function:
-            debug_log("触发匹配器函数..")
-            chat_event = BeforeChatEvent(
-                nbevent=event,
-                send_message=send_messages,
-                model_response="",
-                user_id=event.user_id,
-            )
-            await MatcherManager.trigger_event(chat_event, event, bot)
-            send_messages = chat_event.get_send_message().unwrap()
-
-        debug_log("调用聊天模型..")
-        response = await get_chat(send_messages)
-
-        if config_manager.config.matcher_function:
-            debug_log("触发聊天事件..")
-            chat_event = ChatEvent(
-                nbevent=event,
-                send_message=send_messages,
-                model_response=response.content or "",
-                user_id=event.user_id,
-            )
-            await MatcherManager.trigger_event(chat_event, event, bot)
-            response.content = chat_event.model_response
-
-        debug_log("计算token使用情况..")
-        tokens = await get_tokens(send_messages, response)
-        # 记录模型回复
-        data.memory.messages.append(
-            Message[str](
-                content=response.content,
-                role="assistant",
-            )
-        )
-        debug_log(f"添加助手回复到记忆，当前消息总数: {len(data.memory.messages)}")
-
-        insights = await InsightsModel.get()
-        debug_log(f"获取洞察数据完成，使用计数: {insights.usage_count}")
-
-        # 写入全局统计
-        insights.usage_count += 1
-        add_usage(insights, tokens)
-        if extra_usage:
-            add_usage(insights, extra_usage)
-        await insights.save()
-        debug_log(f"更新全局统计完成，使用计数: {insights.usage_count}")
-
-        # 写入记忆数据
-        for d, ev in (
-            (
-                (data, event),
-                (
-                    await get_memory_data(user_id=event.user_id),
-                    FakeEvent(
-                        time=0,
-                        self_id=0,
-                        post_type="",
-                        user_id=event.user_id,
-                    ),
-                ),
-            )
-            if hasattr(event, "group_id")
-            else ((data, event),)
-        ):
-            d.usage += 1  # 增加使用次数
-            add_usage(d, tokens)
-            if extra_usage:
-                add_usage(d, extra_usage)
-            debug_log(f"更新记忆数据，使用次数: {d.usage}")
-            await d.save(ev)
-
-        debug_log("聊天处理完成")
-        return response
+        await super()._run()
 
     async def _handle_reply(
         self, reply: Reply, bot: Bot, group_id: int | None, content: str
@@ -499,6 +349,7 @@ class AmritaChatObject(CoreChatObject):
                 else chat_manager.session_clear_user
             )
             session_id = self.session_id
+            uni_id = get_uni_user_id(event)
             try:
                 if session := session_clear_map.get(session_id):
                     debug_log(f"找到会话清除记录: {session_id}")
@@ -516,31 +367,17 @@ class AmritaChatObject(CoreChatObject):
                     float(self.bot_config.session.session_control_time * 60)
                 ):
                     debug_log("会话超时，开始创建新会话..")
-                    data.sessions.append(
-                        SessionMemoryModel(messages=data.memory.messages, time=time_now)
+                    async with UserDataExecutor(uni_id) as executor:
+                        await executor.add_session(data)
+                    await MemorySessions._expire(
+                        uni_id, config.session.session_control_history
                     )
-                    if (
-                        len(data.sessions)
-                        > config_manager.config.session.session_control_history
-                    ):
-                        offset = (
-                            len(data.sessions)
-                            - config_manager.config.session.session_control_history
-                        )
-                        dropped_sesssions = data.sessions[:offset]
-                        data.sessions = data.sessions[offset:]
-                        async with get_session() as session:
-                            for i in dropped_sesssions:
-                                try:
-                                    debug_log(f"删除过期会话: {i.id}")
-                                    await i.delete(session)
-                                except Exception as e:  # noqa: PERF203
-                                    logger.warning(f"删除Session{i.id}失败\n{e}")
-                            await session.commit()
-                    data.memory.messages = []
-                    timestamp = data.timestamp
-                    data.timestamp = time_now
-                    await data.save(event, raise_err=True)
+                    data.messages = []
+                    timestamp = data.time
+                    data.time = time_now
+                    CachedUserDataRepository._cached_memory.pop(uni_id, None)
+                    self.memory.memory_json = data
+                    await CachedUserDataRepository().update_memory_data(self.memory)
                     if not (
                         (time_now - timestamp)
                         > float(config.session.session_control_time * 60 * 2)
@@ -564,11 +401,16 @@ class AmritaChatObject(CoreChatObject):
                             await bot.delete_msg(message_id=session.message_id)
 
                     session_clear_map.pop(session_id, None)
-
-                    data.memory.messages = data.sessions[-1].messages
-                    session = data.sessions.pop()
-                    await session.delete()
-                    await data.save(event, raise_err=True)
+                    sessions = await CachedUserDataRepository().get_sesssions(
+                        *get_any_id(event)
+                    )
+                    data.messages = sessions[-1].data.messages
+                    session = sessions[-1]
+                    async with UserDataExecutor(uni_id) as executor:
+                        await executor.remove_session(session.id)
+                    CachedUserDataRepository._cached_sessions.pop(uni_id, None)
+                    self.memory.memory_json = data
+                    await CachedUserDataRepository().update_memory_data(self.memory)
                     return await matcher.finish("让我们继续聊天吧～")
 
             finally:
@@ -592,6 +434,7 @@ class AmritaChatObject(CoreChatObject):
             await self.matcher.send("出错了稍后试试吧（错误已反馈）")
         logger.opt(exception=e, colors=True).exception("程序发生了未捕获的异常")
 
+    @override
     def get_snapshot(self) -> ChatObjectMeta:
         """获取聊天对象的快照
 

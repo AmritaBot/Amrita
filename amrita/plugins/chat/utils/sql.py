@@ -36,6 +36,7 @@ from amrita_core.types import (
 from nonebot.adapters.onebot.v11 import Event
 from nonebot_plugin_orm import AsyncSession, Model, get_session
 from pydantic import Field
+from pytz import utc
 from sqlalchemy import (
     JSON,
     BigInteger,
@@ -65,11 +66,18 @@ if TYPE_CHECKING:
     from amrita.plugins.chat.utils.app import AwaredMemory
 
 
-def get_uni_user_id(event: Event):
+def get_uni_user_id(event: Event) -> str:
     if uid := getattr(event, "group_id", None):
         return f"group_{uid!s}"
     else:
         return f"user_{event.get_user_id()!s}"
+
+
+def get_any_id(event: Event) -> tuple[int, bool]:
+    if uid := getattr(event, "group_id", None):
+        return uid, True
+    else:
+        return int(event.get_user_id()), False
 
 
 VALIDATE_PATTERN = re.compile(r"^(user|group)_[0-9]+$")
@@ -407,6 +415,11 @@ class UserDataExecutor:
         if self._user_metadata_temp is not None:
             return self._user_metadata_temp
         data: UserMetadata = await self._get_or_create_any(UserMetadata)
+        if data.last_active.date() != datetime.now(utc).date():
+            data.last_active = datetime.now(utc)
+            data.tokens_input = 0
+            data.tokens_output = 0
+            data.called_count = 0
         self._user_metadata_temp = data
         return data
 
@@ -436,7 +449,7 @@ class UserDataExecutor:
         self._user_sessions_temp = data
         return data
 
-    async def remove_session(self, *id: str):
+    async def remove_session(self, *id: int):
         stmt = delete(MemorySessions).where(MemorySessions.id.in_(id))
         self._user_sessions_temp = [
             session

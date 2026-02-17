@@ -129,3 +129,18 @@ REPORT_TOOL_LOW = ToolFunctionSchema(
     ),
     strict=True,
 )
+
+PROCESS_MESSAGE_TOOL = FunctionDefinitionSchema(
+    name="amrita_processing",
+    description="Describe what the agent is currently doing and express the agent's internal thoughts to the user. Use this when you need to communicate your current actions or internal reasoning to the user, not for general completion.",
+    parameters=FunctionParametersSchema(
+        type="object",
+        properties={
+            "content": FunctionPropertySchema(
+                description="Message content, describe in the tone of system instructions what you are doing or interacting with the user.",
+                type="string",
+            ),
+        },
+        required=["content"],
+    ),
+)
