@@ -35,7 +35,7 @@ async def _check_and_handle_rate_limit():
         consume = bucket.consume()
         _message_tracker["admin"] += int(not consume)
 
-        if _message_tracker["admin"] > 5 and not _critical_error_occurred:
+        if _message_tracker["admin"] > 7 and not _critical_error_occurred:
             _critical_error_occurred = True
             StatusManager().set_unready(True)
             nonebot.logger.info(
