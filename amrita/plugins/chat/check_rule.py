@@ -132,9 +132,10 @@ async def should_respond_to_message(event: MessageEvent, bot: Bot) -> bool:
             is_group = bool(getattr(event, "group_id", None))
             ins_id: int = getattr(event, "group_id", event.user_id)
             memory_data: MemorySchema = await dm.get_memory(ins_id, is_group)
-            if rand <= rate and (
-                config_manager.config.autoreply.global_enable or memory_data.fake_people
-            ):
+            fk = False
+            if is_group:
+                fk = (await dm.get_group_config(ins_id)).autoreply
+            if rand <= rate and (config_manager.config.autoreply.global_enable or fk):
                 memory_data.memory_json.time = time.time()
                 await dm.update_memory_data(memory_data)
                 return True
