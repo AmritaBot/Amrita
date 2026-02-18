@@ -113,7 +113,9 @@ def upgrade(name: str = "") -> None:
         info={"bind_key": "chat"},
     )
     with op.batch_alter_table("amritabot_memory_sessions", schema=None) as batch_op:
-        batch_op.create_index("idx_sessions_created_at", ["created_at"], unique=False)
+        batch_op.create_index(
+            "idx_sessions_created_at_time", ["created_at"], unique=False
+        )
         batch_op.create_index("idx_sessions_user_id", ["user_id"], unique=False)
 
     with op.batch_alter_table("suggarchat_memory_sessions", schema=None) as batch_op:
@@ -233,7 +235,7 @@ def downgrade(name: str = "") -> None:
 
     with op.batch_alter_table("amritabot_memory_sessions", schema=None) as batch_op:
         batch_op.drop_index("idx_sessions_user_id")
-        batch_op.drop_index("idx_sessions_created_at")
+        batch_op.drop_index("idx_sessions_created_at_time")
 
     op.drop_table("amritabot_memory_sessions")
     op.drop_table("amritabot_memory_data")

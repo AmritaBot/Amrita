@@ -278,7 +278,7 @@ class MemorySessions(Model):
     )
     __table_args__ = (
         Index("idx_sessions_user_id", "user_id"),
-        Index("idx_sessions_created_at", "created_at"),
+        Index("idx_sessions_created_at_time", "created_at"),
     )
 
     @classmethod
