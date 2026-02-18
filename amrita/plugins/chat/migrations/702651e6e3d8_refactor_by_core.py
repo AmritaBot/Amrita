@@ -24,41 +24,46 @@ def table_exists(table_name: str) -> bool:
     """检查表是否已存在"""
     # 获取当前连接
     connection = op.get_bind()
+    inspector = sa.inspect(connection)
+    return inspector.has_table(table_name)
 
-    # 根据数据库方言使用不同的查询方式
-    dialect = connection.dialect.name
 
-    if dialect == "mysql":
-        result = connection.execute(
-            sa.text(
-                f"SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = '{table_name}'"
-            )
-        )
-        return result.scalar() > 0  # pyright: ignore[reportOptionalOperand]
-    elif dialect == "postgresql":
-        result = connection.execute(
-            sa.text(
-                f"SELECT COUNT(*) FROM information_schema.tables WHERE table_catalog = current_database() AND table_schema = 'public' AND table_name = '{table_name}'"
-            )
-        )
-        return result.scalar() > 0  # pyright: ignore[reportOptionalOperand]
-    elif dialect == "sqlite":
-        result = connection.execute(
-            sa.text(
-                f"SELECT name FROM sqlite_master WHERE type='table' AND name='{table_name}'"
-            )
-        )
-        return result.fetchone() is not None
-    else:
-        try:
-            result = connection.execute(
-                sa.text(
-                    f"SELECT name FROM sqlite_master WHERE type='table' AND name='{table_name}'"
-                )
-            )
-            return result.fetchone() is not None
-        except Exception:
-            return False
+def safe_drop_constraint(
+    batch_op, constraint_name: str, type_: str = "foreignkey"
+) -> None:
+    """安全删除约束，仅忽略不存在的约束错误"""
+    try:
+        batch_op.drop_constraint(batch_op.f(constraint_name), type_=type_)
+    except Exception as e:
+        error_msg = str(e).lower()
+        if (
+            "not found" in error_msg
+            or "doesn't exist" in error_msg
+            or "no constraint" in error_msg
+        ):
+            pass
+        else:
+            # 其他错误，重新抛出
+            raise
+
+
+def safe_drop_index(batch_op, index_name: str) -> None:
+    """安全删除索引，仅忽略不存在的索引错误"""
+    try:
+        batch_op.drop_index(batch_op.f(index_name))
+    except Exception as e:
+        # 检查是否是索引不存在的错误，如果是则忽略
+        error_msg = str(e).lower()
+        if (
+            "not found" in error_msg
+            or "doesn't exist" in error_msg
+            or "no index" in error_msg
+        ):
+            # 索引不存在，这是预期情况，忽略
+            pass
+        else:
+            # 其他错误，重新抛出
+            raise
 
 
 def upgrade(name: str = "") -> None:
@@ -185,75 +190,40 @@ def upgrade(name: str = "") -> None:
             "suggarchat_memory_sessions", schema=None
         ) as batch_op:
             # 先删除外键约束
-            try:
-                batch_op.drop_constraint(
-                    batch_op.f(
-                        "fk_suggarchat_memory_sessions_ins_id_suggarchat_memory_data"
-                    ),
-                    type_="foreignkey",
-                )
-            except Exception:
-                pass  # 如果约束不存在则忽略
-            try:
-                batch_op.drop_constraint(
-                    batch_op.f(
-                        "fk_suggarchat_memory_sessions_is_group_suggarchat_memory_data"
-                    ),
-                    type_="foreignkey",
-                )
-            except Exception:
-                pass  # 如果约束不存在则忽略
+            safe_drop_constraint(
+                batch_op,
+                "fk_suggarchat_memory_sessions_ins_id_suggarchat_memory_data",
+                type_="foreignkey",
+            )
+            safe_drop_constraint(
+                batch_op,
+                "fk_suggarchat_memory_sessions_is_group_suggarchat_memory_data",
+                type_="foreignkey",
+            )
 
             # 删除索引
-            try:
-                batch_op.drop_index(batch_op.f("idx_sessions_created_at"))
-            except Exception:
-                pass
-            try:
-                batch_op.drop_index(batch_op.f("idx_sessions_ins_id"))
-            except Exception:
-                pass
-            try:
-                batch_op.drop_index(batch_op.f("idx_sessions_is_group"))
-            except Exception:
-                pass
+            safe_drop_index(batch_op, "idx_sessions_created_at")
+            safe_drop_index(batch_op, "idx_sessions_ins_id")
+            safe_drop_index(batch_op, "idx_sessions_is_group")
 
         op.drop_table("suggarchat_memory_sessions")
 
     if table_exists("suggarchat_group_config"):
         with op.batch_alter_table("suggarchat_group_config", schema=None) as batch_op:
-            try:
-                batch_op.drop_constraint(
-                    batch_op.f(
-                        "fk_suggarchat_group_config_group_id_suggarchat_memory_data"
-                    ),
-                    type_="foreignkey",
-                )
-            except Exception:
-                pass  # 如果约束不存在则忽略
-            try:
-                batch_op.drop_index(batch_op.f("idx_suggarchat_group_id"))
-            except Exception:
-                pass
+            safe_drop_constraint(
+                batch_op,
+                "fk_suggarchat_group_config_group_id_suggarchat_memory_data",
+                type_="foreignkey",
+            )
+            safe_drop_index(batch_op, "idx_suggarchat_group_id")
 
         op.drop_table("suggarchat_group_config")
 
     if table_exists("suggarchat_memory_data"):
         with op.batch_alter_table("suggarchat_memory_data", schema=None) as batch_op:
-            try:
-                batch_op.drop_constraint(
-                    batch_op.f("uq_ins_id_is_group"), type_="unique"
-                )
-            except Exception:
-                pass  # 如果约束不存在则忽略
-            try:
-                batch_op.drop_index(batch_op.f("idx_ins_id"))
-            except Exception:
-                pass
-            try:
-                batch_op.drop_index(batch_op.f("idx_is_group"))
-            except Exception:
-                pass
+            safe_drop_constraint(batch_op, "uq_ins_id_is_group", type_="unique")
+            safe_drop_index(batch_op, "idx_ins_id")
+            safe_drop_index(batch_op, "idx_is_group")
 
         op.drop_table("suggarchat_memory_data")
 
@@ -375,8 +345,30 @@ def downgrade(name: str = "") -> None:
     # 检查新表是否存在，如果存在则删除
     if table_exists("amritabot_memory_sessions"):
         with op.batch_alter_table("amritabot_memory_sessions", schema=None) as batch_op:
-            batch_op.drop_index("idx_sessions_user_id")
-            batch_op.drop_index("idx_sessions_created_at_time")
+            try:
+                batch_op.drop_index("idx_sessions_user_id")
+            except Exception as e:
+                error_msg = str(e).lower()
+                if (
+                    "not found" in error_msg
+                    or "doesn't exist" in error_msg
+                    or "no index" in error_msg
+                ):
+                    pass  # 索引不存在，忽略
+                else:
+                    raise
+            try:
+                batch_op.drop_index("idx_sessions_created_at_time")
+            except Exception as e:
+                error_msg = str(e).lower()
+                if (
+                    "not found" in error_msg
+                    or "doesn't exist" in error_msg
+                    or "no index" in error_msg
+                ):
+                    pass  # 索引不存在，忽略
+                else:
+                    raise
 
         op.drop_table("amritabot_memory_sessions")
 
@@ -385,13 +377,35 @@ def downgrade(name: str = "") -> None:
 
     if table_exists("amrita_group_config"):
         with op.batch_alter_table("amrita_group_config", schema=None) as batch_op:
-            batch_op.drop_index("idx_amrita_group_config_user_id")
+            try:
+                batch_op.drop_index("idx_amrita_group_config_user_id")
+            except Exception as e:
+                error_msg = str(e).lower()
+                if (
+                    "not found" in error_msg
+                    or "doesn't exist" in error_msg
+                    or "no index" in error_msg
+                ):
+                    pass  # 索引不存在，忽略
+                else:
+                    raise
 
         op.drop_table("amrita_group_config")
 
     if table_exists("amritabot_user_metadata"):
         with op.batch_alter_table("amritabot_user_metadata", schema=None) as batch_op:
-            batch_op.drop_index("idx_amrita_user_id_last_active")
+            try:
+                batch_op.drop_index("idx_amrita_user_id_last_active")
+            except Exception as e:
+                error_msg = str(e).lower()
+                if (
+                    "not found" in error_msg
+                    or "doesn't exist" in error_msg
+                    or "no index" in error_msg
+                ):
+                    pass  # 索引不存在，忽略
+                else:
+                    raise
 
         op.drop_table("amritabot_user_metadata")
 
