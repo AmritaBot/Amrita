@@ -1,6 +1,8 @@
 import contextlib
 from datetime import datetime
+from typing import Generic, TypeVar, cast
 
+from amrita_core.chatmanager import chat_manager
 from nonebot.adapters.onebot.v11 import Bot, Message, MessageSegment
 from nonebot.adapters.onebot.v11.event import (
     MessageEvent,
@@ -9,9 +11,14 @@ from nonebot.matcher import Matcher
 from nonebot.params import CommandArg
 from pytz import timezone, utc
 
-from amrita.plugins.chat import runtime
-from amrita.plugins.chat.runtime import ChatObject, chat_manager
+from amrita.plugins.chat.runtime import AmritaChatObject as ChatObject
+from amrita.plugins.chat.utils.sql import get_uni_user_id
 from amrita.utils.send import send_forward_msg
+
+T = TypeVar("T", contravariant=True)
+
+
+class ListWriteSafe(list, Generic[T]): ...
 
 
 def get_chat_objects_status(event: MessageEvent) -> dict[str, list[ChatObject]]:
@@ -21,17 +28,17 @@ def get_chat_objects_status(event: MessageEvent) -> dict[str, list[ChatObject]]:
     done_objects = []
     error_objects = []
 
-    all_objects = chat_manager.get_objs(event)
+    all_objects = chat_manager.get_objs(get_uni_user_id(event))
 
     for obj_instance in all_objects:
-        if obj_instance.is_running():
+        if obj_instance.is_running() or not hasattr(obj_instance, "is_watting"):
             running_objects.append(obj_instance)
-        elif obj_instance.is_waitting():
-            pending_objects.append(obj_instance)
         elif obj_instance.get_exception():
             error_objects.append(obj_instance)
         elif obj_instance.is_done():
             done_objects.append(obj_instance)
+        elif cast(ChatObject, obj_instance).is_waitting():
+            pending_objects.append(obj_instance)
 
     return {
         "running": running_objects,
@@ -45,7 +52,7 @@ def format_chat_object_info(obj: ChatObject) -> str:
     """格式化单个ChatObject的信息"""
     event = obj.event
     user_id = event.user_id
-    instance_id, is_group = runtime.chat_manager.get_obj_key(event)
+    instance_id = get_uni_user_id(event)
     status = "❓ Unknown"
     if obj.is_waitting():
         status = "⏳ Pending"
@@ -61,9 +68,9 @@ def format_chat_object_info(obj: ChatObject) -> str:
 
     info = (
         f"\n🆔 ID: {obj.stream_id[:8]}...\n"
-        + f"💬 类型: {'👥 群聊' if is_group else '👤 私聊'}\n"
+        + f"💬 类型: {'👥 群聊' if getattr(event, 'group_id', None) is not None else '👤 私聊'}\n"
         + f"👤 用户ID: {user_id}\n"
-        + f"🔢 实例ID: {instance_id}\n"
+        + f"🔢 会话ID: {instance_id}\n"
         + f">Status: {status}\n"
         + f"⏱️ 最后活动: {time_diff:.0f}s前\n"
         + f"🕐 时间: {obj.time.astimezone(timezone('Asia/Shanghai')).strftime('%H:%M:%S')}(UTC+8:00)\n"
@@ -114,8 +121,9 @@ async def send_status_report(
 
 async def terminate_chat_object(stream_id: str, event: MessageEvent) -> bool:
     """终止指定的ChatObject"""
-    all_objects: list[ChatObject] = chat_manager.get_objs(event)
-
+    all_objects: list[ChatObject] = cast(
+        list[ChatObject], chat_manager.get_objs(get_uni_user_id(event))
+    )
     for obj in all_objects:
         if obj.stream_id.startswith(stream_id):  # 支持ID前缀匹配
             obj_instance: ChatObject = obj
@@ -148,7 +156,7 @@ async def chatobj_manage(
         if len(stream_id_prefix) < 4:  # 至少需要4位前缀
             await matcher.finish("⚠️ 请输入至少4位的ID前缀来终止会话")
         elif stream_id_prefix == "all":
-            for obj in chat_manager.get_objs(event):
+            for obj in chat_manager.get_objs(get_uni_user_id(event)):
                 with contextlib.suppress(Exception):
                     obj.terminate()
             await matcher.finish("⚠️ 已终止所有匹配的会话")
@@ -163,7 +171,7 @@ async def chatobj_manage(
 
     elif plain_args == "clear" or plain_args == "clean":
         count = 0
-        chat_manager.clean_obj(chat_manager.get_obj_key(event), maxitems=0)
+        chat_manager.clean_obj(get_uni_user_id(event), maxitems=0)
         await matcher.finish(f"🧹 已清除 {count} 个已完成的会话")
 
     elif plain_args == "help":

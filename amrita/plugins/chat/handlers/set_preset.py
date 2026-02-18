@@ -1,3 +1,4 @@
+from amrita_core import PresetManager
 from nonebot.adapters import Message
 from nonebot.adapters.onebot.v11.event import MessageEvent
 from nonebot.matcher import Matcher
@@ -26,6 +27,7 @@ async def set_preset(
                 # 设置预设并保存
                 config_manager.ins_config.preset = model.name
                 await config_manager.save_config()
+                PresetManager().set_default_preset(model)
                 # 回复设置成功
                 await matcher.finish(f"已设置预设为：{model.name}，模型：{model.model}")
         # 未找到匹配的预设

@@ -2,16 +2,13 @@ import asyncio
 import json
 from asyncio import Lock
 
+from amrita_core import PresetManager, PresetReport
 from nonebot.adapters.onebot.v11 import Bot, Message, MessageEvent, MessageSegment
 from nonebot.matcher import Matcher
 from nonebot.params import CommandArg
 
 from amrita.plugins.chat.check_rule import is_bot_admin
 from amrita.plugins.chat.config import config_manager
-from amrita.plugins.chat.utils.libchat import (
-    PresetReport,
-    test_single_preset,
-)
 from amrita.utils.send import send_forward_msg
 
 TEST_LOCK = Lock()
@@ -25,13 +22,14 @@ async def t_preset(
     if TEST_LOCK.locked():
         await matcher.finish("当前仍然有1个测试任务正在执行，请稍后再试。")
     async with TEST_LOCK:
+        pm = PresetManager()
         presets = await config_manager.get_all_presets(True)
         await matcher.send(
             MessageSegment.text(f"开始测试所有(共计{len(presets)}个)预设...")
         )
         # 使用asyncio.gather并行执行所有预设测试
         presets = await config_manager.get_all_presets(True)
-        tasks = [test_single_preset(preset) for preset in presets]
+        tasks = [pm.test_single_preset(preset) for preset in presets]
         results: list[PresetReport] = await asyncio.gather(*tasks)
         arg_list = args.extract_plain_text().strip().split()
         if "--detail" in arg_list or "-d" in arg_list:

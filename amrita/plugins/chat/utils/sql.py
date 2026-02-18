@@ -258,6 +258,7 @@ class Memory(Model, HasUserIDModel):
         nullable=False,
         server_default=text("'{}'"),
     )
+    extra_prompt: Mapped[str] = mapped_column(Text, default="")
     __table_args__ = (UniqueConstraint("user_id", name="uq_amrita_memory_user_id"),)
 
 
@@ -334,7 +335,6 @@ class GroupConfig(Model, HasUserIDModel):
         nullable=False,
     )
     enable: Mapped[bool] = mapped_column(Boolean, default=True)
-    extra_prompt: Mapped[str] = mapped_column(Text, default="")
     autoreply: Mapped[bool] = mapped_column(Boolean, default=False)
     last_updated: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
 

@@ -9,7 +9,6 @@ from nonebot.adapters.onebot.v11 import (
 from nonebot.matcher import Matcher
 from nonebot.params import CommandArg
 
-from amrita.plugins.chat.builtin_hook import ChatException
 from amrita.plugins.chat.config import config_manager
 from amrita.utils.send import send_forward_msg
 
@@ -73,36 +72,34 @@ async def mcp_status(bot: Bot, matcher: Matcher, event: MessageEvent, arg: list[
 async def add_mcp_server(
     matcher: Matcher, bot: Bot, event: MessageEvent, mcp_server: str
 ):
-    if not config_manager.config.llm_config.tools.agent_mcp_client_enable:
+    if not config_manager.config.llm.tools.agent_mcp_client_enable:
         return
     config = config_manager.ins_config
     if not mcp_server:
         await matcher.finish("请输入MCP Server脚本路径")
-    if mcp_server in config.llm_config.tools.agent_mcp_server_scripts:
+    if mcp_server in config.llm.tools.agent_mcp_server_scripts:
         await matcher.finish("MCP Server脚本已存在")
     try:
         await ClientManager().initialize_this(mcp_server)
-        config.llm_config.tools.agent_mcp_server_scripts.append(mcp_server)
+        config.llm.tools.agent_mcp_server_scripts.append(mcp_server)
         await config_manager.save_config()
         await matcher.send("添加成功")
     except Exception as e:
-        if isinstance(e, ChatException):
-            raise
         await matcher.send(f"添加失败: {e}")
         logger.opt(exception=e, colors=True).exception(e)
 
 
 async def del_mcp_server(matcher: Matcher, mcp_server: str):
-    if not config_manager.config.llm_config.tools.agent_mcp_client_enable:
+    if not config_manager.config.llm.tools.agent_mcp_client_enable:
         return
     config = config_manager.ins_config
     if not mcp_server:
         await matcher.finish("请输入要删除的MCP Server")
-    if mcp_server not in config.llm_config.tools.agent_mcp_server_scripts:
+    if mcp_server not in config.llm.tools.agent_mcp_server_scripts:
         await matcher.finish("MCP Server不存在")
     try:
         await ClientManager().unregister_client(mcp_server)
-        config.llm_config.tools.agent_mcp_server_scripts.remove(mcp_server)
+        config.llm.tools.agent_mcp_server_scripts.remove(mcp_server)
         await config_manager.save_config()
         await matcher.send("删除成功")
     except Exception as e:
@@ -111,7 +108,7 @@ async def del_mcp_server(matcher: Matcher, mcp_server: str):
 
 
 async def reload(matcher: Matcher):
-    if not config_manager.config.llm_config.tools.agent_mcp_client_enable:
+    if not config_manager.config.llm.tools.agent_mcp_client_enable:
         return
     try:
         await ClientManager().reinitalize_all()

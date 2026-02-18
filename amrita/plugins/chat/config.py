@@ -1,16 +1,16 @@
-import copy
 import json
 import os
 import re
 from copy import deepcopy
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, ClassVar, Literal, TypeVar
+from typing import Any, ClassVar, Literal
 
 import aiofiles
 import nonebot_plugin_localstore as store
 import tomli
 import tomli_w
+from amrita_core import ModelPreset as CoreModelPreset
 from amrita_core.config import (
     AmritaConfig as AmritaCoreConfig,
 )
@@ -25,6 +25,7 @@ from amrita_core.config import (
 )
 from nonebot import get_driver, logger
 from nonebot_plugin_uniconf import EnvfulConfigManager
+from nonebot_plugin_uniconf.manager import replace_env_vars
 from pydantic import BaseModel, Field
 
 from amrita.config_manager import UniConfigManager
@@ -37,59 +38,18 @@ __kernel_version__ = "unknown"
 CONFIG_DIR: Path = store.get_plugin_config_dir()
 driver = get_driver()
 nb_config = driver.config
-STRDICT = dict[str, Any]
-
-T = TypeVar("T", STRDICT, list[str | STRDICT], str)
-
 # 缓存的正则表达式
 _re_hash: int = 0
 _cached_pattern: re.Pattern[str] | None = None
 
 
-def replace_env_vars(
-    data: T,
-) -> T:
-    """递归替换环境变量占位符，但不修改原始数据"""
-    data_copy = copy.deepcopy(data)  # 创建原始数据的深拷贝[4,5](@ref)
-    if isinstance(data_copy, dict):
-        for key, value in data_copy.items():
-            data_copy[key] = replace_env_vars(value)
-    elif isinstance(data_copy, list):
-        for i in range(len(data_copy)):
-            data_copy[i] = replace_env_vars(data_copy[i])
-    elif isinstance(data_copy, str):
-        patterns = (
-            r"\$\{(\w+)\}",
-            r"\{\{(\w+)\}\}",
-        )  # 支持两种格式的占位符，分别为 ${} 和 {{}}
-
-        def replacer(match: re.Match[str]) -> str:
-            var_name = match.group(1)
-            return os.getenv(var_name, "")  # 若未设置环境变量，返回空字符串
-
-        for pattern in patterns:
-            if re.search(pattern, data_copy):
-                # 如果匹配到占位符，则进行替换
-                data_copy = re.sub(pattern, replacer, data_copy)
-                break  # 替换后跳出循环，避免重复替换
-    return data_copy
-
-
-class ModelPreset(BaseModel):
-    model: str = Field(default="", description="使用的AI模型名称（如gpt-3.5-turbo）")
-    name: str = Field(default="default", description="当前预设的标识名称")
-    base_url: str = Field(
-        default="", description="API服务的基础地址（为空则使用OpenAI默认地址）"
-    )
-    api_key: str = Field(default="", description="访问API所需的密钥")
-    protocol: str = Field(default="__main__", description="协议适配器类型")
+class ModelPreset(CoreModelPreset):
     thought_chain_model: bool = Field(
         default=False, description="是否启用思维链模型优化（增强复杂问题处理）"
     )
     multimodal: bool = Field(
         default=False, description="是否支持多模态输入（如图片识别）"
     )
-    extra: dict[str, Any] = Field(default_factory=dict)
 
     @classmethod
     def load(cls, path: Path):
@@ -366,7 +326,6 @@ class Config(BaseModel):
         default=FunctionConfig(), description="功能开关配置"
     )
     extended: ExtendConfig = Field(default=ExtendConfig(), description="扩展行为设置")
-    # 将原来的llm_config重命名为llm以匹配Core配置
     llm: LLM_Config = Field(
         default=LLM_Config(), description="大语言模型配置，对应Core的llm"
     )

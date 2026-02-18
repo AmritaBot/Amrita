@@ -5,6 +5,7 @@ from typing import Any
 
 from amrita_core import (
     ChatObject,
+    PreCompletionEvent,
     ToolContext,
     get_config,
     on_precompletion,
@@ -13,7 +14,7 @@ from amrita_core import (
 from amrita_core.builtins import agent
 from amrita_core.protocol import StringMessageContent
 from nonebot import get_bot
-from nonebot.adapters.onebot.v11 import Bot
+from nonebot.adapters.onebot.v11 import Bot, MessageEvent
 from nonebot.log import logger
 from nonebot.matcher import Matcher
 
@@ -27,7 +28,6 @@ from amrita.plugins.chat.utils.sql import (
 from amrita.utils.admin import send_to_admin
 
 from .config import Config, config_manager
-from .event import UniChatEvent
 from .utils.libchat import (
     tools_caller,
 )
@@ -58,7 +58,9 @@ async def _(ctx: ToolContext) -> str | None:
 
 
 @checkhook.handle()
-async def text_check(event: UniChatEvent, nonebot_matcher: Matcher) -> None:
+async def text_check(
+    event: PreCompletionEvent, nonebot_event: MessageEvent, nonebot_matcher: Matcher
+) -> None:
     config: Config = config_manager.config
     if not config.llm.tools.enable_report:
         checkhook.pass_event()
@@ -93,7 +95,6 @@ async def text_check(event: UniChatEvent, nonebot_matcher: Matcher) -> None:
     response: UniResponse[None, list[ToolCall] | None] = await tools_caller(
         msg, tool_list
     )
-    nonebot_event = event.nb_event
     if tool_calls := response.tool_calls:
         for tool_call in tool_calls:
             function_name = tool_call.function.name
@@ -103,6 +104,7 @@ async def text_check(event: UniChatEvent, nonebot_matcher: Matcher) -> None:
                     return
                 await report(
                     event,
+                    nonebot_event,
                     function_args,
                     typing.cast(Bot, bot),
                 )

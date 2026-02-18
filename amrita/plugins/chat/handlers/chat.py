@@ -24,7 +24,7 @@ from nonebot.adapters.onebot.v11 import (
     MessageSegment,
 )
 from nonebot.adapters.onebot.v11.event import GroupMessageEvent, MessageEvent
-from nonebot.exception import MatcherException, ProcessException
+from nonebot.exception import MatcherException, NoneBotException, ProcessException
 from nonebot.matcher import Matcher
 from pytz import utc
 
@@ -201,7 +201,7 @@ async def entry(event: MessageEvent, matcher: Matcher, bot: Bot):
                 await send_response(chat, chat.response.content)
 
     except BaseException as e:
-        if isinstance(e, ChatException):
+        if isinstance(e, (NoneBotException, ChatException)):
             raise
         debug_log(f"处理聊天事件时发生异常: {e}")
         await chat._throw(e)

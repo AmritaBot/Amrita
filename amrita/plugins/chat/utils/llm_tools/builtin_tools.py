@@ -1,13 +1,14 @@
 from copy import deepcopy
 
+from amrita_core import PreCompletionEvent
 from amrita_core.types import Content
 from nonebot import logger
 from nonebot.adapters.onebot.v11 import (
     Bot,
     GroupMessageEvent,
+    MessageEvent,
 )
 
-from amrita.plugins.chat.event import UniChatEvent
 from amrita.utils.admin import send_to_admin
 
 from .models import (
@@ -18,9 +19,10 @@ from .models import (
 )
 
 
-async def report(event: UniChatEvent, data: dict[str, str], bot: Bot):
+async def report(
+    event: PreCompletionEvent, nb_event: MessageEvent, data: dict[str, str], bot: Bot
+):
     message = data["content"]
-    nb_event = event.nb_event
     logger.warning(f"{nb_event.user_id} 被举报了 ：{message}")
     content = deepcopy(event.get_context_messages().get_user_query().content)
     if not isinstance(content, str):

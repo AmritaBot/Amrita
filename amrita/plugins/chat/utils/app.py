@@ -48,6 +48,7 @@ class MemorySchema(BaseSchema):
     memory_json: AwaredMemory = Field(
         default_factory=AwaredMemory, description="记忆数据的JSON格式"
     )
+    extra_prompt: str = Field(default="", description="额外提示")
 
 
 class MemorySessionsSchema(BaseSchema):
@@ -63,7 +64,6 @@ class MemorySessionsSchema(BaseSchema):
 
 class GroupConfigSchema(BaseSchema):
     enable: bool = Field(default=True, description="是否启用")
-    extra_prompt: str = Field(default="", description="额外提示")
     autoreply: bool = Field(default=False, description="是否自动回复")
     last_updated: datetime = Field(
         default_factory=lambda: datetime.now(utc), description="最后更新时间"

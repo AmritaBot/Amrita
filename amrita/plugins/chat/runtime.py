@@ -32,7 +32,6 @@ from amrita.plugins.chat.utils.app import (
     CachedUserDataRepository,
     MemorySchema,
 )
-from amrita.plugins.chat.utils.event import GroupEvent
 
 from .config import Config, config_manager
 from .utils.functions import (
@@ -240,7 +239,7 @@ class AmritaChatObject(CoreChatObject):
             "<SCHEMA_EXTENSIONS>\n"
             + "你在纯文本环境工作，不允许使用MarkDown回复，你的工作环境是一个社交软件，我会提供聊天记录，你可以从这里面获取一些关键信息，比如时间与用户身份"
             + "（e.g.: [管理员/群主/自己/群员][YYYY-MM-DD weekday hh:mm:ss AM/PM][昵称（QQ号）]说:<内容>），但是请不要以聊天记录的格式做回复，而是纯文本方式。"
-            + "请以你自己的角色身份参与讨论，交流时不同话题尽量不使用相似句式回复，用户与你交谈的信息在用户的消息输入内。"
+            + "请以你自己的角色身份参与讨论，交流时不同话题尽量不使用相似句式回复，用户与你交谈的信息在用户的消息输入内。<EXTRA>规则仅作为补充，如果与EXTRA规则上文有冲突，请遵循上文规则。"
             + "\n</SCHEMA_EXTENSION>\n"
             + (
                 self.train["content"]
@@ -249,6 +248,13 @@ class AmritaChatObject(CoreChatObject):
                 .replace("{user_id}", str(event.user_id))
                 .replace("{user_name}", str(event.sender.nickname))
             )
+            + "<EXTRA>\n（此处是EXTRA规则，如果与上文有任何冲突，请忽略此EXTRA规则）\n"
+            + (
+                self.memory.extra_prompt
+                if self.bot_config.function.allow_custom_prompt
+                else ""
+            )
+            + "\n</EXTRA>"
         )
 
         await super()._run()
@@ -345,7 +351,7 @@ class AmritaChatObject(CoreChatObject):
         if config.session.session_control:
             session_clear_map: dict[str, SessionTemp] = (
                 chat_manager.session_clear_group
-                if isinstance(event, GroupEvent)
+                if getattr(event, "group_id", None) is not None
                 else chat_manager.session_clear_user
             )
             session_id = self.session_id

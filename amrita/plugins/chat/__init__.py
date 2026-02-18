@@ -8,7 +8,6 @@ require("nonebot_plugin_localstore")
 
 
 from . import (
-    API,
     builtin_hook,
     config,
     matcher_manager,
@@ -17,7 +16,6 @@ from . import (
 )
 
 __all__ = [
-    "API",
     "builtin_hook",
     "config",
     "matcher_manager",
