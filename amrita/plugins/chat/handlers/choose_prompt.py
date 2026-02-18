@@ -1,11 +1,9 @@
-from typing import Any
-
 from nonebot.adapters import Message
 from nonebot.adapters.onebot.v11.event import MessageEvent
 from nonebot.matcher import Matcher
 from nonebot.params import CommandArg
 
-from ..config import config_manager
+from ..config import Prompt, config_manager
 
 
 async def choose_prompt(
@@ -51,7 +49,7 @@ async def choose_prompt(
                 (await config_manager.get_prompts()).private, "private"
             )
 
-    async def list_available_prompts(prompts: list[Any], prompt_type: str) -> None:
+    async def list_available_prompts(prompts: list[Prompt], prompt_type: str) -> None:
         """列出可用的提示词预设"""
         msg = "可选的预设名称：\n"
         for index, i in enumerate(prompts):

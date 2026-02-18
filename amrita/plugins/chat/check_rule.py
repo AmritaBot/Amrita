@@ -3,6 +3,7 @@ import random
 import time
 
 import nonebot
+from amrita_core.types import Message
 from nonebot import get_driver, logger
 from nonebot.adapters.onebot.v11 import Bot
 from nonebot.adapters.onebot.v11.event import (
@@ -10,12 +11,12 @@ from nonebot.adapters.onebot.v11.event import (
     GroupMessageEvent,
     MessageEvent,
 )
-from nonebot_plugin_orm import get_session
 from typing_extensions import override
 
+from amrita.plugins.chat.utils.app import CachedUserDataRepository, MemorySchema
 from amrita.plugins.chat.utils.libchat import usage_enough
 from amrita.plugins.chat.utils.lock import get_group_lock, get_private_lock
-from amrita.plugins.chat.utils.models import TextContent
+from amrita.plugins.chat.utils.sql import TextContent
 from amrita.plugins.perm.API.admin import is_lp_admin
 
 from .config import config_manager
@@ -23,14 +24,12 @@ from .utils.functions import (
     get_current_datetime_timestamp,
     synthesize_message,
 )
-from .utils.memory import get_memory_data
-from .utils.models import Message, get_or_create_data
 
 nb_config = get_driver().config
 
 
 class FakeEvent(Event):
-    """伪造事件类，用于模拟用户事件"""
+    """伪事件类，用于模拟用户事件"""
 
     user_id: int
 
@@ -54,12 +53,11 @@ async def is_bot_enabled(event: Event) -> bool:
         bots = set(nonebot.get_bots().keys())
         if event.get_user_id() in bots:  # 多实例下防止冲突
             return False
-    if getattr(event, "group_id", None) is not None:
-        async with get_session() as session:
-            data, _ = await get_or_create_data(
-                session=session, ins_id=getattr(event, "group_id"), is_group=True
-            )
-            return data.enable
+    if group_id := getattr(event, "group_id", None) is not None:
+        data = await CachedUserDataRepository().get_group_config(
+            group_id,
+        )
+        return data.enable
     return True
 
 
@@ -100,6 +98,7 @@ async def should_respond_to_message(event: MessageEvent, bot: Bot) -> bool:
         if isinstance(event, GroupMessageEvent)
         else get_private_lock(event.user_id)
     )
+    dm = CachedUserDataRepository()
     async with lock:
         message = event.get_message()
         message_text = message.extract_plain_text().strip()
@@ -130,12 +129,14 @@ async def should_respond_to_message(event: MessageEvent, bot: Bot) -> bool:
             rate = config_manager.config.autoreply.probability
 
             # 获取记忆数据
-            memory_data = await get_memory_data(event)
+            is_group = bool(getattr(event, "group_id", None))
+            ins_id: int = getattr(event, "group_id", event.user_id)
+            memory_data: MemorySchema = await dm.get_memory(ins_id, is_group)
             if rand <= rate and (
                 config_manager.config.autoreply.global_enable or memory_data.fake_people
             ):
-                memory_data.timestamp = time.time()
-                await memory_data.save(event)
+                memory_data.memory_json.time = time.time()
+                await dm.update_memory_data(memory_data)
                 return True
             # 合成消息内容
             content = await synthesize_message(message, bot)
@@ -175,35 +176,34 @@ async def should_respond_to_message(event: MessageEvent, bot: Bot) -> bool:
             # 生成消息内容并记录到记忆
             content_message = f"[{role}][{Date}][{user_name}（{user_id}）]说:{content}"
             if (
-                not len(memory_data.memory.messages) > 1
-                or memory_data.memory.messages[-1].role != "user"
-                or (not memory_data.memory.messages[-1].content)
+                not len(memory_data.memory_json.messages) > 1
+                or memory_data.memory_json.messages[-1].role != "user"
+                or (not memory_data.memory_json.messages[-1].content)
             ):
-                memory_data.memory.messages.append(
+                memory_data.memory_json.messages.append(
                     Message(
                         role="user",
                         content=[TextContent(type="text", text=content_message)],
                     )
                 )
-            elif isinstance(memory_data.memory.messages[-1].content, str):
-                memory_data.memory.messages[-1].content = [
+            elif isinstance(memory_data.memory_json.messages[-1].content, str):
+                memory_data.memory_json.messages[-1].content = [
                     TextContent(
-                        type="text", text=str(memory_data.memory.messages[-1].content)
+                        type="text",
+                        text=str(memory_data.memory_json.messages[-1].content),
                     ),
                     TextContent(type="text", text=content_message),
                 ]
             else:
-                assert isinstance(memory_data.memory.messages[-1].content, list)
-                if len(memory_data.memory.messages[-1].content) >= 100:
-                    memory_data.memory.messages[
+                assert isinstance(memory_data.memory_json.messages[-1].content, list)
+                if len(memory_data.memory_json.messages[-1].content) >= 100:
+                    memory_data.memory_json.messages[
                         -1
-                    ].content = memory_data.memory.messages[-1].content[-100:]
-                memory_data.memory.messages[-1].content.append(
+                    ].content = memory_data.memory_json.messages[-1].content[-100:]
+                memory_data.memory_json.messages[-1].content.append(
                     TextContent(type="text", text=content_message)
                 )
-            # 写入记忆数据
-            await memory_data.save(event)
-
+            await dm.update_memory_data(memory_data)
         # 默认返回 False
         return False
 

@@ -3,6 +3,8 @@ from datetime import datetime
 from typing import Any
 
 import pytz
+from amrita_core.logging import debug_log
+from amrita_core.utils import remove_think_tag
 from nonebot import logger
 from nonebot.adapters.onebot.v11 import (
     Bot,
@@ -10,42 +12,7 @@ from nonebot.adapters.onebot.v11 import (
     Message,
 )
 
-from amrita.plugins.chat.utils.logging import debug_log
-
 from ..config import config_manager
-
-
-def remove_think_tag(text: str) -> str:
-    """移除第一次出现的think标签
-
-    Args:
-        text (str): 处理的参数
-
-    Returns:
-        str: 处理后的文本
-    """
-
-    start_tag = "<think>"
-    end_tag = "</think>"
-
-    # 查找第一个起始标签的位置
-    start_idx = text.find(start_tag)
-    if start_idx == -1:
-        return text  # 没有找到起始标签，直接返回原文本
-
-    # 在起始标签之后查找结束标签的位置
-    end_idx = text.find(end_tag, start_idx + len(start_tag))
-    if end_idx == -1:
-        return text  # 没有找到对应的结束标签，返回原文本
-
-    # 计算结束标签的结束位置
-    end_of_end_tag = end_idx + len(end_tag)
-
-    # 拼接移除标签后的文本
-    text_new = text[:start_idx] + text[end_of_end_tag:]
-    while text_new.startswith("\n"):
-        text_new = text_new[1:]
-    return text_new
 
 
 async def is_member(event: GroupMessageEvent, bot: Bot) -> bool:
@@ -220,3 +187,6 @@ async def get_friend_name(qq_number: int, bot: Bot) -> str:
         ),
         "",
     )
+
+
+__all__ = ["remove_think_tag"]

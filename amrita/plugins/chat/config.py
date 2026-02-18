@@ -1,20 +1,34 @@
-import copy
 import json
 import os
 import re
 from copy import deepcopy
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, ClassVar, Literal, TypeVar
+from typing import Any, ClassVar, Literal
 
 import aiofiles
 import nonebot_plugin_localstore as store
 import tomli
 import tomli_w
+from amrita_core import ModelPreset as CoreModelPreset
+from amrita_core.config import (
+    AmritaConfig as AmritaCoreConfig,
+)
+from amrita_core.config import (
+    CookieConfig as CoreCookieConfig,
+)
+from amrita_core.config import (
+    FunctionConfig as CoreFunctionConfig,
+)
+from amrita_core.config import (
+    LLMConfig as CoreLLMConfig,
+)
 from nonebot import get_driver, logger
+from nonebot_plugin_uniconf import EnvfulConfigManager
+from nonebot_plugin_uniconf.manager import replace_env_vars
 from pydantic import BaseModel, Field
 
-from amrita.config_manager import BaseDataManager, UniConfigManager
+from amrita.config_manager import UniConfigManager
 
 __kernel_version__ = "unknown"
 
@@ -24,59 +38,18 @@ __kernel_version__ = "unknown"
 CONFIG_DIR: Path = store.get_plugin_config_dir()
 driver = get_driver()
 nb_config = driver.config
-STRDICT = dict[str, Any]
-
-T = TypeVar("T", STRDICT, list[str | STRDICT], str)
-
 # 缓存的正则表达式
 _re_hash: int = 0
 _cached_pattern: re.Pattern[str] | None = None
 
 
-def replace_env_vars(
-    data: T,
-) -> T:
-    """递归替换环境变量占位符，但不修改原始数据"""
-    data_copy = copy.deepcopy(data)  # 创建原始数据的深拷贝[4,5](@ref)
-    if isinstance(data_copy, dict):
-        for key, value in data_copy.items():
-            data_copy[key] = replace_env_vars(value)
-    elif isinstance(data_copy, list):
-        for i in range(len(data_copy)):
-            data_copy[i] = replace_env_vars(data_copy[i])
-    elif isinstance(data_copy, str):
-        patterns = (
-            r"\$\{(\w+)\}",
-            r"\{\{(\w+)\}\}",
-        )  # 支持两种格式的占位符，分别为 ${} 和 {{}}
-
-        def replacer(match: re.Match[str]) -> str:
-            var_name = match.group(1)
-            return os.getenv(var_name, "")  # 若未设置环境变量，返回空字符串
-
-        for pattern in patterns:
-            if re.search(pattern, data_copy):
-                # 如果匹配到占位符，则进行替换
-                data_copy = re.sub(pattern, replacer, data_copy)
-                break  # 替换后跳出循环，避免重复替换
-    return data_copy
-
-
-class ModelPreset(BaseModel):
-    model: str = Field(default="", description="使用的AI模型名称（如gpt-3.5-turbo）")
-    name: str = Field(default="default", description="当前预设的标识名称")
-    base_url: str = Field(
-        default="", description="API服务的基础地址（为空则使用OpenAI默认地址）"
-    )
-    api_key: str = Field(default="", description="访问API所需的密钥")
-    protocol: str = Field(default="__main__", description="协议适配器类型")
+class ModelPreset(CoreModelPreset):
     thought_chain_model: bool = Field(
         default=False, description="是否启用思维链模型优化（增强复杂问题处理）"
     )
     multimodal: bool = Field(
         default=False, description="是否支持多模态输入（如图片识别）"
     )
-    extra: dict[str, Any] = Field(default_factory=dict)
 
     @classmethod
     def load(cls, path: Path):
@@ -122,9 +95,6 @@ class ToolsConfig(BaseModel):
     require_tools: bool = Field(
         default=False, description="是否强制要求每次调用至少使用一个工具"
     )
-    agent_mode_enable: bool = Field(
-        default=False, description="启用智能体模式（实验体验）"
-    )
     agent_tool_call_limit: int = Field(
         default=10, description="智能体模式下的工具调用限制"
     )
@@ -152,6 +122,11 @@ class ToolsConfig(BaseModel):
     )
     agent_mcp_server_scripts: list[str] = Field(
         default=[], description="MCP服务端脚本列表"
+    )
+    # 添加Core配置中FunctionConfig的tool_calling_mode
+    tool_calling_mode: Literal["agent", "rag", "none"] = Field(
+        default="agent",
+        description="工具调用模式，决定是否使用Agent或RAG调用工具",
     )
 
 
@@ -238,11 +213,11 @@ class CookieModel(BaseModel):
 
     @property
     def block_msg(self) -> list[str]:
-        return ConfigManager().config.llm_config.block_msg
+        return ConfigManager().config.llm.block_msg
 
     @block_msg.setter
     def block_msg(self, value: list[str]):
-        ConfigManager().config.llm_config.block_msg = value
+        ConfigManager().config.llm.block_msg = value
 
 
 class ExtendConfig(BaseModel):
@@ -292,7 +267,7 @@ class UsageLimitConfig(BaseModel):
 class LLM_Config(BaseModel):
     tools: ToolsConfig = Field(default=ToolsConfig(), description="工具调用配置")
     stream: bool = Field(default=False, description="是否启用流式响应（逐字输出）")
-    memory_lenth_limit: int = Field(default=50, description="记忆上下文的最大消息数量")
+    memory_length_limit: int = Field(default=50, description="记忆上下文的最大消息数量")
     max_tokens: int = Field(default=100, description="单次回复生成的最大token数")
     tokens_count_mode: Literal["word", "bpe", "char"] = Field(
         default="bpe", description="Token计算模式：bpe(子词)/word(词语)/char(字符)"
@@ -300,6 +275,7 @@ class LLM_Config(BaseModel):
     enable_tokens_limit: bool = Field(
         default=True, description="是否启用上下文长度限制"
     )
+    session_tokens_windows: int = Field(default=5000, description="会话tokens窗口大小")
     llm_timeout: int = Field(default=60, description="API请求超时时间（秒）")
     auto_retry: bool = Field(default=True, description="请求失败时自动重试")
     max_retries: int = Field(default=3, description="最大重试次数")
@@ -310,9 +286,21 @@ class LLM_Config(BaseModel):
     memory_abstract_proportion: float = Field(
         default=15e-2, description="上下文摘要比例(0.15=15%)"
     )
+    enable_multi_modal: bool = Field(
+        default=True,
+        description="是否启用多模态支持（目前仅支持图像）",
+    )
     block_msg: list[str] = Field(
         default=["你好，这个问题我暂时无法处理，请稍后再试。"],
         description="触发安全熔断时随机返回的提示消息",
+    )
+    # 添加limit相关配置
+    limit: UsageLimitConfig = Field(
+        default=UsageLimitConfig(), description="使用限制配置"
+    )
+    limit_msg: list[str] = Field(
+        default=["使用次数已达上限，请明天再试。"],
+        description="达到使用限制时返回的消息",
     )
 
 
@@ -330,16 +318,22 @@ class Config(BaseModel):
     autoreply: AutoReplyConfig = Field(
         default=AutoReplyConfig(), description="自动回复设置"
     )
+    # 添加与Core配置对应的function_config
+    function_config: ToolsConfig = Field(
+        default=ToolsConfig(), description="功能配置，对应Core的function_config"
+    )
     function: FunctionConfig = Field(
         default=FunctionConfig(), description="功能开关配置"
     )
     extended: ExtendConfig = Field(default=ExtendConfig(), description="扩展行为设置")
-    llm_config: LLM_Config = Field(default=LLM_Config(), description="大语言模型配置")
+    llm: LLM_Config = Field(
+        default=LLM_Config(), description="大语言模型配置，对应Core的llm"
+    )
     extra: dict[str, Any] = Field(default={}, description="扩展预留区")
     usage_limit: UsageLimitConfig = Field(
         default=UsageLimitConfig(), description="使用限额配置"
     )
-    enable: bool = Field(default=False, description="是否启用 SuggarChat 主功能")
+    enable: bool = Field(default=False, description="是否启用 Amrita的聊天能力")
     parse_segments: bool = Field(
         default=True, description="是否解析特殊消息段（如@提及/合并转发等）"
     )
@@ -365,9 +359,9 @@ class Config(BaseModel):
 
     def validate_value(self):
         """校验配置"""
-        if self.llm_config.max_tokens <= 0:
+        if self.llm.max_tokens <= 0:  # 更新配置路径
             raise ValueError("max_tokens必须大于零!")
-        if self.llm_config.llm_timeout <= 0:
+        if self.llm.llm_timeout <= 0:  # 更新配置路径
             raise ValueError("LLM请求超时时间必须大于零！")
         if self.session.session_max_tokens <= 0:
             raise ValueError("上下文最大Tokens限制必须大于零！")
@@ -388,6 +382,39 @@ class Config(BaseModel):
         """保存配置到 TOML 文件"""
         with path.open("w", encoding="utf-8") as f:
             f.write(tomli_w.dumps(self.model_dump()))
+
+    def to_core_config(self) -> AmritaCoreConfig:
+        return AmritaCoreConfig(
+            function_config=CoreFunctionConfig(
+                use_minimal_context=self.function_config.use_minimal_context,
+                tool_calling_mode=self.function_config.tool_calling_mode,
+                agent_tool_call_limit=self.function_config.agent_tool_call_limit,
+                agent_tool_call_notice=self.function_config.agent_tool_call_notice,
+                agent_thought_mode=self.function_config.agent_thought_mode,
+                agent_reasoning_hide=self.function_config.agent_reasoning_hide,
+                agent_middle_message=self.function_config.agent_middle_message,
+                agent_mcp_client_enable=self.function_config.agent_mcp_client_enable,
+                agent_mcp_server_scripts=self.function_config.agent_mcp_server_scripts,
+            ),
+            llm=CoreLLMConfig(
+                require_tools=self.llm.tools.require_tools,
+                memory_length_limit=self.llm.memory_length_limit,
+                max_tokens=self.llm.max_tokens,
+                tokens_count_mode=self.llm.tokens_count_mode,
+                enable_tokens_limit=self.llm.enable_tokens_limit,
+                session_tokens_windows=self.llm.session_tokens_windows,
+                llm_timeout=self.llm.llm_timeout,
+                auto_retry=self.llm.auto_retry,
+                max_retries=self.llm.max_retries,
+                enable_memory_abstract=self.llm.enable_memory_abstract,
+                memory_abstract_proportion=self.llm.memory_abstract_proportion,
+                enable_multi_modal=self.llm.enable_multi_modal,
+            ),
+            cookie=CoreCookieConfig(
+                enable_cookie=self.cookies.enable_cookie,
+                cookie=self.cookies.cookie,
+            ),
+        )
 
 
 @dataclass
@@ -420,7 +447,7 @@ class Prompts:
                 f.write(prompt.text)
 
 
-class ConfigManager(BaseDataManager[Config]):
+class ConfigManager(EnvfulConfigManager[Config]):
     config_dir: Path = CONFIG_DIR
     private_prompts: Path = config_dir / "private_prompts"
     group_prompts: Path = config_dir / "group_prompts"
@@ -428,34 +455,11 @@ class ConfigManager(BaseDataManager[Config]):
     _private_train: ClassVar[dict[str, Any]] = {}
     _group_train: ClassVar[dict[str, Any]] = {}
     _model_name2file: ClassVar[dict[str, Path]] = {}
-    ins_config: Config = Config()
     models: ClassVar[list[tuple[ModelPreset, str]]] = []
     prompts: Prompts = Prompts()
     config: Config
-    _config_id: int | None = None
-    _cached_env_config: Config | None = None
     _owner_name = store._try_get_caller_plugin().name
     __lateinit__ = True
-
-    def __getattribute__(self, name: str) -> Any:
-        if name == "config":
-            conf_id = id(self.ins_config)
-            if conf_id == self._config_id:
-                assert self._cached_env_config
-                return self._cached_env_config
-            self._config_id = conf_id
-            conf_data: dict[str, Any] = self.ins_config.model_dump()
-            result = replace_env_vars(conf_data)
-            self._cached_env_config = Config.model_validate(result)
-            return self._cached_env_config
-        return super().__getattribute__(name)
-
-    def __setattr__(self, name: str, value: Any) -> None:
-        if name == "config":
-            self._cached_env_config = None
-            self._config_id = None
-            self.ins_config = value
-        return super().__setattr__(name, value)
 
     async def __apost_init__(self):
         return await self.load()
@@ -546,13 +550,13 @@ class ConfigManager(BaseDataManager[Config]):
             ModelPreset: _模型预设对象_
         """
         if preset == "default":
-            return config_manager.config.default_preset
+            return self.config.default_preset
         for model in await self.get_all_presets(cache=cache):
             if model.name == preset:
                 return model
         if fix:
-            config_manager.ins_config.preset = "default"
-            await config_manager.save_config()
+            self.ins_config.preset = "default"
+            await self.save_config()
         return await self.get_preset("default", fix, cache)
 
     async def get_prompts(
@@ -609,7 +613,7 @@ class ConfigManager(BaseDataManager[Config]):
             )
 
         for prompt in self.prompts.private:
-            if prompt.name == self.__class__.ins_config.private_prompt_character:
+            if prompt.name == self.ins_config.private_prompt_character:
                 self.__class__._private_train = {
                     "role": "system",
                     "content": prompt.text,
@@ -617,7 +621,7 @@ class ConfigManager(BaseDataManager[Config]):
                 break
         else:
             logger.warning(
-                f"没有找到名称为 {self.__class__.ins_config.private_prompt_character} 的私聊提示词，将使用default.txt！"
+                f"没有找到名称为 {self.ins_config.private_prompt_character} 的私聊提示词，将使用default.txt！"
             )
             self.__class__._private_train = {
                 "role": "system",

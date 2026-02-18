@@ -1,22 +1,15 @@
-from .event import EventTypeEnum
-from .matcher import Matcher
+"""重构说明：
+不再使用on_chat与on_poke区分，而是on_precompletion与on_completion通过函数签名的参数事件类型区分
+"""
 
+import warnings
 
-def on_chat(*, priority: int = 10, block: bool = True):
-    return on_event(EventTypeEnum.CHAT, priority, block)
+from amrita_core.hook.on import on_completion, on_event, on_precompletion
 
+warnings.warn(
+    "This module is deprecated and will be removed in a future version(1.2.0).Please import from `amrita_core` instead.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
-def on_poke(*, priority: int = 10, block: bool = True):
-    return on_event(EventTypeEnum.POKE, priority, block)
-
-
-def on_before_chat(*, priority: int = 10, block: bool = True):
-    return on_event(EventTypeEnum.BEFORE_CHAT, priority, block)
-
-
-def on_before_poke(*, priority: int = 10, block: bool = True):
-    return on_event(EventTypeEnum.BEFORE_POKE, priority, block)
-
-
-def on_event(event_type: EventTypeEnum, priority: int = 10, block: bool = True):
-    return Matcher(event_type, priority, block)
+__all__ = ["on_completion", "on_event", "on_precompletion"]

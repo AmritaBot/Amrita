@@ -2,7 +2,7 @@ from nonebot import logger
 from nonebot.adapters.onebot.v11 import Bot, GroupMessageEvent
 from nonebot.matcher import Matcher
 
-from ..utils.memory import get_memory_data
+from ..utils.app import CachedUserDataRepository
 
 
 async def disable(bot: Bot, event: GroupMessageEvent, matcher: Matcher):
@@ -11,9 +11,9 @@ async def disable(bot: Bot, event: GroupMessageEvent, matcher: Matcher):
     logger.debug(f"{event.group_id} disabled")
 
     # 获取并更新群聊状态数据
-    data = await get_memory_data(event)
-    data.enable = False
-    await data.save(event)
-    await matcher.send("聊天功能已禁用")
+    repo = CachedUserDataRepository()
+    group_config = await repo.get_group_config(event.group_id)
+    group_config.enable = False
+    await repo.update_group_config(group_config)
 
-    # 保存更新后的群聊状态数据
+    await matcher.send("聊天功能已禁用")

@@ -2,7 +2,7 @@ from nonebot import logger
 from nonebot.adapters.onebot.v11 import GroupMessageEvent
 from nonebot.matcher import Matcher
 
-from ..utils.memory import get_memory_data
+from ..utils.app import CachedUserDataRepository
 
 
 async def enable(event: GroupMessageEvent, matcher: Matcher):
@@ -10,9 +10,11 @@ async def enable(event: GroupMessageEvent, matcher: Matcher):
 
     # 记录日志
     logger.debug(f"{event.group_id} enabled")
-    # 获取当前群组的记忆数据
-    data = await get_memory_data(event)
-    # 检查记忆数据是否与当前群组匹配
-    data.enable = True
-    await data.save(event)
+
+    # 获取并更新群组配置数据
+    repo = CachedUserDataRepository()
+    group_config = await repo.get_group_config(event.group_id)
+    group_config.enable = True
+    await repo.update_group_config(group_config)
+
     await matcher.send("已启用聊天功能")

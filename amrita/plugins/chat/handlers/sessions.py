@@ -1,4 +1,4 @@
-import time
+from collections.abc import Sequence
 from copy import deepcopy
 from datetime import datetime
 
@@ -9,11 +9,10 @@ from nonebot.matcher import Matcher
 from nonebot.params import CommandArg
 from nonebot_plugin_orm import get_session
 
-from amrita.plugins.chat.utils.models import SessionMemoryModel
-
 from ..check_rule import is_group_admin_if_is_in_group
 from ..config import config_manager
-from ..utils.memory import MemoryModel, get_memory_data
+from ..utils.app import AwaredMemory, CachedUserDataRepository, MemorySessionsSchema
+from ..utils.sql import UserDataExecutor, get_uni_user_id
 
 
 async def sessions(
@@ -23,69 +22,122 @@ async def sessions(
     if not await is_group_admin_if_is_in_group(event, bot):
         await matcher.finish("你没有权限执行此命令。")
 
-    async def display_sessions(data: MemoryModel) -> None:
+    # 获取用户唯一ID
+    uni_user_id = get_uni_user_id(event)
+    repo = CachedUserDataRepository()
+
+    async def display_sessions(sessions: Sequence[MemorySessionsSchema]) -> None:
         """显示历史会话列表"""
-        if not data.sessions:
+        if not sessions:
             await matcher.finish("没有历史会话")
         message_content = "历史会话\n"
-        for index, msg in enumerate(data.sessions):
-            if msg.messages:
-                message_content += f"编号：{index}) ：{msg.abstract[:15] or '（无描述）'}... 时间：{datetime.fromtimestamp(msg.time).strftime('%Y-%m-%d %I:%M:%S %p')}\n"
+        for index, msg in enumerate(sessions):
+            if msg.data.messages:
+                message_content += f"编号：{index}) ：{msg.data.abstract[:15] or '（无描述）'}... 时间：{datetime.fromtimestamp(msg.time).strftime('%Y-%m-%d %I:%M:%S %p')}\n"
         await matcher.finish(message_content)
 
     async def set_session(
-        data: MemoryModel,
         arg_list: list[str],
     ) -> None:
         """将当前会话覆盖为指定编号的会话"""
         try:
             if len(arg_list) >= 2:
-                data.memory.messages = deepcopy(
-                    data.sessions[int(arg_list[1])].messages
+                # 获取用户的所有会话数据
+                user_sessions = await repo.get_sesssions(
+                    event.user_id, hasattr(event, "group_id")
                 )
-                data.timestamp = time.time()
-                await data.save(event)
+
+                session_index = int(arg_list[1])
+                if session_index < 0 or session_index >= len(user_sessions):
+                    await matcher.finish("请输入正确的编号")
+
+                # 获取指定编号的会话数据
+                target_session = user_sessions[session_index]
+
+                # 获取当前用户的memory数据并更新
+                memory_data = await repo.get_memory(
+                    event.user_id, hasattr(event, "group_id")
+                )
+                memory_data.memory_json.messages = deepcopy(
+                    target_session.data.messages
+                )
+
+                # 保存更新后的memory数据
+                await repo.update_memory_data(memory_data)
                 await matcher.send("完成记忆覆盖。")
             else:
                 await matcher.finish("请输入正确编号")
         except NoneBotException as e:
             raise e
+        except (ValueError, IndexError):
+            await matcher.finish("请输入正确的编号")
         except Exception:
             await matcher.finish("覆盖记忆文件失败，这个对话可能损坏了。")
 
     async def delete_session(
-        data: MemoryModel,
         arg_list: list[str],
     ) -> None:
         """删除指定编号的会话"""
         try:
             if len(arg_list) >= 2:
-                session = data.sessions.pop(int(arg_list[1]))
-                await session.delete()
+                session_index = int(arg_list[1])
+
+                # 获取用户的所有会话数据
+                user_sessions = await repo.get_sesssions(
+                    event.user_id, hasattr(event, "group_id")
+                )
+
+                if session_index < 0 or session_index >= len(user_sessions):
+                    await matcher.finish("请输入正确的编号")
+                user_sessions_list = list(user_sessions)
+                removed_session = user_sessions_list.pop(session_index)
+
+                # 更新缓存
+                repo._cached_sessions[uni_user_id] = user_sessions_list
+
+                # 从数据库中删除
+                async with get_session() as session:
+                    async with UserDataExecutor(uni_user_id, session) as executor:
+                        await executor.remove_session(removed_session.id)
+                        await session.commit()
+
                 await matcher.send("已删除对应的会话。")
             else:
                 await matcher.finish("请输入正确编号")
         except NoneBotException as e:
             raise e
+        except (ValueError, IndexError):
+            await matcher.finish("请输入正确的编号")
         except Exception:
             await matcher.finish("删除指定编号会话失败。")
 
-    async def archive_session(
-        data: MemoryModel,
-    ) -> None:
+    async def archive_session() -> None:
         """归档当前会话"""
         try:
-            if data.memory.messages:
-                data.sessions.append(
-                    SessionMemoryModel(
-                        messages=data.memory.messages,
-                        time=time.time(),
-                        abstract=data.memory.abstract,
-                    )
+            # 获取当前用户内存数据
+            memory_data = await repo.get_memory(
+                event.user_id, hasattr(event, "group_id")
+            )
+
+            if memory_data.memory_json.messages:
+                # 获取当前会话数据
+                current_messages = memory_data.memory_json.messages
+                current_abstract = memory_data.memory_json.abstract
+
+                # 创建新会话并保存到数据库
+                new_session_data = AwaredMemory(
+                    messages=deepcopy(current_messages), abstract=current_abstract
                 )
-                data.memory.messages = []
-                data.timestamp = time.time()
-                await data.save(event)
+
+                async with get_session() as session:
+                    async with UserDataExecutor(uni_user_id, session) as executor:
+                        await executor.add_session(new_session_data)
+                        await session.commit()
+
+                # 清空当前内存中的消息
+                memory_data.memory_json.messages = []
+                await repo.update_memory_data(memory_data)
+
                 await matcher.finish("当前会话已归档。")
             else:
                 await matcher.finish("当前对话为空！")
@@ -94,15 +146,27 @@ async def sessions(
         except Exception:
             await matcher.finish("归档当前会话失败。")
 
-    async def clear_sessions(data: MemoryModel) -> None:
+    async def clear_sessions() -> None:
         """清空所有会话"""
         try:
-            if len(data.sessions) > 0:
+            # 获取用户的所有会话
+            user_sessions = await repo.get_sesssions(
+                event.user_id, hasattr(event, "group_id")
+            )
+
+            if len(user_sessions) > 0:
+                # 获取会话ID列表
+                session_ids = [session.id for session in user_sessions]
+
+                # 从数据库中删除所有会话
                 async with get_session() as session:
-                    for i in data.sessions:
-                        await i.delete(session)
-                    await session.commit()
-            data.timestamp = time.time()
+                    async with UserDataExecutor(uni_user_id, session) as executor:
+                        await executor.remove_session(*session_ids)
+                        await session.commit()
+
+                # 清空缓存
+                repo._cached_sessions.pop(uni_user_id, None)
+
             await matcher.finish("会话已清空。")
         except NoneBotException as e:
             raise e
@@ -113,42 +177,38 @@ async def sessions(
     # 检查是否启用了会话管理功能
     if not config_manager.config.session.session_control:
         matcher.skip()
-
-    # 获取当前用户的会话数据
-    data = await get_memory_data(event)
-
     # 解析用户输入的命令参数
     arg_list = args.extract_plain_text().strip().split()
 
     # 如果没有参数，显示历史会话
     if not arg_list:
-        await display_sessions(data)
+        user_sessions = await repo.get_sesssions(
+            event.user_id, hasattr(event, "group_id")
+        )
+        await display_sessions(user_sessions)
 
     # 根据命令执行对应操作
     match arg_list[0]:
         case "set":
             await set_session(
-                data,
                 arg_list,
             )
         case "del":
             await delete_session(
-                data,
                 arg_list,
             )
         case "archive":
-            await archive_session(
-                data,
-            )
+            await archive_session()
         case "clear":
-            await clear_sessions(
-                data,
-            )
+            await clear_sessions()
         case "help":
             await matcher.finish(
                 "Sessions指令帮助：\nset：覆盖当前会话为指定编号的会话\ndel：删除指定编号的会话\narchive：归档当前会话\nclear：清空所有会话\n"
             )
         case "list":
-            await display_sessions(data)
+            user_sessions = await repo.get_sesssions(
+                event.user_id, hasattr(event, "group_id")
+            )
+            await display_sessions(user_sessions)
         case _:
             await matcher.finish("未知命令，请输入/help查看帮助。")

@@ -2,8 +2,10 @@ from nonebot.adapters.onebot.v11 import Bot, Message, MessageEvent
 from nonebot.matcher import Matcher
 from nonebot.params import CommandArg
 
+from amrita.plugins.chat.utils.sql import get_any_id
+
 from ..config import config_manager
-from ..utils.memory import get_memory_data
+from ..utils.app import CachedUserDataRepository
 
 
 async def prompt(
@@ -15,7 +17,7 @@ async def prompt(
         await matcher.finish("当前不允许自定义 prompt。")
 
     # 获取当前事件的记忆数据
-    data = await get_memory_data(event)
+    data = await CachedUserDataRepository().get_memory(*get_any_id(event))
     arg = args.extract_plain_text().strip()
 
     # 检查输入长度是否过长，超过限制则提示用户
@@ -36,11 +38,11 @@ async def prompt(
         await matcher.send(f"Prompt:\n{data.prompt}")
         return
     elif arg.startswith("--(clear)"):
-        data.prompt = ""
+        data.extra_prompt = ""
         await matcher.send("prompt 已清空。")
     elif arg.startswith("--(set)"):
         arg = arg.replace("--(set)", "").strip()
-        data.prompt = arg
+        data.extra_prompt = arg
         await matcher.send(f"prompt 已设置为：\n{arg}")
     else:
         await matcher.send(
@@ -49,5 +51,4 @@ async def prompt(
         )
         return
 
-    # 更新记忆数据
-    await data.save(event)
+    await CachedUserDataRepository().update_memory_data(data)

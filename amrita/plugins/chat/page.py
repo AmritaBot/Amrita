@@ -7,7 +7,7 @@ from nonebot import logger
 
 from amrita.plugins.chat.config import config_manager
 from amrita.plugins.chat.utils.llm_tools.mcp_client import ClientManager
-from amrita.plugins.chat.utils.models import InsightsModel
+from amrita.plugins.chat.utils.sql import InsightsModel
 from amrita.plugins.webui.API import (
     JSONResponse,
     PageContext,
@@ -404,7 +404,7 @@ async def get_mcp_servers():
             servers.append(server_info)
 
         # 获取配置中所有已定义的服务器脚本
-        config_scripts = config_manager.config.llm_config.tools.agent_mcp_server_scripts
+        config_scripts = config_manager.config.llm.tools.agent_mcp_server_scripts
         for script in config_scripts:
             if script not in [s["server_script"] for s in servers]:
                 servers.append(
@@ -440,7 +440,7 @@ async def add_mcp_server(request: Request):
             )
 
         config = config_manager.ins_config
-        if server_script in config.llm_config.tools.agent_mcp_server_scripts:
+        if server_script in config.llm.tools.agent_mcp_server_scripts:
             return JSONResponse(
                 {"success": False, "message": "MCP服务器已存在"}, status_code=400
             )
@@ -450,7 +450,7 @@ async def add_mcp_server(request: Request):
         await client_manager.initialize_this(server_script)
 
         # 保存到配置
-        config.llm_config.tools.agent_mcp_server_scripts.append(server_script)
+        config.llm.tools.agent_mcp_server_scripts.append(server_script)
         await config_manager.save_config()
 
         return JSONResponse(
@@ -487,13 +487,13 @@ async def update_mcp_server(request: Request, server_script: str | None = None):
             )
 
         config = config_manager.ins_config
-        if old_server_script not in config.llm_config.tools.agent_mcp_server_scripts:
+        if old_server_script not in config.llm.tools.agent_mcp_server_scripts:
             return JSONResponse(
                 {"success": False, "message": "MCP服务器不存在"}, status_code=404
             )
 
         # 从配置中移除旧服务器
-        config.llm_config.tools.agent_mcp_server_scripts.remove(old_server_script)
+        config.llm.tools.agent_mcp_server_scripts.remove(old_server_script)
 
         # 注销旧客户端
         client_manager = ClientManager()
@@ -503,7 +503,7 @@ async def update_mcp_server(request: Request, server_script: str | None = None):
         await client_manager.initialize_this(new_server_script)
 
         # 添加新服务器到配置
-        config.llm_config.tools.agent_mcp_server_scripts.append(new_server_script)
+        config.llm.tools.agent_mcp_server_scripts.append(new_server_script)
         await config_manager.save_config()
 
         return JSONResponse(
@@ -531,13 +531,13 @@ async def delete_mcp_server(
     """删除MCP服务器"""
     try:
         config = config_manager.ins_config
-        if server_script not in config.llm_config.tools.agent_mcp_server_scripts:
+        if server_script not in config.llm.tools.agent_mcp_server_scripts:
             return JSONResponse(
                 {"success": False, "message": "MCP服务器不存在"}, status_code=404
             )
 
         # 从配置中移除
-        config.llm_config.tools.agent_mcp_server_scripts.remove(server_script)
+        config.llm.tools.agent_mcp_server_scripts.remove(server_script)
 
         # 注销客户端
         client_manager = ClientManager()

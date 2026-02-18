@@ -2,7 +2,7 @@
 
 该模块实现了基于OrderedDict的LRU（Least Recently Used）缓存，
 支持字典-like的操作接口，并在缓存满时自动淘汰最久未使用的条目。
-同时实现了TTL（Time To Live）和TFU（Time Frequently Used）缓存策略。
+同时实现了TTL（Time To Live）和LFU（Least Frequently Used）缓存策略。
 
 目前这个模块看起来并没有使用，但是在Amrita的未来的重构计划中将作为重要的一环。
 """
@@ -445,14 +445,14 @@ class TTLCache(Generic[K, V]):
         return f"{self.__class__.__name__}(capacity={self._capacity}, ttl={self._ttl}, items={{{', '.join(items)}}})"
 
 
-class TFUCache(Generic[K, V]):
-    """TFU缓存实现（Time Frequently Used）
+class LFUCache(Generic[K, V]):
+    """LFU缓存实现（Least Frequently Used）
 
     该缓存根据访问频率淘汰条目，保留访问频率最高的条目。
     """
 
     def __init__(self, capacity: int):
-        """初始化TFU缓存
+        """初始化LFU缓存
 
         Args:
             capacity: 缓存的最大容量
