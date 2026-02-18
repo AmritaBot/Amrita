@@ -333,7 +333,7 @@ class Config(BaseModel):
     usage_limit: UsageLimitConfig = Field(
         default=UsageLimitConfig(), description="使用限额配置"
     )
-    enable: bool = Field(default=False, description="是否启用 SuggarChat 主功能")
+    enable: bool = Field(default=False, description="是否启用 Amrita的聊天能力")
     parse_segments: bool = Field(
         default=True, description="是否解析特殊消息段（如@提及/合并转发等）"
     )
