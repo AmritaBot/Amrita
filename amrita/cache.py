@@ -2,7 +2,7 @@
 
 该模块实现了基于OrderedDict的LRU（Least Recently Used）缓存，
 支持字典-like的操作接口，并在缓存满时自动淘汰最久未使用的条目。
-同时实现了TTL（Time To Live）和LFU（Time Frequently Used）缓存策略。
+同时实现了TTL（Time To Live）和LFU（Least Frequently Used）缓存策略。
 
 目前这个模块看起来并没有使用，但是在Amrita的未来的重构计划中将作为重要的一环。
 """
