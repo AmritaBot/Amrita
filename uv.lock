@@ -204,7 +204,7 @@ wheels = [
 
 [[package]]
 name = "amrita"
-version = "1.0.0.dev1"
+version = "1.0.0.dev2"
 source = { editable = "." }
 dependencies = [
     { name = "aiofiles" },
@@ -276,7 +276,7 @@ requires-dist = [
     { name = "aiopg", marker = "extra == 'full'", specifier = ">=1.4.0" },
     { name = "aiosqlite", marker = "extra == 'full'", specifier = ">=0.21.0" },
     { name = "alembic", marker = "extra == 'full'", specifier = "==1.16.4" },
-    { name = "amrita-core", marker = "extra == 'full'", specifier = "==0.4.2.1" },
+    { name = "amrita-core", marker = "extra == 'full'", specifier = "==0.4.3.2" },
     { name = "async-lru", marker = "extra == 'full'", specifier = ">=2.0.5" },
     { name = "bcrypt", marker = "extra == 'full'", specifier = ">=4.3.0" },
     { name = "click", specifier = ">=8.2.1" },
@@ -331,7 +331,7 @@ dev = [
 
 [[package]]
 name = "amrita-core"
-version = "0.4.2.1"
+version = "0.4.3.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiofiles" },
@@ -344,9 +344,9 @@ dependencies = [
     { name = "pydantic" },
     { name = "pytz" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/cc/b7/a8662bc76d6c90e9bb1d70fb902a9a4f8d9dc7b99f15cab708857cb6b427/amrita_core-0.4.2.1.tar.gz", hash = "sha256:462d87ddd3389c8867c1ec7106068378a6e0f03127e3b9746823dcffb96ccac5", size = 51076, upload-time = "2026-02-17T11:39:00.418Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/18/d2/bde5ba0ef6a7f0ca174cbd2421f3f186e817a562c83c6c0a1b0742a832ed/amrita_core-0.4.3.2.tar.gz", hash = "sha256:d71a34471f4be4204c9aa77f26c6ff8df2e84f785f420cae63bee49493bad638", size = 55040, upload-time = "2026-02-18T07:40:24.709Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/8d/09/718250a256f5d4ca2416c02bff330598a47a901f472fb333c4629fed57c4/amrita_core-0.4.2.1-py3-none-any.whl", hash = "sha256:ce47f256109a7400f5b2c01b7ea6e4c4e21107662ac4aa66d394aa64e3a4da39", size = 50230, upload-time = "2026-02-17T11:38:59.416Z" },
+    { url = "https://files.pythonhosted.org/packages/49/ae/3a52fa832cae6210d676020fcdb180d869c822beaf963977b5f3d9ca5261/amrita_core-0.4.3.2-py3-none-any.whl", hash = "sha256:94395ba04882d15707d281acfb38f70b69a612fde6b221a59e15ba08599d4e18", size = 50240, upload-time = "2026-02-18T07:40:23.442Z" },
 ]
 
 [[package]]

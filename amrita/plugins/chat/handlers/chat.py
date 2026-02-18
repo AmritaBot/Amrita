@@ -5,8 +5,10 @@ import random
 from datetime import datetime
 
 from amrita_core import (
+    MemoryModel,
     PresetManager,
     SessionsManager,
+    TextContent,
     UniResponse,
     UniResponseUsage,
     debug_log,
@@ -18,12 +20,17 @@ from amrita_core.protocol import (
     MessageWithMetadata,
     StringMessageContent,
 )
+from amrita_core.types import ImageContent, ImageUrl
 from nonebot import get_driver
 from nonebot.adapters.onebot.v11 import (
     Bot,
     MessageSegment,
 )
-from nonebot.adapters.onebot.v11.event import GroupMessageEvent, MessageEvent
+from nonebot.adapters.onebot.v11.event import (
+    GroupMessageEvent,
+    MessageEvent,
+    Reply,
+)
 from nonebot.exception import MatcherException, NoneBotException, ProcessException
 from nonebot.matcher import Matcher
 from pytz import utc
@@ -31,9 +38,13 @@ from pytz import utc
 from amrita.plugins.chat.config import ConfigManager, config_manager
 from amrita.plugins.chat.matcher import ChatException
 from amrita.plugins.chat.utils.app import CachedUserDataRepository, UserMetadataSchema
-from amrita.plugins.chat.utils.functions import split_message_into_chats
+from amrita.plugins.chat.utils.functions import (
+    get_friend_name,
+    split_message_into_chats,
+    synthesize_message,
+)
 from amrita.plugins.chat.utils.lock import get_group_lock, get_private_lock
-from amrita.plugins.chat.utils.sql import InsightsModel, get_any_id
+from amrita.plugins.chat.utils.sql import InsightsModel, get_any_id, get_uni_user_id
 from amrita.utils.admin import send_to_admin
 
 from ..runtime import AmritaChatObject
@@ -59,6 +70,72 @@ def add_usage(
         ins.total_called_count += 1
 
 
+async def handle_reply(
+    reply: Reply, bot: Bot, group_id: int | None, content: str
+) -> str:
+    """处理引用消息：
+    - 提取引用消息的内容和时间信息。
+    - 格式化为可读的引用内容。
+
+    Args:
+        reply: 回复消息
+        bot: Bot实例
+        group_id: 群组ID（私聊为None）
+        content: 原始内容
+
+    Returns:
+        格式化后的内容
+    """
+    if not reply.sender.user_id:
+        return content
+    dt_object = datetime.fromtimestamp(reply.time)
+    weekday = dt_object.strftime("%A")
+    formatted_time = dt_object.strftime("%Y-%m-%d %I:%M:%S %p")
+    role = await get_user_role(bot, group_id, reply.sender.user_id) if group_id else ""
+
+    reply_content = await synthesize_message(reply.message, bot)
+    result = f"{content}\n<MESSAGE_REFERED>\n{formatted_time} {weekday} [{role}]{reply.sender.nickname}（QQ:{reply.sender.user_id}）说：{reply_content}\n</MESSAGE_REFERED>"
+    debug_log(f"处理引用消息完成: {result[:50]}..")
+    return result
+
+
+def get_reply_pics(event: MessageEvent) -> list[ImageContent]:
+    """获取引用消息中的图片内容
+
+    Returns:
+        图片内容列表
+    """
+    if reply := event.reply:
+        msg = reply.message
+        images = [
+            ImageContent(image_url=ImageUrl(url=url))
+            for seg in msg
+            if seg.type == "image" and (url := seg.data.get("url")) is not None
+        ]
+        debug_log(f"获取引用图片完成，共 {len(images)} 张")
+        return images
+    return []
+
+
+async def get_user_role(bot: Bot, group_id: int, user_id: int) -> str:
+    """获取用户在群聊中的身份（群主、管理员或普通成员）。
+
+    Args:
+        group_id: 群组ID
+        user_id: 用户ID
+
+    Returns:
+        用户角色字符串
+    """
+    role_data = await bot.get_group_member_info(group_id=group_id, user_id=user_id)
+    role = role_data["role"]
+    role_str = {"admin": "群管理员", "owner": "群主", "member": "普通成员"}.get(
+        role, "[获取身份失败]"
+    )
+    debug_log(f"获取用户角色完成: {role_str}")
+    return role_str
+
+
 async def send_response(chat: AmritaChatObject, response: str):
     """发送聊天模型的回复，根据配置选择不同的发送方式。
 
@@ -77,6 +154,58 @@ async def send_response(chat: AmritaChatObject, response: str):
             await asyncio.sleep(
                 random.randint(1, 3) + (len(message) // random.randint(80, 100))
             )
+
+
+async def synthesize_message_to_msg(
+    event: MessageEvent,
+    role: str,
+    user_name: str,
+    user_id: str,
+    content: str,
+):
+    """将消息转换为Message
+
+    根据配置和多模态支持情况，将事件消息转换为适当的格式，
+    支持文本和图片内容的组合。
+
+    Args:
+        event: 消息事件
+        role: 用户角色
+        date: 时间戳
+        user_name: 用户名
+        user_id: 用户ID
+        content: 消息内容
+
+    Returns:
+        转换后的消息内容
+    """
+    is_multimodal: bool = (
+        any(
+            [
+                (await config_manager.get_preset(preset=preset)).multimodal
+                for preset in [
+                    config_manager.config.preset,
+                    *config_manager.config.preset_extension.backup_preset_list,
+                ]
+            ]
+        )
+        or len(config_manager.config.preset_extension.multi_modal_preset_list) > 0
+    )
+
+    if config_manager.config.parse_segments:
+        text = (
+            [TextContent(text=f"[{role}][{user_name}（{user_id}）]说:{content}")]
+            + [
+                ImageContent(image_url=ImageUrl(url=seg.data["url"]))
+                for seg in event.message
+                if seg.type == "image" and seg.data.get("url")
+            ]
+            if is_multimodal
+            else f"[{role}][{user_name}（{user_id}）]说:{content}"
+        )
+    else:
+        text = event.message.extract_plain_text()
+    return text
 
 
 async def entry(event: MessageEvent, matcher: Matcher, bot: Bot):
@@ -98,11 +227,7 @@ async def entry(event: MessageEvent, matcher: Matcher, bot: Bot):
         if prefix.strip()
     ):
         matcher.skip()
-    session_id = (
-        f"{event.group_id}_{event.user_id}"
-        if isinstance(event, GroupMessageEvent)
-        else f"private_{event.user_id}"
-    )
+    session_id = get_uni_user_id(event)
     train = (
         config_manager.group_train
         if isinstance(event, GroupMessageEvent)
@@ -114,7 +239,9 @@ async def entry(event: MessageEvent, matcher: Matcher, bot: Bot):
 
     async def filter(message: COMPLETION_RETURNING):
         nonlocal can_send_message
-        if isinstance(message, MessageWithMetadata):
+        if isinstance(message, str):
+            return
+        elif isinstance(message, MessageWithMetadata):
             match message.metadata.get("type", ""):
                 case "system":
                     if (
@@ -156,15 +283,56 @@ async def entry(event: MessageEvent, matcher: Matcher, bot: Bot):
             msg = MessageSegment.image(await message.get_image())
             await matcher.send(msg)
 
+    content = await synthesize_message(event.get_message(), bot)
+    debug_log(f"合成消息完成: {content}")
+
+    if content.strip() == "":
+        content = ""
+    if event.reply:
+        group_id = event.group_id if isinstance(event, GroupMessageEvent) else None
+        debug_log("处理引用消息..")
+        content = await handle_reply(event.reply, bot, group_id, content)
+
+    reply_pics = get_reply_pics(event)
+    debug_log(f"获取引用图片完成，共 {len(reply_pics)} 张")
+    if isinstance(event, GroupMessageEvent):
+        # 群聊消息处理
+        debug_log("处理群聊消息")
+        group_id = event.group_id
+
+        user_name = (
+            (await bot.get_group_member_info(group_id=group_id, user_id=event.user_id))[
+                "nickname"
+            ]
+            if not config.function.use_user_nickname
+            else event.sender.nickname
+        )
+    else:
+        debug_log("处理私聊消息")
+        user_name = (
+            await get_friend_name(event.user_id, bot=bot)
+            if not isinstance(event, GroupMessageEvent)
+            else event.sender.nickname
+        )
+    role = (
+        await get_user_role(bot, event.group_id, event.user_id)
+        if isinstance(event, GroupMessageEvent)
+        else ""
+    )
+    content = await synthesize_message_to_msg(
+        event, role, str(user_name), str(event.user_id), content
+    )
+    if isinstance(content, list):
+        content.extend(reply_pics)
     chat: AmritaChatObject = AmritaChatObject(
         event=event,
         matcher=matcher,
         bot=bot,
         session_id=session_id,
         train=train,
-        auto_create_session=True,
-        context=None,
-        config=config.to_core_config(),
+        auto_create_session=False,
+        user_input=content,
+        context=MemoryModel(),
         preset=PresetManager().get_preset(config.preset),
         hook_args=(event, matcher, bot),
         exception_ignored=(ProcessException, MatcherException),
@@ -225,7 +393,6 @@ async def entry(event: MessageEvent, matcher: Matcher, bot: Bot):
             ):
                 d.called_count  # 增加使用次数
                 add_usage(d, response.usage)
-                debug_log(f"更新记忆数据，使用次数: {d.usage}")
                 await cudr.update_metadata(d)
         SessionsManager().drop_session(session_id)
         chat._pending = False

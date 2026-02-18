@@ -72,15 +72,15 @@ async def mcp_status(bot: Bot, matcher: Matcher, event: MessageEvent, arg: list[
 async def add_mcp_server(
     matcher: Matcher, bot: Bot, event: MessageEvent, mcp_server: str
 ):
-    if not config_manager.config.llm.tools.agent_mcp_client_enable:
+    config = config_manager.config
+    if not config.llm.tools.agent_mcp_client_enable:
         return
-    config = config_manager.ins_config
     if not mcp_server:
         await matcher.finish("请输入MCP Server脚本路径")
     if mcp_server in config.llm.tools.agent_mcp_server_scripts:
         await matcher.finish("MCP Server脚本已存在")
     try:
-        await ClientManager().initialize_this(mcp_server)
+        await ClientManager().initialize_this(mcp_server, True)
         config.llm.tools.agent_mcp_server_scripts.append(mcp_server)
         await config_manager.save_config()
         await matcher.send("添加成功")

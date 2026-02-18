@@ -10,22 +10,22 @@ from amrita_core import (
 from amrita_core import (
     ChatObjectMeta as CoreChatObjectMeta,
 )
+from amrita_core import (
+    get_config,
+)
 from amrita_core.config import AmritaConfig
 from amrita_core.logging import debug_log
-from amrita_core.types import ImageContent, ImageUrl, TextContent
 from nonebot import logger
 from nonebot.adapters.onebot.v11 import (
     Bot,
 )
 from nonebot.adapters.onebot.v11.event import (
-    GroupMessageEvent,
     MessageEvent,
-    Reply,
 )
 from nonebot.matcher import Matcher
 from pydantic import BaseModel, Field
 from pytz import utc
-from typing_extensions import override
+from typing_extensions import final, override
 
 from amrita.plugins.chat.utils.app import (
     AwaredMemory,
@@ -34,10 +34,6 @@ from amrita.plugins.chat.utils.app import (
 )
 
 from .config import Config, config_manager
-from .utils.functions import (
-    get_friend_name,
-    synthesize_message,
-)
 from .utils.sql import (
     MemorySessions,
     UserDataExecutor,
@@ -48,63 +44,7 @@ from .utils.sql import (
 LOCK = Lock()
 
 
-async def synthesize_message_to_msg(
-    event: MessageEvent,
-    role: str,
-    date: str,
-    user_name: str,
-    user_id: str,
-    content: str,
-):
-    """将消息转换为Message
-
-    根据配置和多模态支持情况，将事件消息转换为适当的格式，
-    支持文本和图片内容的组合。
-
-    Args:
-        event: 消息事件
-        role: 用户角色
-        date: 时间戳
-        user_name: 用户名
-        user_id: 用户ID
-        content: 消息内容
-
-    Returns:
-        转换后的消息内容
-    """
-    is_multimodal: bool = (
-        any(
-            [
-                (await config_manager.get_preset(preset=preset)).multimodal
-                for preset in [
-                    config_manager.config.preset,
-                    *config_manager.config.preset_extension.backup_preset_list,
-                ]
-            ]
-        )
-        or len(config_manager.config.preset_extension.multi_modal_preset_list) > 0
-    )
-
-    if config_manager.config.parse_segments:
-        text = (
-            [
-                TextContent(
-                    text=f"[{role}][{date}][{user_name}（{user_id}）]说:{content}"
-                )
-            ]
-            + [
-                ImageContent(image_url=ImageUrl(url=seg.data["url"]))
-                for seg in event.message
-                if seg.type == "image" and seg.data.get("url")
-            ]
-            if is_multimodal
-            else f"[{role}][{date}][{user_name}（{user_id}）]说:{content}"
-        )
-    else:
-        text = event.message.extract_plain_text()
-    return text
-
-
+@final
 class ChatObjectMeta(CoreChatObjectMeta):
     """聊天对象元数据模型
 
@@ -166,13 +106,16 @@ class AmritaChatObject(CoreChatObject):
             queue_size: Maximum number of message chunks to be stored in the queue
             overflow_queue_size: Maximum number of message chunks to be stored in the overflow queue
         """
-        super().__init__(*args, **kwargs)
         self.event = event
         self.matcher = matcher
         self.bot = bot
         self.bot_config = config_manager.config
+        super().__init__(*args, **kwargs)
+        self.session_id = get_uni_user_id(event)
+        self.config = get_config()
 
-    async def _run(self):
+    @override
+    async def _run(self) -> None:
         """运行聊天处理流程
 
         执行消息处理的主要逻辑，包括获取用户信息、处理消息内容、
@@ -180,59 +123,14 @@ class AmritaChatObject(CoreChatObject):
         """
         debug_log("开始运行聊天处理流程..")
         event = self.event
-        data = self.data
-        bot = self.bot
-        user_id = event.user_id
         config = self.bot_config
         self.memory = await CachedUserDataRepository().get_memory(*get_any_id(event))
         self.data = self.memory.memory_json  # type: ignore[Assignment]
+        data = self.data
         debug_log("管理会话上下文..")
         await self._manage_sessions()
         debug_log("会话管理完成")
 
-        if isinstance(event, GroupMessageEvent):
-            # 群聊消息处理
-            debug_log("处理群聊消息")
-            group_id = event.group_id
-
-            user_name = (
-                (await bot.get_group_member_info(group_id=group_id, user_id=user_id))[
-                    "nickname"
-                ]
-                if not config.function.use_user_nickname
-                else event.sender.nickname
-            )
-            role = await self._get_user_role(group_id, user_id)
-        else:
-            debug_log("处理私聊消息")
-            user_name = (
-                await get_friend_name(event.user_id, bot=bot)
-                if not isinstance(event, GroupMessageEvent)
-                else event.sender.nickname
-            )
-            role = ""
-        debug_log(f"获取用户信息完成: {user_name}, 角色: {role}")
-
-        content = await synthesize_message(event.get_message(), bot)
-        self.last_call = datetime.now(utc)
-        debug_log(f"合成消息完成: {content}")
-
-        if content.strip() == "":
-            content = ""
-        if event.reply:
-            group_id = event.group_id if isinstance(event, GroupMessageEvent) else None
-            debug_log("处理引用消息..")
-            content = await self._handle_reply(event.reply, bot, group_id, content)
-
-        reply_pics = self._get_reply_pics()
-        debug_log(f"获取引用图片完成，共 {len(reply_pics)} 张")
-
-        content = await synthesize_message_to_msg(
-            event, role, self.timestamp, str(user_name), str(user_id), content
-        )
-        if isinstance(content, list):
-            content.extend(reply_pics)
-        self.user_input = content
         debug_log(f"添加用户消息到记忆，当前消息总数: {len(data.messages)}")
 
         self.train["content"] = (
@@ -258,80 +156,6 @@ class AmritaChatObject(CoreChatObject):
         )
 
         await super()._run()
-
-    async def _handle_reply(
-        self, reply: Reply, bot: Bot, group_id: int | None, content: str
-    ) -> str:
-        """处理引用消息：
-        - 提取引用消息的内容和时间信息。
-        - 格式化为可读的引用内容。
-
-        Args:
-            reply: 回复消息
-            bot: Bot实例
-            group_id: 群组ID（私聊为None）
-            content: 原始内容
-
-        Returns:
-            格式化后的内容
-        """
-        self.last_call = datetime.now(utc)
-        if not reply.sender.user_id:
-            return content
-        dt_object = datetime.fromtimestamp(reply.time)
-        weekday = dt_object.strftime("%A")
-        formatted_time = dt_object.strftime("%Y-%m-%d %I:%M:%S %p")
-        role = (
-            await self._get_user_role(group_id, reply.sender.user_id)
-            if group_id
-            else ""
-        )
-
-        reply_content = await synthesize_message(reply.message, bot)
-        result = f"{content}\n<MESSAGE_REFERED>\n{formatted_time} {weekday} [{role}]{reply.sender.nickname}（QQ:{reply.sender.user_id}）说：{reply_content}\n</MESSAGE_REFERED>"
-        debug_log(f"处理引用消息完成: {result[:50]}..")
-        return result
-
-    def _get_reply_pics(
-        self,
-    ) -> list[ImageContent]:
-        """获取引用消息中的图片内容
-
-        Returns:
-            图片内容列表
-        """
-        self.last_call = datetime.now(utc)
-        if reply := self.event.reply:
-            msg = reply.message
-            images = [
-                ImageContent(image_url=ImageUrl(url=url))
-                for seg in msg
-                if seg.type == "image" and (url := seg.data.get("url")) is not None
-            ]
-            debug_log(f"获取引用图片完成，共 {len(images)} 张")
-            return images
-        return []
-
-    async def _get_user_role(self, group_id: int, user_id: int) -> str:
-        """获取用户在群聊中的身份（群主、管理员或普通成员）。
-
-        Args:
-            group_id: 群组ID
-            user_id: 用户ID
-
-        Returns:
-            用户角色字符串
-        """
-        self.last_call = datetime.now(utc)
-        role_data = await self.bot.get_group_member_info(
-            group_id=group_id, user_id=user_id
-        )
-        role = role_data["role"]
-        role_str = {"admin": "群管理员", "owner": "群主", "member": "普通成员"}.get(
-            role, "[获取身份失败]"
-        )
-        debug_log(f"获取用户角色完成: {role_str}")
-        return role_str
 
     async def _manage_sessions(
         self,

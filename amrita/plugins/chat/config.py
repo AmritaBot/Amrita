@@ -11,6 +11,7 @@ import nonebot_plugin_localstore as store
 import tomli
 import tomli_w
 from amrita_core import ModelPreset as CoreModelPreset
+from amrita_core import PresetManager, set_config
 from amrita_core.config import (
     AmritaConfig as AmritaCoreConfig,
 )
@@ -27,6 +28,7 @@ from nonebot import get_driver, logger
 from nonebot_plugin_uniconf import EnvfulConfigManager
 from nonebot_plugin_uniconf.manager import replace_env_vars
 from pydantic import BaseModel, Field
+from typing_extensions import final, override
 
 from amrita.config_manager import UniConfigManager
 
@@ -262,10 +264,14 @@ class UsageLimitConfig(BaseModel):
     total_daily_limit: int = Field(default=1500, description="总使用次数限制")
     total_daily_token_limit: int = Field(default=1000000, description="总使用token限制")
     global_insights_expire_days: int = Field(default=7, description="全局统计过期天数")
+    limit_msg: list[str] = Field(
+        default=["今日额度已达上限，请明天再试。"],
+        description="达到使用限制时返回的消息",
+    )
 
 
 class LLM_Config(BaseModel):
-    tools: ToolsConfig = Field(default=ToolsConfig(), description="工具调用配置")
+    tools: ToolsConfig = Field(default=ToolsConfig(), description="工具调用子系统")
     stream: bool = Field(default=False, description="是否启用流式响应（逐字输出）")
     memory_length_limit: int = Field(default=50, description="记忆上下文的最大消息数量")
     max_tokens: int = Field(default=100, description="单次回复生成的最大token数")
@@ -294,14 +300,6 @@ class LLM_Config(BaseModel):
         default=["你好，这个问题我暂时无法处理，请稍后再试。"],
         description="触发安全熔断时随机返回的提示消息",
     )
-    # 添加limit相关配置
-    limit: UsageLimitConfig = Field(
-        default=UsageLimitConfig(), description="使用限制配置"
-    )
-    limit_msg: list[str] = Field(
-        default=["使用次数已达上限，请明天再试。"],
-        description="达到使用限制时返回的消息",
-    )
 
 
 class Config(BaseModel):
@@ -318,17 +316,11 @@ class Config(BaseModel):
     autoreply: AutoReplyConfig = Field(
         default=AutoReplyConfig(), description="自动回复设置"
     )
-    # 添加与Core配置对应的function_config
-    function_config: ToolsConfig = Field(
-        default=ToolsConfig(), description="功能配置，对应Core的function_config"
-    )
     function: FunctionConfig = Field(
         default=FunctionConfig(), description="功能开关配置"
     )
     extended: ExtendConfig = Field(default=ExtendConfig(), description="扩展行为设置")
-    llm: LLM_Config = Field(
-        default=LLM_Config(), description="大语言模型配置，对应Core的llm"
-    )
+    llm: LLM_Config = Field(default=LLM_Config(), description="LLM核心功能配置")
     extra: dict[str, Any] = Field(default={}, description="扩展预留区")
     usage_limit: UsageLimitConfig = Field(
         default=UsageLimitConfig(), description="使用限额配置"
@@ -336,9 +328,6 @@ class Config(BaseModel):
     enable: bool = Field(default=False, description="是否启用 Amrita的聊天能力")
     parse_segments: bool = Field(
         default=True, description="是否解析特殊消息段（如@提及/合并转发等）"
-    )
-    matcher_function: bool = Field(
-        default=True, description="是否启用 SuggarMatcher 高级匹配功能"
     )
     preset: str = Field(default="default", description="默认使用的模型预设配置名称")
     group_prompt_character: str = Field(
@@ -386,15 +375,15 @@ class Config(BaseModel):
     def to_core_config(self) -> AmritaCoreConfig:
         return AmritaCoreConfig(
             function_config=CoreFunctionConfig(
-                use_minimal_context=self.function_config.use_minimal_context,
-                tool_calling_mode=self.function_config.tool_calling_mode,
-                agent_tool_call_limit=self.function_config.agent_tool_call_limit,
-                agent_tool_call_notice=self.function_config.agent_tool_call_notice,
-                agent_thought_mode=self.function_config.agent_thought_mode,
-                agent_reasoning_hide=self.function_config.agent_reasoning_hide,
-                agent_middle_message=self.function_config.agent_middle_message,
-                agent_mcp_client_enable=self.function_config.agent_mcp_client_enable,
-                agent_mcp_server_scripts=self.function_config.agent_mcp_server_scripts,
+                use_minimal_context=self.llm.tools.use_minimal_context,
+                tool_calling_mode=self.llm.tools.tool_calling_mode,
+                agent_tool_call_limit=self.llm.tools.agent_tool_call_limit,
+                agent_tool_call_notice=self.llm.tools.agent_tool_call_notice,
+                agent_thought_mode=self.llm.tools.agent_thought_mode,
+                agent_reasoning_hide=self.llm.tools.agent_reasoning_hide,
+                agent_middle_message=self.llm.tools.agent_middle_message,
+                agent_mcp_client_enable=self.llm.tools.agent_mcp_client_enable,
+                agent_mcp_server_scripts=self.llm.tools.agent_mcp_server_scripts,
             ),
             llm=CoreLLMConfig(
                 require_tools=self.llm.tools.require_tools,
@@ -447,6 +436,7 @@ class Prompts:
                 f.write(prompt.text)
 
 
+@final
 class ConfigManager(EnvfulConfigManager[Config]):
     config_dir: Path = CONFIG_DIR
     private_prompts: Path = config_dir / "private_prompts"
@@ -461,8 +451,13 @@ class ConfigManager(EnvfulConfigManager[Config]):
     _owner_name = store._try_get_caller_plugin().name
     __lateinit__ = True
 
+    @override
+    def _update_cache(self, value: Config | None = None):
+        super()._update_cache(value)
+        set_config(self.config.to_core_config())
+
     async def __apost_init__(self):
-        return await self.load()
+        await self.load()
 
     async def load(self):
         """_初始化配置目录_"""
@@ -524,7 +519,7 @@ class ConfigManager(EnvfulConfigManager[Config]):
         if cache and self.models:
             return [model for model, _ in self.models]
         self.models.clear()  # 清空模型列表
-
+        PresetManager()._presets.clear()
         for file in self.custom_models_dir.glob("*.json"):
             model_data = ModelPreset.load(file).model_dump()
             preset_data = replace_env_vars(model_data)
@@ -533,6 +528,7 @@ class ConfigManager(EnvfulConfigManager[Config]):
             model_preset = ModelPreset.model_validate(preset_data)
             self._model_name2file[model_preset.name] = file
             self.models.append((model_preset, file.stem))
+            PresetManager().add_preset(model_preset)
 
         return [model for model, _ in self.models]
 

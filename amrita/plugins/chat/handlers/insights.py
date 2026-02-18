@@ -27,14 +27,14 @@ async def insights(event: MessageEvent, matcher: Matcher, args: Message = Comman
         is_admin = await is_bot_admin(event)
 
         msg = (
-            f"您今日的使用次数为：{data.usage}/{user_limit if (user_limit != -1 and enable_limit and not is_admin) else '♾'}次"
+            f"您今日的使用次数为：{data.called_count}/{user_limit if (user_limit != -1 and enable_limit and not is_admin) else '♾'}次"
             + f"\n您今日的token使用量为：{data.tokens_input + data.tokens_output}/{user_token_limit if (user_token_limit != -1 and enable_limit and not is_admin) else '♾'}tokens"
             + f"(输入：{data.tokens_input},输出：{data.tokens_output})"
         )
         if isinstance(event, GroupMessageEvent):
             data = await CachedUserDataRepository().get_metadata(*get_any_id(event))
             msg = (
-                f"群组使用次数为：{data.usage}/{group_limit if (group_limit != -1 and enable_limit) else '♾'}次"
+                f"群组使用次数为：{data.called_count}/{group_limit if (group_limit != -1 and enable_limit) else '♾'}次"
                 + f"\n群组使用token为：{data.tokens_input + data.tokens_output}/{group_token_limit if (group_token_limit != -1 and enable_limit) else '♾'}tokens"
                 + f"（输入：{data.tokens_input},输出：{data.tokens_output}）"
                 + f"\n\n{msg}"
