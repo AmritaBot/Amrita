@@ -176,14 +176,3 @@ class Permissions:
         """
         self.__write_to_string(True)
         return self.__permissions_str
-
-
-# 此处仅用于测试
-if __name__ == "__main__":
-    permissions = Permissions()
-    permissions.set_permission("user.*", True)
-    print(permissions.check_permission("user.a"))
-    permissions.set_permission("*", True)
-    print(permissions.check_permission("lp.admin"))
-    print(permissions.permissions_str)
-    print(json.dumps(permissions.dump_data(), indent=4))

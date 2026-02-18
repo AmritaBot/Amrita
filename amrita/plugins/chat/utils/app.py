@@ -7,6 +7,7 @@ from amrita_core import MemoryModel as Memory
 from pydantic import ConfigDict as PydConf
 from pydantic import Field
 from pytz import utc
+from typing_extensions import final
 
 from amrita.cache import LRUCache
 from amrita.dirty import DirtyAwareModel as BaseModel
@@ -70,6 +71,7 @@ class GroupConfigSchema(BaseSchema):
     )
 
 
+@final
 class CachedUserDataRepository:
     _instance = None
     _action_lock: LRUCache[str, Lock]
@@ -95,7 +97,7 @@ class CachedUserDataRepository:
 
     @staticmethod
     def make_uni_id(id: int, is_group: bool) -> str:
-        return f"{'group' if is_group else 'user'}{id}"
+        return f"{'group' if is_group else 'user'}_{id}"
 
     async def get_group_config(self, group_id: int) -> GroupConfigSchema:
         uni_id = self.make_uni_id(group_id, True)

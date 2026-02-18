@@ -53,7 +53,7 @@ async def is_bot_enabled(event: Event) -> bool:
         bots = set(nonebot.get_bots().keys())
         if event.get_user_id() in bots:  # 多实例下防止冲突
             return False
-    if group_id := getattr(event, "group_id", None) is not None:
+    if (group_id := getattr(event, "group_id", None)) is not None:
         data = await CachedUserDataRepository().get_group_config(
             group_id,
         )
@@ -219,7 +219,10 @@ async def should_respond_with_usage_check(event: MessageEvent, bot: Bot) -> bool
         ):
             if event.is_tome():
                 with contextlib.suppress(Exception):
-                    await bot.send(event, "今天的聊天额度已经用完了～")
+                    await bot.send(
+                        event,
+                        random.choice(config_manager.config.usage_limit.limit_msg),
+                    )
                     return False
             return False
         return True

@@ -11,6 +11,7 @@ driver = get_driver()
 async def onEnable():
     logger.debug("加载配置文件...")
     config = await config_manager.safe_get_config()
+
     await run_hooks()
     logger.debug("正在加载AmritaCore...")
     core_config = config.to_core_config()

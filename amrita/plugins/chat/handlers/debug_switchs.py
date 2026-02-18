@@ -1,7 +1,6 @@
+from amrita_core import logging
 from nonebot.adapters.onebot.v11.event import MessageEvent
 from nonebot.matcher import Matcher
-
-from ..utils import logging
 
 
 async def debug_switchs(event: MessageEvent, matcher: Matcher):

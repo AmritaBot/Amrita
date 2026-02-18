@@ -447,7 +447,7 @@ async def add_mcp_server(request: Request):
 
         # 尝试初始化MCP服务器
         client_manager = ClientManager()
-        await client_manager.initialize_this(server_script)
+        await client_manager.initialize_this(server_script, True)
 
         # 保存到配置
         config.llm.tools.agent_mcp_server_scripts.append(server_script)
@@ -500,7 +500,7 @@ async def update_mcp_server(request: Request, server_script: str | None = None):
         await client_manager.unregister_client(old_server_script)
 
         # 尝试初始化新MCP服务器
-        await client_manager.initialize_this(new_server_script)
+        await client_manager.initialize_this(new_server_script, True)
 
         # 添加新服务器到配置
         config.llm.tools.agent_mcp_server_scripts.append(new_server_script)
