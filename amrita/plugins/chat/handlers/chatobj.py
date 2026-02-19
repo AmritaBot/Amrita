@@ -31,7 +31,7 @@ def get_chat_objects_status(event: MessageEvent) -> dict[str, list[ChatObject]]:
     all_objects = chat_manager.get_objs(get_uni_user_id(event))
 
     for obj_instance in all_objects:
-        if obj_instance.is_running() or not hasattr(obj_instance, "is_watting"):
+        if obj_instance.is_running() or not hasattr(obj_instance, "is_waitting"):
             running_objects.append(obj_instance)
         elif obj_instance.get_exception():
             error_objects.append(obj_instance)

@@ -93,7 +93,7 @@ extra_css %}
 
   .models-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(min(350px, 100%), 1fr));
     gap: 20px;
   }
 
@@ -102,11 +102,17 @@ extra_css %}
     border-radius: 10px;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
     padding: 20px;
-    transition: transform 0.3s, box-shadow 0.3s;
+    transition:
+      transform 0.3s,
+      box-shadow 0.3s;
     position: relative;
     overflow: hidden;
     border: 1px solid #eee;
     margin-top: 15px;
+    /* 确保卡片不会超出容器 */
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
   }
 
   body.dark-mode .model-card {
@@ -229,6 +235,7 @@ extra_css %}
     backdrop-filter: blur(var(--blur-intensity));
     -webkit-backdrop-filter: blur(var(--blur-intensity));
     color: var(--text-color);
+    box-sizing: border-box;
   }
 
   body.dark-mode .field-input {
@@ -301,6 +308,24 @@ extra_css %}
     display: flex;
     align-items: center;
     gap: 10px;
+  }
+
+  .expand-config-btn {
+    background: #6c757d;
+    color: white;
+    border: none;
+    padding: 8px 15px;
+    border-radius: 5px;
+    cursor: pointer;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .expand-config-btn:hover {
+    background: #5a6268;
   }
 
   .modal {
@@ -451,6 +476,53 @@ extra_css %}
 
     .models-grid {
       grid-template-columns: 1fr;
+      padding: 0 5px;
+    }
+    
+    /* Consolidated mobile layout rules - each selector defined only once */
+    .model-card {
+      width: 100% !important;
+      max-width: 100% !important;
+      min-width: 0 !important;
+      padding: 15px;
+      margin: 10px 0;
+      box-sizing: border-box !important;
+    }
+
+    .config-details {
+      width: 100% !important;
+      max-width: 100% !important;
+      min-width: 0 !important;
+      overflow-x: hidden !important;
+      padding: 0 !important;
+      margin: 0 !important;
+    }
+
+    .field-item {
+      width: 100% !important;
+      min-width: 0 !important;
+      max-width: 100% !important;
+      margin: 5px 0 !important;
+      padding: 0 !important;
+    }
+
+    .field-input, .field-value {
+      width: 100% !important;
+      min-width: 0 !important;
+      max-width: 100% !important;
+      box-sizing: border-box !important;
+      word-break: break-word !important;
+      overflow-wrap: break-word !important;
+      font-size: 13px !important;
+      padding: 4px 6px !important;
+    }
+    
+    /* 防止任何子元素超出容器 */
+    .model-card * {
+      max-width: 100% !important;
+      overflow-x: hidden !important;
+      word-break: break-word !important;
+      overflow-wrap: break-word !important;
     }
 
     .model-actions {
@@ -459,6 +531,14 @@ extra_css %}
 
     .model-btn {
       width: 100%;
+    }
+
+    .model-name {
+      font-size: 16px !important;
+    }
+    
+    .field-label {
+      font-size: 12px !important;
     }
   }
 </style>
@@ -529,45 +609,105 @@ extra_css %}
       </div>
 
       <div class="field-item">
-        <div class="model-field-bool">
-          <span class="field-label">多模态支持:</span>
-          <label class="bool-switch">
-            <input
-              type="checkbox"
-              data-model="{{ model.name }}"
-              data-field="multimodal"
-              onchange="toggleModelField(this)"
-              {%
-              if
-              model.multimodal
-              %}checked{%
-              endif
-              %}
-            />
-            <span class="bool-slider"></span>
-          </label>
-        </div>
+        <button
+          class="expand-config-btn"
+          onclick="toggleConfigDetails(this)"
+          data-model="{{ model.name }}"
+        >
+          <i class="fas fa-chevron-down"></i> 高级配置
+        </button>
       </div>
 
-      <div class="field-item">
-        <div class="model-field-bool">
-          <span class="field-label">思维链模型:</span>
-          <label class="bool-switch">
-            <input
-              type="checkbox"
-              data-model="{{ model.name }}"
-              data-field="thought_chain_model"
-              onchange="toggleModelField(this)"
-              {%
-              if
-              model.thought_chain_model
-              %}checked{%
-              endif
-              %}
-            />
-            <span class="bool-slider"></span>
-          </label>
+      <!-- 配置详情区域 -->
+      <div class="config-details" style="display: none">
+        <div class="field-item">
+          <div class="field-label">Top K</div>
+          <input
+            type="number"
+            class="field-input config-field"
+            data-model="{{ model.name }}"
+            data-config-field="top_k"
+            value="{{ model.config.top_k if model.config else 50 }}"
+            min="1"
+            max="100"
+          />
         </div>
+
+        <div class="field-item">
+          <div class="field-label">Top P</div>
+          <input
+            type="number"
+            class="field-input config-field"
+            data-model="{{ model.name }}"
+            data-config-field="top_p"
+            value="{{ model.config.top_p if model.config else 0.8 }}"
+            min="0"
+            max="1"
+            step="0.01"
+          />
+        </div>
+
+        <div class="field-item">
+          <div class="field-label">Temperature</div>
+          <input
+            type="number"
+            class="field-input config-field"
+            data-model="{{ model.name }}"
+            data-config-field="temperature"
+            value="{{ model.config.temperature if model.config else 0.6 }}"
+            min="0"
+            max="2"
+            step="0.01"
+          />
+        </div>
+
+        <div class="field-item">
+          <div class="model-field-bool">
+            <span class="field-label">流式响应:</span>
+            <label class="bool-switch">
+              <input
+                type="checkbox"
+                class="config-field"
+                data-model="{{ model.name }}"
+                data-config-field="stream"
+                {%
+                if
+                model.config
+                and
+                model.config.stream
+                %}checked{%
+                endif
+                %}
+              />
+              <span class="bool-slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <div class="field-item">
+          <div class="model-field-bool">
+            <span class="field-label">多模态支持:</span>
+            <label class="bool-switch">
+              <input
+                type="checkbox"
+                class="config-field"
+                data-model="{{ model.name }}"
+                data-config-field="multimodal"
+                {%
+                if
+                model.config
+                and
+                model.config.multimodal
+                %}checked{%
+                endif
+                %}
+              />
+              <span class="bool-slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <!-- 移除思维链模型字段 -->
       </div>
 
       <div class="model-actions">
@@ -603,6 +743,7 @@ extra_css %}
           class="form-control"
           id="modelName"
           name="name"
+          placeholder="例如：my-gpt4"
           required
         />
       </div>
@@ -613,6 +754,7 @@ extra_css %}
           class="form-control"
           id="modelModel"
           name="model"
+          placeholder="例如：gpt-4o"
           required
         />
       </div>
@@ -623,6 +765,7 @@ extra_css %}
           class="form-control"
           id="modelBaseUrl"
           name="base_url"
+          value="https://api.openai.com/v1"
         />
       </div>
       <div class="form-group">
@@ -645,21 +788,64 @@ extra_css %}
         />
       </div>
       <div class="form-group">
+        <label class="form-label" for="modelTopK">Top K</label>
+        <input
+          type="number"
+          class="form-control"
+          id="modelTopK"
+          name="top_k"
+          min="1"
+          max="100"
+          value="50"
+        />
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="modelTopP">Top P</label>
+        <input
+          type="number"
+          class="form-control"
+          id="modelTopP"
+          name="top_p"
+          min="0"
+          max="1"
+          step="0.01"
+          value="0.8"
+        />
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="modelTemperature">Temperature</label>
+        <input
+          type="number"
+          class="form-control"
+          id="modelTemperature"
+          name="temperature"
+          min="0"
+          max="2"
+          step="0.01"
+          value="0.6"
+        />
+      </div>
+
+      <div class="form-group">
         <label class="form-label">
-          <input type="checkbox" id="modelMultimodal" name="multimodal" />
-          多模态支持
+          <input type="checkbox" id="modelStream" name="stream" />
+          流式响应
         </label>
       </div>
+
       <div class="form-group">
         <label class="form-label">
           <input
             type="checkbox"
-            id="modelThoughtChain"
-            name="thought_chain_model"
+            id="modelConfigMultimodal"
+            name="config_multimodal"
           />
-          思维链模型
+          配置多模态支持
         </label>
       </div>
+
       <div class="form-actions">
         <button type="button" class="btn btn-secondary" onclick="closeModal()">
           取消
@@ -672,23 +858,33 @@ extra_css %}
 {% endblock %} {% block scripts %}
 <script>
   let editingModel = null;
-  const configContainer = document.querySelector('.config-container');
+  const configContainer = document.querySelector(".config-container");
 
   function openCreateModal() {
     document.getElementById("modalTitle").textContent = "创建模型预设";
     document.getElementById("modelForm").reset();
     document.getElementById("modelId").value = "";
+
+    document.getElementById("modelTopK").value = 50;
+    document.getElementById("modelTopP").value = 0.8;
+    document.getElementById("modelTemperature").value = 0.6;
+    document.getElementById("modelStream").checked = false;
+    document.getElementById("modelConfigMultimodal").checked = false;
+
+    document.getElementById("modelApiKey").value = "";
+    document.getElementById("modelApiKey").placeholder = "";
+
+    document.getElementById("modelBaseUrl").value = "https://api.openai.com/v1";
+
     editingModel = null;
-    
-    // 添加背景虚化效果
-    configContainer.classList.add('blurred');
-    
+
+    configContainer.classList.add("blurred");
+
     document.getElementById("modelModal").style.display = "block";
     document.getElementById("modelModal").classList.add("active");
   }
 
   function openEditModal(modelName) {
-    // 使用fetch获取模型详细信息
     fetch(`/api/chat/models`)
       .then((response) => response.json())
       .then((data) => {
@@ -701,19 +897,31 @@ extra_css %}
             document.getElementById("modelModel").value = model.model;
             document.getElementById("modelBaseUrl").value =
               model.base_url !== "默认" ? model.base_url : "";
-            document.getElementById("modelApiKey").value =
-              model.api_key !== "未设置" ? model.api_key : "";
+
+            document.getElementById("modelApiKey").value = "";
+            document.getElementById("modelApiKey").placeholder = "(未修改)";
             document.getElementById("modelProtocol").value = model.protocol;
-            document.getElementById("modelMultimodal").checked =
-              model.multimodal;
-            document.getElementById("modelThoughtChain").checked =
-              model.thought_chain_model;
+            if (model.config) {
+              document.getElementById("modelTopK").value = model.config.top_k;
+              document.getElementById("modelTopP").value = model.config.top_p;
+              document.getElementById("modelTemperature").value =
+                model.config.temperature;
+              document.getElementById("modelStream").checked =
+                model.config.stream;
+              document.getElementById("modelConfigMultimodal").checked =
+                model.config.multimodal;
+            } else {
+              document.getElementById("modelTopK").value = 50;
+              document.getElementById("modelTopP").value = 0.8;
+              document.getElementById("modelTemperature").value = 0.6;
+              document.getElementById("modelStream").checked = false;
+              document.getElementById("modelConfigMultimodal").checked = false;
+            }
 
             editingModel = model.name;
-            
-            // 添加背景虚化效果
-            configContainer.classList.add('blurred');
-            
+
+            configContainer.classList.add("blurred");
+
             document.getElementById("modelModal").style.display = "block";
             document.getElementById("modelModal").classList.add("active");
           } else {
@@ -732,9 +940,8 @@ extra_css %}
   function closeModal() {
     document.getElementById("modelModal").style.display = "none";
     document.getElementById("modelModal").classList.remove("active");
-    
-    // 移除背景虚化效果
-    configContainer.classList.remove('blurred');
+
+    configContainer.classList.remove("blurred");
   }
 
   document
@@ -745,14 +952,32 @@ extra_css %}
       const formData = new FormData(this);
       const modelData = Object.fromEntries(formData.entries());
 
-      // 处理布尔值
-      modelData.multimodal = document.getElementById("modelMultimodal").checked;
-      modelData.thought_chain_model =
-        document.getElementById("modelThoughtChain").checked;
+      modelData.stream = document.getElementById("modelStream").checked;
+      modelData.config_multimodal = document.getElementById(
+        "modelConfigMultimodal",
+      ).checked;
 
-      // 如果API密钥未更改，不发送（避免覆盖已保存的密钥）
-      if (modelData.api_key === "{{key_placeholder}}") {
-        delete modelData.api_key;
+      const config = {
+        top_k: parseInt(document.getElementById("modelTopK").value),
+        top_p: parseFloat(document.getElementById("modelTopP").value),
+        temperature: parseFloat(
+          document.getElementById("modelTemperature").value,
+        ),
+        stream: document.getElementById("modelStream").checked,
+        multimodal: document.getElementById("modelConfigMultimodal").checked,
+      };
+
+      modelData.config = config;
+
+      const apiKeyInput = document.getElementById("modelApiKey");
+      if (editingModel) {
+        if (apiKeyInput.value !== "" && apiKeyInput.value !== "(未修改)") {
+          modelData.api_key = apiKeyInput.value;
+        } else {
+          delete modelData.api_key;
+        }
+      } else {
+        modelData.api_key = apiKeyInput.value;
       }
 
       try {
@@ -775,7 +1000,7 @@ extra_css %}
           showAlert(
             "success",
             result.message ||
-              (editingModel ? "模型预设已更新" : "模型预设已创建")
+              (editingModel ? "模型预设已更新" : "模型预设已创建"),
           );
           location.reload();
         } else {
@@ -797,7 +1022,7 @@ extra_css %}
         `/api/chat/models/${encodeURIComponent(modelName)}`,
         {
           method: "DELETE",
-        }
+        },
       );
 
       const result = await response.json();
@@ -820,34 +1045,75 @@ extra_css %}
     const value = checkbox.checked;
 
     try {
-      const response = await fetch(
-        `/api/chat/models/${encodeURIComponent(modelName)}`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
+      const response = await fetch("/api/chat/models");
+      const modelListResponse = await response.json();
+
+      if (!modelListResponse.success) {
+        throw new Error("无法获取模型列表");
+      }
+
+      const model = modelListResponse.models.find((m) => m.name === modelName);
+      if (!model) {
+        throw new Error(`模型 ${modelName} 不存在`);
+      }
+
+      if (
+        ["top_k", "top_p", "temperature", "stream", "multimodal"].includes(
+          fieldName,
+        )
+      ) {
+        const configData = { ...model.config, [fieldName]: value };
+
+        const updateResponse = await fetch(
+          `/api/chat/models/${encodeURIComponent(modelName)}`,
+          {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              name: modelName,
+              config: configData,
+            }),
           },
-          body: JSON.stringify({
-            name: modelName,
-            [fieldName]: value,
-          }),
-        }
-      );
-
-      const result = await response.json();
-
-      if (result.success) {
-        showAlert(
-          "success",
-          `模型预设 "${modelName}" 的 "${fieldName}" 已更新`
         );
+
+        const result = await updateResponse.json();
+
+        if (result.success) {
+          showAlert("success", `模型 ${modelName} 的配置已更新`);
+        } else {
+          throw new Error(result.message);
+        }
       } else {
-        checkbox.checked = !value; // 恢复原状态
-        showAlert("danger", result.message || "更新失败");
+        const updateResponse = await fetch(
+          `/api/chat/models/${encodeURIComponent(modelName)}`,
+          {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              name: modelName,
+              [fieldName]: value,
+            }),
+          },
+        );
+
+        const result = await updateResponse.json();
+
+        if (result.success) {
+          showAlert(
+            "success",
+            `模型预设 "${modelName}" 的 "${fieldName}" 已更新`,
+          );
+        } else {
+          throw new Error(result.message);
+        }
       }
     } catch (error) {
       console.error("更新模型预设失败:", error);
-      checkbox.checked = !value; // 恢复原状态
+      checkbox.checked = !value;
       showAlert("danger", "更新失败: " + error.message);
     }
   }
@@ -906,7 +1172,82 @@ extra_css %}
     }, 3000);
   }
 
-  // 点击模态框外部关闭
+  function toggleConfigDetails(button) {
+    const configDetails = button.parentElement.nextElementSibling;
+    const icon = button.querySelector("i");
+
+    if (configDetails.style.display === "none") {
+      configDetails.style.display = "block";
+      icon.className = "fas fa-chevron-up";
+    } else {
+      configDetails.style.display = "none";
+      icon.className = "fas fa-chevron-down";
+    }
+  }
+
+  async function saveConfigField(modelName, field, value) {
+    try {
+      const response = await fetch("/api/chat/models");
+      const modelListResponse = await response.json();
+
+      if (!modelListResponse.success) {
+        throw new Error("无法获取模型列表");
+      }
+
+      const model = modelListResponse.models.find((m) => m.name === modelName);
+      if (!model) {
+        throw new Error(`模型 ${modelName} 不存在`);
+      }
+
+      const configData = { ...model.config, [field]: value };
+
+      const updateResponse = await fetch(
+        `/api/chat/models/${encodeURIComponent(modelName)}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            name: modelName,
+            config: configData,
+          }),
+        },
+      );
+
+      const result = await updateResponse.json();
+
+      if (result.success) {
+        showAlert("success", `模型 ${modelName} 的配置已更新`);
+      } else {
+        throw new Error(result.message);
+      }
+    } catch (error) {
+      console.error("更新配置失败:", error);
+      showAlert("danger", "更新配置失败: " + error.message);
+    }
+  }
+
+  document.addEventListener("change", function (e) {
+    if (e.target.classList.contains("config-field")) {
+      const modelName = e.target.getAttribute("data-model");
+      const field = e.target.getAttribute("data-config-field");
+      let value = e.target.value;
+
+      if (e.target.type === "checkbox") {
+        value = e.target.checked;
+      } else if (e.target.type === "number") {
+        if (field === "top_p" || field === "temperature") {
+          value = parseFloat(value);
+        } else {
+          value = parseInt(value);
+        }
+      }
+
+      saveConfigField(modelName, field, value);
+    }
+  });
+
   window.onclick = function (event) {
     const modal = document.getElementById("modelModal");
     if (event.target === modal) {
@@ -914,7 +1255,6 @@ extra_css %}
     }
   };
 
-  // ESC键关闭模态框
   document.addEventListener("keydown", function (event) {
     if (event.key === "Escape") {
       closeModal();

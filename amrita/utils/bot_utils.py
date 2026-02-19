@@ -6,8 +6,10 @@ from datetime import timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+import amrita_core
 import nonebot
-from nonebot.log import default_format, logger_id
+import nonebot.log
+from nonebot.log import default_format
 
 from amrita.config import get_amrita_config
 from amrita.utils.logging import LoggingData, LoggingEvent
@@ -118,14 +120,17 @@ def init():
                 logger.warning(f"发送群消息失败: {e}")
 
     Path("plugins").mkdir(exist_ok=True)
-    logger.remove(logger_id)
-    logger.add(
+    logger.remove(amrita_core.logging.logger_id)
+    new_id = logger.add(
         sys.stdout,
         level=0,
         diagnose=True,
         format=CUSTOM_FORMAT,
         filter=default_filter,
     )
+    nonebot.log.logger_id = new_id
+    amrita_core.logging.logger = logger
+    amrita_core.logging.logger_id = new_id
     logger.add(AsyncErrorHandler(), level="ERROR")
     logger.add(EventRecorder(), level="WARNING")
     nonebot.init()

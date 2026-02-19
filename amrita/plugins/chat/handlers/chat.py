@@ -20,7 +20,7 @@ from amrita_core.protocol import (
     MessageWithMetadata,
     StringMessageContent,
 )
-from amrita_core.types import ImageContent, ImageUrl
+from amrita_core.types import USER_INPUT, ImageContent, ImageUrl
 from nonebot import get_driver
 from nonebot.adapters.onebot.v11 import (
     Bot,
@@ -91,10 +91,14 @@ async def handle_reply(
     dt_object = datetime.fromtimestamp(reply.time)
     weekday = dt_object.strftime("%A")
     formatted_time = dt_object.strftime("%Y-%m-%d %I:%M:%S %p")
-    role = await get_user_role(bot, group_id, reply.sender.user_id) if group_id else ""
+    role = (
+        f"{await get_user_role(bot, group_id, reply.sender.user_id)}"
+        if group_id
+        else ""
+    )
 
     reply_content = await synthesize_message(reply.message, bot)
-    result = f"{content}\n<MESSAGE_REFERED>\n{formatted_time} {weekday} [{role}]{reply.sender.nickname}（QQ:{reply.sender.user_id}）说：{reply_content}\n</MESSAGE_REFERED>"
+    result = f"{content}\n<MESSAGE_REFERED>\n{formatted_time} {weekday} {role}{reply.sender.nickname}（QQ:{reply.sender.user_id}）说：{reply_content}\n</MESSAGE_REFERED>"
     debug_log(f"处理引用消息完成: {result[:50]}..")
     return result
 
@@ -182,7 +186,7 @@ async def synthesize_message_to_msg(
     is_multimodal: bool = (
         any(
             [
-                (await config_manager.get_preset(preset=preset)).multimodal
+                (await config_manager.get_preset(preset=preset)).config.multimodal
                 for preset in [
                     config_manager.config.preset,
                     *config_manager.config.preset_extension.backup_preset_list,
@@ -283,7 +287,7 @@ async def entry(event: MessageEvent, matcher: Matcher, bot: Bot):
             msg = MessageSegment.image(await message.get_image())
             await matcher.send(msg)
 
-    content = await synthesize_message(event.get_message(), bot)
+    content: USER_INPUT = await synthesize_message(event.get_message(), bot)
     debug_log(f"合成消息完成: {content}")
 
     if content.strip() == "":

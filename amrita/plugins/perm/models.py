@@ -1,6 +1,5 @@
 from abc import ABC
 from asyncio import Lock
-from collections import defaultdict
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Literal
@@ -19,6 +18,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
+from amrita.cache import WeakValueLRUCache
 from amrita.plugins.perm import nodelib
 
 PERM_TYPE = Literal["group", "user"]
@@ -197,7 +197,7 @@ class PermissionStorage:
     """
 
     _instance = None
-    _action_lock: defaultdict[str, Lock]
+    _lock_pool: WeakValueLRUCache[str, Lock]
     _cached_permission_group_data: dict[
         str, PermissionGroupPydantic
     ]  # 缓存的权限组数据
@@ -221,8 +221,13 @@ class PermissionStorage:
             cls._cached_permission_group_data = {}
             cls._cached_member_permission_data = {}
             cls._cached_member_to_permission_group_data = {}
-            cls._action_lock = defaultdict(Lock)
+            cls._lock_pool = WeakValueLRUCache(1024, loose_mode=True)
         return cls._instance
+
+    def _make_lock(self, name: str) -> Lock:
+        if name not in self._lock_pool:
+            self._lock_pool[name] = Lock()
+        return self._lock_pool[name]
 
     def _lock_maker(
         self, data: PermissionGroupPydantic | MemberPermissionPydantic
@@ -240,9 +245,9 @@ class PermissionStorage:
             ValueError: 当传入不支持的数据类型时
         """
         if isinstance(data, PermissionGroupPydantic):
-            return self._action_lock[data.group_name]
+            return self._make_lock(data.group_name)
         elif isinstance(data, MemberPermissionPydantic):
-            return self._action_lock[str((data.member_id, data.type))]
+            return self._make_lock(str((data.member_id, data.type)))
         else:
             raise ValueError("Unsupported data type")
 
@@ -258,7 +263,7 @@ class PermissionStorage:
             member_id (str): 成员ID
             type (PERM_TYPE): 成员类型（"user" 或 "group"）
         """
-        async with self._action_lock[str((member_id, type))]:
+        async with self._make_lock(str((member_id, type))):
             self._cached_member_permission_data.pop((member_id, type), None)
             self._cached_member_to_permission_group_data.pop((member_id, type), None)
 
@@ -272,7 +277,7 @@ class PermissionStorage:
         Args:
             group_name (str): 权限组名称
         """
-        async with self._action_lock[group_name]:
+        async with self._make_lock(group_name):
             self._cached_permission_group_data.pop(group_name, None)
 
     async def expire_member_permission_cache_all(
@@ -323,7 +328,7 @@ class PermissionStorage:
         Returns:
             MemberPermissionPydantic: 成员权限信息
         """
-        async with self._action_lock[str((member_id, type))]:
+        async with self._make_lock(str((member_id, type))):
             if (
                 not no_cache
                 and (data := self._cached_member_permission_data.get((member_id, type)))
@@ -363,7 +368,7 @@ class PermissionStorage:
         Raises:
             ValueError: 权限组存在时抛出
         """
-        async with self._action_lock[group_name]:
+        async with self._make_lock(group_name):
             if (
                 group_name in self._cached_permission_group_data
                 or await self.permission_group_exists(group_name)
@@ -382,7 +387,7 @@ class PermissionStorage:
         Raises:
             ValueError: 不存在或不合法则抛出
         """
-        async with self._action_lock[group_name]:
+        async with self._make_lock(group_name):
             if any(name.value == group_name for name in DefaultPermissionGroupsEnum):
                 raise ValueError(f"默认权限组`{group_name}`不能删除")
             if not (
@@ -468,7 +473,7 @@ class PermissionStorage:
     async def del_member_related_permission_group(
         self, member_id: str, member_type: PERM_TYPE, group_name: str
     ) -> None:
-        async with self._action_lock[str((member_id, member_type))]:
+        async with self._make_lock(str((member_id, member_type))):
             if not await self.is_member_in_permission_group(
                 member_id, member_type, group_name
             ):
@@ -488,7 +493,7 @@ class PermissionStorage:
     async def add_member_related_permission_group(
         self, member_id: str, member_type: PERM_TYPE, group_name: str
     ) -> None:
-        async with self._action_lock[str((member_id, member_type))]:
+        async with self._make_lock(str((member_id, member_type))):
             if not await self.is_member_in_permission_group(
                 member_id, member_type, group_name
             ):
@@ -521,7 +526,7 @@ class PermissionStorage:
         Returns:
             PermissionGroupPydantic: 权限组信息
         """
-        async with self._action_lock[group_name]:
+        async with self._make_lock(group_name):
             if (
                 not no_cache
                 and (data := self._cached_permission_group_data.get(group_name))
@@ -560,7 +565,7 @@ class PermissionStorage:
         Raises:
             ValueError: 当找不到指定成员时
         """
-        async with self._action_lock[str((member_id, member_type))]:
+        async with self._make_lock(str((member_id, member_type))):
             self._cached_member_permission_data.pop((member_id, member_type), None)
             async with get_session() as session:
                 stmt = select(MemberPermission).where(
@@ -594,7 +599,7 @@ class PermissionStorage:
         Raises:
             ValueError: 当找不到指定权限组时
         """
-        async with self._action_lock[group_name]:
+        async with self._make_lock(group_name):
             self._cached_permission_group_data.pop(group_name, None)
             async with get_session() as session:
                 stmt = select(PermissionGroup).where(
@@ -701,7 +706,7 @@ class PermissionStorage:
             permission_groups = await session.execute(select(PermissionGroup))
             for permission_group in permission_groups.scalars():
                 name = permission_group.group_name
-                async with self._action_lock[name]:
+                async with self._make_lock(name):
                     self._cached_permission_group_data[name] = (
                         PermissionGroupPydantic.model_validate(
                             permission_group, from_attributes=True
@@ -711,7 +716,7 @@ class PermissionStorage:
             members = await session.execute(select(MemberPermission))
             for member in members.scalars():
                 mbid, mbtype = member.member_id, member.type
-                async with self._action_lock[str((mbid, mbtype))]:
+                async with self._make_lock(str((mbid, mbtype))):
                     self._cached_member_permission_data[(mbid, mbtype)] = (
                         MemberPermissionPydantic.model_validate(
                             member, from_attributes=True
