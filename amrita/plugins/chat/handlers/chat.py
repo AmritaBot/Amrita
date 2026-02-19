@@ -182,7 +182,7 @@ async def synthesize_message_to_msg(
     is_multimodal: bool = (
         any(
             [
-                (await config_manager.get_preset(preset=preset)).multimodal
+                (await config_manager.get_preset(preset=preset)).config.multimodal
                 for preset in [
                     config_manager.config.preset,
                     *config_manager.config.preset_extension.backup_preset_list,

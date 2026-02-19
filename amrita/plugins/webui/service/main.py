@@ -6,7 +6,7 @@ from pathlib import Path
 
 import nonebot
 from fastapi import FastAPI, HTTPException, Request, Response
-from fastapi.responses import RedirectResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from nonebot import logger
@@ -37,6 +37,7 @@ def try_get_bot():
 class TemplatesManager:
     __instance: Self | None = None
     _templates_dir: list[Path]
+    _cached_jinja2: Jinja2Templates | None = None
 
     def __new__(cls) -> Self:
         if cls.__instance is None:
@@ -51,9 +52,12 @@ class TemplatesManager:
         if path in self._templates_dir:
             return
         self._templates_dir.append(path)
+        self._cached_jinja2 = None
 
     def get_templates(self) -> Jinja2Templates:
-        return Jinja2Templates(self.get_templates_dir())
+        if self._cached_jinja2 is None:
+            self._cached_jinja2 = Jinja2Templates(self.get_templates_dir())
+        return self._cached_jinja2
 
     def get_base_html_path(self) -> Path:
         return TEMPLATES_PATH / "base.html"
@@ -67,54 +71,29 @@ class TemplatesManager:
         return self.templates.TemplateResponse
 
 
-@app.exception_handler(404)
-async def _(request: Request, exc: HTTPException):
-    return TemplatesManager().TemplateResponse(
-        "error.html",
-        {
-            "request": request,
-            "error_code": 404,
-            "debug": app.debug,
-            "error_details": "Not Found",
-        },
-    )
-
-
-@app.exception_handler(400)
-@app.exception_handler(402)
-@app.exception_handler(403)
-@app.exception_handler(405)
-@app.exception_handler(500)
-async def handle_exc(request: Request, exc: Exception):
-    if isinstance(exc, HTTPException):
-        response = TemplatesManager().TemplateResponse(
-            "error.html",
-            {
-                "request": request,
-                "error_code": exc.status_code,
-                "debug": app.debug,
-                "error_details": str(exc) if app.debug else None,
-            },
-            status_code=exc.status_code,
+@app.exception_handler(Exception)
+async def _(request: Request, exc: Exception):
+    if not isinstance(exc, HTTPException):
+        exc = HTTPException(500, exc)
+        logger.opt(exception=exc, colors=True).exception(
+            "An Exception occurred in Amrita WebUI"
         )
-    else:
-        response = TemplatesManager().TemplateResponse(
-            "error.html",
-            {
-                "request": request,
-                "error_code": 500,
-                "debug": True,
-                "error_details": f"Unexpected Exception!{exc!s}",
-            },
-        )
-    return response
+    return await handle_http_exc(request, exc)
 
 
-@app.exception_handler(HTTPException)
-async def _(request: Request, exc: HTTPException):
+async def handle_http_exc(request: Request, exc: HTTPException):
     if exc.status_code == 401:
         logger.warning("401!" + str(request))
         return RedirectResponse(url="/", status_code=303)
+    if request.url.path.startswith("/api"):
+        return JSONResponse(
+            {
+                "code": exc.status_code,
+                "message": str(exc.detail),
+                "success": False,
+            },
+            status_code=exc.status_code,
+        )
     return TemplatesManager().TemplateResponse(
         "error.html",
         {
@@ -123,6 +102,7 @@ async def _(request: Request, exc: HTTPException):
             "debug": app.debug,
             "error_details": str(exc) if app.debug else None,
         },
+        status_code=exc.status_code,
     )
 
 
