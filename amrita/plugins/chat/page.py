@@ -1,7 +1,10 @@
+import copy
 from pathlib import Path
 from typing import Any
 
 import aiofiles
+from amrita_core import ModelPreset
+from amrita_core.types import ModelConfig
 from fastapi import Query
 from nonebot import logger
 
@@ -18,8 +21,6 @@ from amrita.plugins.webui.API import (
     TemplatesManager,
     on_page,
 )
-
-# 导入API路由
 from amrita.plugins.webui.API import app as router
 
 TemplatesManager().add_templates_dir(Path(__file__).resolve().parent / "templates")
@@ -40,25 +41,18 @@ async def create_model(request: Request):
         base_url = data.get("base_url", "")
         api_key = data.get("api_key", "")
         protocol = data.get("protocol", "__main__")
-        multimodal = data.get("multimodal", False)
-        thought_chain_model = data.get("thought_chain_model", False)
-
+        config_data = data.get("config", {})
         if not name:
             return JSONResponse(
                 {"success": False, "message": "缺少模型预设名称"}, status_code=400
             )
-
-        # 创建模型预设
-        from amrita.plugins.chat.config import ModelPreset
-
         preset = ModelPreset(
             name=name,
             model=model,
             base_url=base_url,
             api_key=api_key,
             protocol=protocol,
-            multimodal=multimodal,
-            thought_chain_model=thought_chain_model,
+            config=ModelConfig(**config_data),
         )
 
         # 保存模型预设到文件
@@ -95,7 +89,15 @@ async def update_model(request: Request, name: str):
 
         # 更新字段
         for key, value in data.items():
-            if hasattr(preset, key):
+            if key == "config":
+                # 处理config字段的更新
+                for config_key, config_value in value.items():
+                    if hasattr(preset.config, config_key):
+                        setattr(preset.config, config_key, config_value)
+            elif key == "api_key":
+                if value != KEY_PLACEHOLDER:
+                    setattr(preset, key, value)
+            elif hasattr(preset, key) and key != "name":  # 排除不可变的name字段
                 setattr(preset, key, value)
 
         # 保存模型预设到文件
@@ -127,8 +129,6 @@ async def delete_model(name: str):
                 {"success": False, "message": f"模型预设 {name} 不存在"},
                 status_code=404,
             )
-
-        # 删除文件
         preset_path.unlink()
 
         # 重新加载模型列表
@@ -149,19 +149,11 @@ async def delete_model(name: str):
 @router.get("/api/chat/models")
 async def get_models():
     try:
-        models = await config_manager.get_all_presets(cache=False)
-        model_data = [
-            {
-                "name": model.name,
-                "model": model.model,
-                "base_url": model.base_url,
-                "api_key": KEY_PLACEHOLDER,
-                "protocol": model.protocol,
-                "multimodal": model.multimodal,
-                "thought_chain_model": model.thought_chain_model,
-            }
-            for model in models
-        ]
+        models = copy.deepcopy(await config_manager.get_all_presets(cache=False))
+        model_data = []
+        for model in models:
+            model.api_key = KEY_PLACEHOLDER
+            model_data.append(model.model_dump())
 
         return JSONResponse({"success": True, "models": model_data}, status_code=200)
     except Exception as e:
@@ -175,7 +167,7 @@ async def get_models():
 @router.post("/api/chat/prompts/{prompt_type}")
 async def create_prompt(request: Request, prompt_type: str):
     try:
-        data = await request.json()
+        data: dict[str, Any] = await request.json()
         name = data.get("name")
         text = data.get("text", "")
 
@@ -225,7 +217,7 @@ async def create_prompt(request: Request, prompt_type: str):
 @router.put("/api/chat/prompts/{prompt_type}/{name}")
 async def update_prompt(request: Request, prompt_type: str, name: str):
     try:
-        data = await request.json()
+        data: dict[str, Any] = await request.json()
         text = data.get("text", "")
 
         if prompt_type not in ["group", "private"]:
@@ -248,8 +240,6 @@ async def update_prompt(request: Request, prompt_type: str, name: str):
                 {"success": False, "message": f"{prompt_type}提示词 {name} 不存在"},
                 status_code=404,
             )
-
-        # 检查是否为default提示词，如果是则不允许改名
         new_name = data.get("name", name)
         if name == "default" and new_name != "default":
             return JSONResponse(
@@ -431,7 +421,7 @@ async def get_mcp_servers():
 async def add_mcp_server(request: Request):
     """添加MCP服务器"""
     try:
-        data = await request.json()
+        data: dict[str, Any] = await request.json()
         server_script = data.get("server_script")
 
         if not server_script:
@@ -601,21 +591,12 @@ async def _(ctx: PageContext):
 
 @on_page("/manage/chat/models", page_name="模型预设", category="聊天管理")
 async def _(ctx: PageContext):
-    models = await config_manager.get_all_presets(cache=False)
+    models = copy.deepcopy(await config_manager.get_all_presets(cache=False))
+    model_data = []
+    for model in models:
+        model.api_key = KEY_PLACEHOLDER
+        model_data.append(model.model_dump())
     current_default = config_manager.config.preset
-
-    model_data = [
-        {
-            "name": model.name,
-            "model": model.model,
-            "base_url": model.base_url,
-            "api_key": KEY_PLACEHOLDER,
-            "protocol": model.protocol,
-            "multimodal": model.multimodal,
-            "thought_chain_model": model.thought_chain_model,
-        }
-        for model in models
-    ]
 
     return PageResponse(
         name="models.html",

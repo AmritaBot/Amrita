@@ -6,14 +6,10 @@ from datetime import timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+import amrita_core
 import nonebot
-from amrita_core.logging import (
-    logger as amrita_core_logger,
-)
-from amrita_core.logging import (
-    logger_id as amrita_core_logger_id,
-)
-from nonebot.log import default_format, logger_id
+import nonebot.log
+from nonebot.log import default_format
 
 from amrita.config import get_amrita_config
 from amrita.utils.logging import LoggingData, LoggingEvent
@@ -124,27 +120,19 @@ def init():
                 logger.warning(f"发送群消息失败: {e}")
 
     Path("plugins").mkdir(exist_ok=True)
-    logger.remove(logger_id)
-    logger.add(
+    logger.remove(amrita_core.logging.logger_id)
+    new_id = logger.add(
         sys.stdout,
         level=0,
         diagnose=True,
         format=CUSTOM_FORMAT,
         filter=default_filter,
     )
+    nonebot.log.logger_id = new_id
+    amrita_core.logging.logger = logger
+    amrita_core.logging.logger_id = new_id
     logger.add(AsyncErrorHandler(), level="ERROR")
     logger.add(EventRecorder(), level="WARNING")
-    # 替换amrita_core的logger，按照与nonebot logger相同的方式
-    amrita_core_logger.remove(amrita_core_logger_id)
-    amrita_core_logger.add(
-        sys.stdout,
-        level=0,
-        diagnose=True,
-        format=CUSTOM_FORMAT,
-        filter=default_filter,
-    )
-    amrita_core_logger.add(AsyncErrorHandler(), level="ERROR")
-    amrita_core_logger.add(EventRecorder(), level="WARNING")
     nonebot.init()
     get_driver().on_startup(st)
     logger.success(f"Amrita v{get_amrita_version()} is initializing......")
@@ -155,17 +143,6 @@ def init():
     os.makedirs(log_dir, exist_ok=True)
 
     logger.add(
-        f"{log_dir}/" + "{time}.log",  # 传入函数，每天自动更新日志路径
-        level=config.amrita_log_level,
-        format=default_format,
-        rotation="00:00",
-        retention=timedelta(days=7),
-        encoding="utf-8",
-        enqueue=True,
-    )
-
-    # 为amrita_core_logger也添加文件输出
-    amrita_core_logger.add(
         f"{log_dir}/" + "{time}.log",  # 传入函数，每天自动更新日志路径
         level=config.amrita_log_level,
         format=default_format,

@@ -10,7 +10,7 @@ import aiofiles
 import nonebot_plugin_localstore as store
 import tomli
 import tomli_w
-from amrita_core import ModelPreset as CoreModelPreset
+from amrita_core import ModelPreset as ModelPreset
 from amrita_core import PresetManager, set_config
 from amrita_core.config import (
     AmritaConfig as AmritaCoreConfig,
@@ -43,30 +43,6 @@ nb_config = driver.config
 # 缓存的正则表达式
 _re_hash: int = 0
 _cached_pattern: re.Pattern[str] | None = None
-
-
-class ModelPreset(CoreModelPreset):
-    thought_chain_model: bool = Field(
-        default=False, description="是否启用思维链模型优化（增强复杂问题处理）"
-    )
-    multimodal: bool = Field(
-        default=False, description="是否支持多模态输入（如图片识别）"
-    )
-
-    @classmethod
-    def load(cls, path: Path):
-        if path.exists():
-            with path.open(
-                "r",
-                encoding="utf-8",
-            ) as f:
-                data = json.load(f)
-            return cls.model_validate(data)
-        return cls()  # 返回默认值
-
-    def save(self, path: Path):
-        with path.open("w", encoding="u8") as f:
-            json.dump(self.model_dump(), f, indent=4, ensure_ascii=False)
 
 
 class ToolsConfig(BaseModel):
