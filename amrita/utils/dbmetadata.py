@@ -183,48 +183,23 @@ class AsyncDatabasePerformanceCollector:
         """获取数据库基本信息"""
         try:
             if self.db_type in ("mysql", "mariadb"):
-                # 首先尝试使用MariaDB特定的查询语句
-                try:
-                    result = await self.session.execute(
-                        text(
-                            "SELECT VERSION() as version, DATABASE() as db_name, "
-                            + "CURRENT_USER() as current_user, @@hostname as server_host, "
-                            + "@@version_comment as version_comment"
-                        )
+                # 使用已验证的通用查询
+                result = await self.session.execute(
+                    text(
+                        "SELECT VERSION() as version, DATABASE() as db_name, "
+                        "USER() as current_user, @@hostname as server_host, "
+                        "@@version_comment as version_comment"
                     )
-                    row = result.fetchone()
-                    if row:
-                        data = (
-                            dict(row._mapping)
-                            if hasattr(row, "_mapping")
-                            else dict(zip(row.keys(), row))
-                        )
-                        # 如果版本信息中包含MariaDB，则确认为MariaDB
-                        if "MariaDB" in data.get(
-                            "version", ""
-                        ) or "MariaDB" in data.get("version_comment", ""):
-                            # 不修改实例的db_type，只在当前上下文中记录
-                            pass
-                        return data
-                except Exception as maria_error:
-                    logger.debug(
-                        f"MariaDB query failed, falling back to MySQL: {maria_error}"
+                )
+                row = result.fetchone()
+                if row:
+                    # 使用 _mapping 以兼容不同 SQLAlchemy 版本
+                    return (
+                        dict(row._mapping)
+                        if hasattr(row, "_mapping")
+                        else dict(zip(row.keys(), row))
                     )
-
-                # 如果MariaDB语句失败，回退到MySQL通用语句
-                try:
-                    result = await self.session.execute(
-                        text(
-                            "SELECT VERSION() as version, DATABASE() as db_name, "
-                            + "USER() as current_user, @@hostname as server_host, "
-                            + "@@version_comment as version_comment"
-                        )
-                    )
-                    row = result.fetchone()
-                    return dict(row._mapping) if row else {}
-                except Exception as mysql_error:
-                    logger.warning(f"MySQL query also failed: {mysql_error}")
-                    return {}
+                return {}
 
             elif self.db_type == "postgresql":
                 result = await self.session.execute(
@@ -263,83 +238,48 @@ class AsyncDatabasePerformanceCollector:
         """获取连接统计"""
         try:
             if self.db_type in ("mysql", "mariadb"):
-                # 首先尝试使用MariaDB特定的查询语句
+                # 获取最大连接数
+                max_conn = None
                 try:
-                    # 尝试使用performance_schema查询最大连接数
                     result = await self.session.execute(
-                        text("""
-                        SELECT
-                            VARIABLE_VALUE as max_connections
-                        FROM performance_schema.global_variables
-                        WHERE VARIABLE_NAME = 'MAX_CONNECTIONS'
-                    """)
+                        text("SHOW VARIABLES LIKE 'max_connections'")
                     )
                     var_row = result.fetchone()
-                    max_conn = int(var_row[0]) if var_row else None
-                except Exception as maria_error:
-                    logger.debug(f"MariaDB specific query failed: {maria_error}")
-                    # 回退到MySQL通用语句
-                    try:
-                        result = await self.session.execute(
-                            text("SHOW VARIABLES LIKE 'max_connections'")
-                        )
-                        var_row = result.fetchone()
-                        max_conn = int(var_row.Value) if var_row else None
-                    except Exception as mysql_error:
-                        logger.warning(f"MySQL query failed: {mysql_error}")
-                        max_conn = None
+                    max_conn = int(var_row.Value) if var_row else None
+                except Exception as e:
+                    logger.debug(f"获取 max_connections 失败: {e}")
 
-                # 获取连接状态 - 尝试MariaDB
+                # 获取当前总连接数
+                threads_connected = 0
                 try:
                     result = await self.session.execute(
-                        text("""
-                        SELECT
-                            VARIABLE_NAME as Variable_name,
-                            VARIABLE_VALUE as Value
-                        FROM performance_schema.session_status
-                        WHERE VARIABLE_NAME IN (
-                            'Threads_connected', 'Threads_running',
-                            'Threads_created', 'Threads_cached',
-                            'Max_used_connections'
-                        )
-                    """)
+                        text("SHOW GLOBAL STATUS LIKE 'Threads_connected'")
                     )
-                    status_rows = result.fetchall()
-                    status_dict = {
-                        row.Variable_name: int(row.Value) for row in status_rows
-                    }
-                except Exception as maria_error:
-                    logger.debug(f"MariaDB session_status failed: {maria_error}")
-                    # 回退到SHOW STATUS
-                    try:
-                        result = await self.session.execute(
-                            text("""
-                            SHOW STATUS WHERE Variable_name IN (
-                                'Threads_connected', 'Threads_running',
-                                'Threads_created', 'Threads_cached',
-                                'Max_used_connections'
-                            )
-                        """)
-                        )
-                        status_rows = result.fetchall()
-                        status_dict = {
-                            row.Variable_name: int(row.Value) for row in status_rows
-                        }
-                    except Exception as mysql_error:
-                        logger.warning(f"MySQL status query failed: {mysql_error}")
-                        status_dict = {}
+                    row = result.fetchone()
+                    threads_connected = int(row.Value) if row else 0
+                except Exception as e:
+                    logger.debug(f"获取 Threads_connected 失败: {e}")
 
-                threads_connected = status_dict.get("Threads_connected", 0)
+                # 获取当前活跃连接数
+                threads_running = 0
+                try:
+                    result = await self.session.execute(
+                        text("SHOW GLOBAL STATUS LIKE 'Threads_running'")
+                    )
+                    row = result.fetchone()
+                    threads_running = int(row.Value) if row else 0
+                except Exception as e:
+                    logger.debug(f"获取 Threads_running 失败: {e}")
+
                 utilization = (threads_connected / max_conn * 100) if max_conn else None
 
                 return ConnectionStats(
                     total_connections=threads_connected,
-                    active_connections=status_dict.get("Threads_running", 0),
-                    idle_connections=threads_connected
-                    - status_dict.get("Threads_running", 0),
+                    active_connections=threads_running,
+                    idle_connections=threads_connected - threads_running,
                     max_allowed_connections=max_conn,
                     connection_utilization_percent=utilization,
-                    waiting_connections=None,  # MySQL需要查询PROCESSLIST中的'Locked'状态
+                    waiting_connections=None,  # MySQL/MariaDB 无直接等待连接数
                 )
 
             elif self.db_type == "postgresql":
@@ -424,117 +364,69 @@ class AsyncDatabasePerformanceCollector:
                     )
 
             elif self.db_type in ("mysql", "mariadb"):
-                # 尝试MariaDB特定的查询
+                # 读请求次数
+                read_requests = 0
                 try:
-                    # MariaDB 10.2+ 版本中的性能模式
                     result = await self.session.execute(
-                        text("""
-                        SELECT
-                            SUM(IF(VARIABLE_NAME = 'Innodb_buffer_pool_read_requests', CAST(VARIABLE_VALUE AS UNSIGNED), 0)) AS read_requests,
-                            SUM(IF(VARIABLE_NAME = 'Innodb_buffer_pool_reads', CAST(VARIABLE_VALUE AS UNSIGNED), 0)) AS reads
-                        FROM performance_schema.global_status
-                        WHERE VARIABLE_NAME IN ('Innodb_buffer_pool_read_requests', 'Innodb_buffer_pool_reads')
-                    """)
-                    )
-                    rows = result.fetchall()
-                    if rows:
-                        read_requests = int(rows[0][0]) if rows[0][0] else 0
-                        reads = int(rows[0][1]) if rows[0][1] else 0
-                    else:
-                        read_requests = reads = 0
-                except Exception as maria_error:
-                    logger.debug(
-                        f"MariaDB performance_schema query failed: {maria_error}"
-                    )
-                    # 回退到MySQL通用语句
-                    try:
-                        result = await self.session.execute(
-                            text("""
-                            SHOW STATUS WHERE Variable_name LIKE 'Innodb_buffer_pool%'
-                        """)
+                        text(
+                            "SHOW GLOBAL STATUS LIKE 'Innodb_buffer_pool_read_requests'"
                         )
-                        rows = result.fetchall()
-                        stats = {row.Variable_name: int(row.Value) for row in rows}
+                    )
+                    row = result.fetchone()
+                    read_requests = int(row.Value) if row else 0
+                except Exception as e:
+                    logger.debug(f"获取 Innodb_buffer_pool_read_requests 失败: {e}")
 
-                        read_requests = stats.get("Innodb_buffer_pool_read_requests", 0)
-                        reads = stats.get("Innodb_buffer_pool_reads", 0)
-                    except Exception as mysql_error:
-                        logger.warning(f"MySQL query failed: {mysql_error}")
-                        read_requests = reads = 0
+                # 实际物理读次数
+                reads = 0
+                try:
+                    result = await self.session.execute(
+                        text("SHOW GLOBAL STATUS LIKE 'Innodb_buffer_pool_reads'")
+                    )
+                    row = result.fetchone()
+                    reads = int(row.Value) if row else 0
+                except Exception as e:
+                    logger.debug(f"获取 Innodb_buffer_pool_reads 失败: {e}")
 
-                hit_ratio = 0
-                if read_requests > 0:
-                    hit_ratio = (1 - reads / read_requests) * 100
+                # 总页数
+                pages_total = 0
+                try:
+                    result = await self.session.execute(
+                        text("SHOW GLOBAL STATUS LIKE 'Innodb_buffer_pool_pages_total'")
+                    )
+                    row = result.fetchone()
+                    pages_total = int(row.Value) if row else 0
+                except Exception as e:
+                    logger.debug(f"获取 Innodb_buffer_pool_pages_total 失败: {e}")
 
-                # 尝试获取缓冲池大小 - 先尝试MariaDB
+                # 空闲页数
+                pages_free = 0
+                try:
+                    result = await self.session.execute(
+                        text("SHOW GLOBAL STATUS LIKE 'Innodb_buffer_pool_pages_free'")
+                    )
+                    row = result.fetchone()
+                    pages_free = int(row.Value) if row else 0
+                except Exception as e:
+                    logger.debug(f"获取 Innodb_buffer_pool_pages_free 失败: {e}")
+
+                # Buffer Pool 总大小（字节）
+                pool_size_bytes = None
                 try:
                     result = await self.session.execute(
                         text("SELECT @@innodb_buffer_pool_size as pool_size")
                     )
-                    var_row = result.fetchone()
-                    pool_size_bytes = int(var_row.pool_size) if var_row else None
-                except Exception as maria_error:
-                    logger.debug(
-                        f"MariaDB buffer pool size query failed: {maria_error}"
-                    )
-                    # 回退到MySQL
-                    try:
-                        result = await self.session.execute(
-                            text("SHOW VARIABLES LIKE 'innodb_buffer_pool_size'")
-                        )
-                        var_row = result.fetchone()
-                        pool_size_bytes = int(var_row.Value) if var_row else None
-                    except Exception as mysql_error:
-                        logger.warning(
-                            f"MySQL buffer pool size query failed: {mysql_error}"
-                        )
-                        pool_size_bytes = None
+                    row = result.fetchone()
+                    pool_size_bytes = int(row.pool_size) if row else None
+                except Exception as e:
+                    logger.debug(f"获取 innodb_buffer_pool_size 失败: {e}")
 
-                # 尝试获取缓冲池使用情况 - 先尝试MariaDB
-                try:
-                    result = await self.session.execute(
-                        text(
-                            "SELECT @@innodb_buffer_pool_size as pool_size, "
-                            "@@innodb_buffer_pool_pages_total as total_pages, "
-                            "@@innodb_buffer_pool_pages_free as free_pages"
-                        )
-                    )
-                    pool_row = result.fetchone()
-
-                    cache_used = None
-                    if pool_row and pool_row.total_pages > 0:
-                        cache_used = (
-                            1 - pool_row.free_pages / pool_row.total_pages
-                        ) * 100
-                except Exception as maria_error:
-                    logger.debug(
-                        f"MariaDB buffer pool usage query failed: {maria_error}"
-                    )
-                    # 回退到SHOW STATUS
-                    try:
-                        result = await self.session.execute(
-                            text("""
-                            SHOW STATUS LIKE 'Innodb_buffer_pool%'
-                        """)
-                        )
-                        status_rows = result.fetchall()
-                        status_dict = {
-                            row.Variable_name: int(row.Value) for row in status_rows
-                        }
-
-                        total_pages = status_dict.get(
-                            "Innodb_buffer_pool_pages_total", 0
-                        )
-                        free_pages = status_dict.get("Innodb_buffer_pool_pages_free", 0)
-
-                        cache_used = None
-                        if total_pages > 0:
-                            cache_used = (1 - free_pages / total_pages) * 100
-                    except Exception as mysql_error:
-                        logger.warning(
-                            f"MySQL buffer pool usage query failed: {mysql_error}"
-                        )
-                        cache_used = None
+                hit_ratio = (
+                    (1 - reads / read_requests) * 100 if read_requests > 0 else None
+                )
+                cache_used = (
+                    (1 - pages_free / pages_total) * 100 if pages_total > 0 else None
+                )
 
                 return CacheEfficiency(
                     buffer_pool_hit_ratio=hit_ratio,
@@ -547,17 +439,32 @@ class AsyncDatabasePerformanceCollector:
                 )
 
             elif self.db_type == "sqlite":
-                result = await self.session.execute(text("PRAGMA cache_size"))
-                cache_pages = result.scalar()
+                # 获取缓存设置：PRAGMA cache_size 返回正数表示页数，负数表示 KiB 数
+                cache_val = None
+                page_size = None
+                try:
+                    result = await self.session.execute(text("PRAGMA cache_size"))
+                    cache_val = result.scalar()
+                except Exception as e:
+                    logger.debug(f"获取 PRAGMA cache_size 失败: {e}")
 
-                result = await self.session.execute(text("PRAGMA page_size"))
-                page_size = result.scalar()
+                try:
+                    result = await self.session.execute(text("PRAGMA page_size"))
+                    page_size = result.scalar()
+                except Exception as e:
+                    logger.debug(f"获取 PRAGMA page_size 失败: {e}")
 
-                cache_size = None
-                if cache_pages and page_size:
-                    cache_size = (cache_pages * page_size) / (1024 * 1024)
+                cache_size_mb = None
+                if cache_val is not None and page_size:
+                    if cache_val > 0:
+                        # 正数：页数
+                        cache_size_bytes = cache_val * page_size
+                    else:
+                        # 负数：KiB 数，取绝对值
+                        cache_size_bytes = (-cache_val) * 1024
+                    cache_size_mb = cache_size_bytes / (1024 * 1024)
 
-                return CacheEfficiency(cache_size_mb=cache_size)
+                return CacheEfficiency(cache_size_mb=cache_size_mb)
 
         except Exception as e:
             logger.warning(f"获取缓存效率失败: {e}")
@@ -619,79 +526,53 @@ class AsyncDatabasePerformanceCollector:
                     )
 
             elif self.db_type in ("mysql", "mariadb"):
-                # 获取当前数据库名
+                # 获取当前数据库名（可能为 NULL）
                 db_result = await self.session.execute(text("SELECT DATABASE()"))
                 db_name = db_result.scalar()
 
+                # 构建查询条件：如果 db_name 为 NULL，则查询所有非系统库的表；否则只查询该库
                 if db_name:
-                    # 尝试MariaDB特定查询
-                    try:
-                        result = await self.session.execute(
-                            text("""
-                            SELECT
-                                TABLE_NAME,
-                                TABLE_ROWS,
-                                AVG_ROW_LENGTH,
-                                DATA_LENGTH,
-                                INDEX_LENGTH,
-                                DATA_FREE,
-                                AUTO_INCREMENT,
-                                UPDATE_TIME
-                            FROM information_schema.TABLES
-                            WHERE TABLE_SCHEMA = :db_name
-                            ORDER BY DATA_LENGTH + INDEX_LENGTH DESC
-                            LIMIT 20
-                        """),
-                            {"db_name": db_name},
-                        )
-                    except Exception as maria_error:
-                        logger.debug(f"MariaDB TABLES query failed: {maria_error}")
-                        # 回退到MySQL
-                        try:
-                            result = await self.session.execute(
-                                text("""
-                                SELECT
-                                    TABLE_NAME,
-                                    TABLE_ROWS,
-                                    AVG_ROW_LENGTH,
-                                    DATA_LENGTH,
-                                    INDEX_LENGTH,
-                                    DATA_FREE,
-                                    AUTO_INCREMENT,
-                                    UPDATE_TIME
-                                FROM information_schema.TABLES
-                                WHERE TABLE_SCHEMA = :db_name
-                                ORDER BY DATA_LENGTH + INDEX_LENGTH DESC
-                                LIMIT 20
-                            """),
-                                {"db_name": db_name},
-                            )
-                        except Exception as mysql_error:
-                            logger.warning(f"MySQL TABLES query failed: {mysql_error}")
-                            return tables  # 返回空列表
+                    condition = "TABLE_SCHEMA = :db_name"
+                    params = {"db_name": db_name}
+                else:
+                    condition = "TABLE_SCHEMA NOT IN ('mysql', 'performance_schema', 'information_schema')"
+                    params = {}
 
-                    for row in result:
-                        index_mb = (
-                            row.INDEX_LENGTH / (1024 * 1024)
-                            if row.INDEX_LENGTH
-                            else None
-                        )
-                        total_mb = (
-                            (row.DATA_LENGTH or 0) + (row.INDEX_LENGTH or 0)
-                        ) / (1024 * 1024)
+                query = f"""
+                    SELECT
+                        TABLE_SCHEMA,
+                        TABLE_NAME,
+                        TABLE_ROWS,
+                        DATA_LENGTH,
+                        INDEX_LENGTH,
+                        DATA_FREE,
+                        (DATA_LENGTH + INDEX_LENGTH) / 1024 / 1024 AS total_size_mb,
+                        INDEX_LENGTH / 1024 / 1024 AS index_size_mb
+                    FROM information_schema.TABLES
+                    WHERE {condition}
+                    ORDER BY total_size_mb DESC
+                    LIMIT 20
+                """
+                result = await self.session.execute(text(query), params)
 
-                        tables.append(
-                            TableActivity(
-                                table_name=row.TABLE_NAME,
-                                schema_name=db_name,
-                                live_rows=row.TABLE_ROWS,
-                                total_size_mb=total_mb,
-                                index_size_mb=index_mb,
-                            )
-                        )
+                tables = [
+                    TableActivity(
+                        table_name=row.TABLE_NAME,
+                        schema_name=row.TABLE_SCHEMA,
+                        live_rows=row.TABLE_ROWS,
+                        total_size_mb=float(row.total_size_mb)
+                        if row.total_size_mb
+                        else None,
+                        index_size_mb=float(row.index_size_mb)
+                        if row.index_size_mb
+                        else None,
+                        # 其他统计字段无法从 information_schema.TABLES 获取，保持 None
+                    )
+                    for row in result
+                ]
 
             elif self.db_type == "sqlite":
-                # 获取所有表名
+                # 获取所有用户表名
                 result = await self.session.execute(
                     text(
                         "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
@@ -700,14 +581,21 @@ class AsyncDatabasePerformanceCollector:
                 table_names = [row[0] for row in result.fetchall()]
 
                 for table_name in table_names[:20]:  # 限制前20个表
-                    # 获取行数
-                    count_result = await self.session.execute(
-                        text(f'SELECT COUNT(*) FROM "{table_name}"')
-                    )
-                    row_count = count_result.scalar()
+                    # 获取行数（注意：COUNT(*) 可能对大表有性能影响）
+                    try:
+                        count_result = await self.session.execute(
+                            text(f'SELECT COUNT(*) FROM "{table_name}"')
+                        )
+                        row_count = count_result.scalar()
+                    except Exception as e:
+                        logger.debug(f"获取表 {table_name} 行数失败: {e}")
+                        row_count = None
 
                     tables.append(
-                        TableActivity(table_name=table_name, live_rows=row_count)
+                        TableActivity(
+                            table_name=table_name,
+                            live_rows=row_count,
+                        )
                     )
 
         except Exception as e:
@@ -757,82 +645,44 @@ class AsyncDatabasePerformanceCollector:
                 db_name = db_result.scalar()
 
                 if db_name:
-                    # 尝试MariaDB特定查询
-                    try:
-                        result = await self.session.execute(
-                            text("""
-                            SELECT
-                                TABLE_NAME,
-                                INDEX_NAME,
-                                NON_UNIQUE,
-                                SEQ_IN_INDEX,
-                                CARDINALITY,
-                                INDEX_TYPE,
-                                SUB_PART,
-                                PACKED,
-                                NULLABLE,
-                                INDEX_COMMENT
-                            FROM information_schema.STATISTICS
-                            WHERE TABLE_SCHEMA = :db_name
-                            ORDER BY TABLE_NAME, INDEX_NAME, SEQ_IN_INDEX
-                            LIMIT 50
-                        """),
-                            {"db_name": db_name},
-                        )
-                    except Exception as maria_error:
-                        logger.debug(f"MariaDB STATISTICS query failed: {maria_error}")
-                        # 回退到MySQL
-                        try:
-                            result = await self.session.execute(
-                                text("""
-                                SELECT
-                                    TABLE_NAME,
-                                    INDEX_NAME,
-                                    NON_UNIQUE,
-                                    SEQ_IN_INDEX,
-                                    CARDINALITY,
-                                    INDEX_TYPE,
-                                    SUB_PART,
-                                    PACKED,
-                                    NULLABLE,
-                                    INDEX_COMMENT
-                                FROM information_schema.STATISTICS
-                                WHERE TABLE_SCHEMA = :db_name
-                                ORDER BY TABLE_NAME, INDEX_NAME, SEQ_IN_INDEX
-                                LIMIT 50
-                            """),
-                                {"db_name": db_name},
-                            )
-                        except Exception as mysql_error:
-                            logger.warning(
-                                f"MySQL STATISTICS query failed: {mysql_error}"
-                            )
-                            return indexes  # 返回空列表
+                    condition = "TABLE_SCHEMA = :db_name"
+                    params = {"db_name": db_name}
+                else:
+                    condition = "TABLE_SCHEMA NOT IN ('mysql', 'performance_schema', 'information_schema')"
+                    params = {}
 
-                    # 按索引名分组，获取每个索引的信息
-                    index_map: dict[str, dict] = {}
+                query = f"""
+                    SELECT
+                        TABLE_SCHEMA,
+                        TABLE_NAME,
+                        INDEX_NAME,
+                        NON_UNIQUE,
+                        CARDINALITY,
+                        INDEX_TYPE
+                    FROM information_schema.STATISTICS
+                    WHERE {condition}
+                    ORDER BY TABLE_SCHEMA, TABLE_NAME, INDEX_NAME
+                    LIMIT 50
+                """
+                result = await self.session.execute(text(query), params)
 
-                    for row in result:
-                        index_key = f"{row.TABLE_NAME}.{row.INDEX_NAME}"
-                        if index_key not in index_map:
-                            index_map[index_key] = {
-                                "table_name": row.TABLE_NAME,
-                                "index_name": row.INDEX_NAME,
-                                "unique": row.NON_UNIQUE == 0,
-                                "cardinality": row.CARDINALITY,
-                                "type": row.INDEX_TYPE,
-                            }
-
-                    indexes = [
+                # 按索引名分组，获取每个索引的信息（去重，同一索引可能有多行对应多列）
+                seen = set()
+                for row in result:
+                    key = (row.TABLE_SCHEMA, row.TABLE_NAME, row.INDEX_NAME)
+                    if key in seen:
+                        continue
+                    seen.add(key)
+                    indexes.append(
                         IndexUsage(
-                            index_name=idx_info["index_name"],
-                            table_name=idx_info["table_name"],
-                            schema_name=db_name,
-                            cardinality=idx_info["cardinality"],
-                            unique=idx_info["unique"],
+                            index_name=row.INDEX_NAME,
+                            table_name=row.TABLE_NAME,
+                            schema_name=row.TABLE_SCHEMA,
+                            cardinality=row.CARDINALITY,
+                            unique=(row.NON_UNIQUE == 0),
+                            # 使用统计字段无法获取，留空
                         )
-                        for idx_info in index_map.values()
-                    ]
+                    )
 
             elif self.db_type == "sqlite":
                 result = await self.session.execute(
@@ -849,7 +699,6 @@ class AsyncDatabasePerformanceCollector:
                     )
                     for row in result
                 ]
-
         except Exception as e:
             logger.warning(f"获取索引使用情况失败: {e}")
 
@@ -905,42 +754,45 @@ class AsyncDatabasePerformanceCollector:
 
             elif self.db_type in ("mysql", "mariadb"):
                 # 使用InnoDB锁信息
-                result = await self.session.execute(
-                    text("""
-                    SELECT
-                        r.trx_id AS waiting_trx_id,
-                        r.trx_mysql_thread_id AS waiting_thread,
-                        r.trx_query AS waiting_query,
-                        b.trx_id AS blocking_trx_id,
-                        b.trx_mysql_thread_id AS blocking_thread,
-                        b.trx_query AS blocking_query
-                    FROM information_schema.INNODB_LOCK_WAITS w
-                    INNER JOIN information_schema.INNODB_TRX b ON b.trx_id = w.blocking_trx_id
-                    INNER JOIN information_schema.INNODB_TRX r ON r.trx_id = w.requesting_trx_id
-                """)
-                )
-
-                # 按锁类型分组
-                lock_groups: dict[str, LockInfo] = {}
-
-                for row in result:
-                    lock_key = (
-                        f"waiting:{row.waiting_trx_id}:blocking:{row.blocking_trx_id}"
+                try:
+                    result = await self.session.execute(
+                        text("""
+                        SELECT
+                            r.trx_id AS waiting_trx_id,
+                            r.trx_mysql_thread_id AS waiting_thread,
+                            r.trx_query AS waiting_query,
+                            b.trx_id AS blocking_trx_id,
+                            b.trx_mysql_thread_id AS blocking_thread,
+                            b.trx_query AS blocking_query
+                        FROM information_schema.INNODB_LOCK_WAITS w
+                        INNER JOIN information_schema.INNODB_TRX b ON b.trx_id = w.blocking_trx_id
+                        INNER JOIN information_schema.INNODB_TRX r ON r.trx_id = w.requesting_trx_id
+                    """)
                     )
 
-                    if lock_key not in lock_groups:
-                        lock_groups[lock_key] = LockInfo(
-                            lock_type="row_lock",  # InnoDB主要是行锁
-                            lock_mode="exclusive",  # 阻塞的锁通常是排他锁
-                            lock_count=1,
-                            waiting_count=1,
-                            blocked_pids=[row.waiting_thread],
-                            blocked_queries=[row.waiting_query],
-                        )
-                    else:
-                        lock_groups[lock_key].lock_count += 1
+                    # 按锁类型分组
+                    lock_groups: dict[str, LockInfo] = {}
 
-                locks = list(lock_groups.values())
+                    for row in result:
+                        lock_key = f"waiting:{row.waiting_trx_id}:blocking:{row.blocking_trx_id}"
+
+                        if lock_key not in lock_groups:
+                            lock_groups[lock_key] = LockInfo(
+                                lock_type="row_lock",  # InnoDB主要是行锁
+                                lock_mode="exclusive",  # 阻塞的锁通常是排他锁
+                                lock_count=1,
+                                waiting_count=1,
+                                blocked_pids=[row.waiting_thread],
+                                blocked_queries=[row.waiting_query],
+                            )
+                        else:
+                            lock_groups[lock_key].lock_count += 1
+
+                    locks = list(lock_groups.values())
+                except Exception as e:
+                    logger.debug(f"获取InnoDB锁信息失败: {e}")
+
+            # SQLite 锁信息可以通过 PRAGMA lock_status 获取，但输出复杂，暂不实现
 
         except Exception as e:
             logger.warning(f"获取锁信息失败: {e}")
@@ -999,115 +851,61 @@ class AsyncDatabasePerformanceCollector:
                     ]
 
             elif self.db_type in ("mysql", "mariadb"):
-                # 尝试MariaDB特定查询
-                result = []
+                # 优先尝试 performance_schema 获取详细统计
                 try:
                     result = await self.session.execute(
-                        text("SHOW VARIABLES LIKE 'performance_schema'")
+                        text("""
+                        SELECT
+                            DIGEST_TEXT,
+                            COUNT_STAR,
+                            SUM_TIMER_WAIT / 1000000000 as total_time_seconds,
+                            AVG_TIMER_WAIT / 1000000000 as avg_time_seconds,
+                            SUM_ROWS_SENT
+                        FROM performance_schema.events_statements_summary_by_digest
+                        WHERE DIGEST_TEXT IS NOT NULL
+                        ORDER BY SUM_TIMER_WAIT DESC
+                        LIMIT 10
+                    """)
                     )
-                    perf_schema_row = result.fetchone()
-                    perf_schema_enabled = (
-                        perf_schema_row and perf_schema_row.Value == "ON"
-                    )
-                except Exception as maria_error:
-                    logger.debug(
-                        f"MariaDB performance_schema check failed: {maria_error}"
-                    )
-                    # 回退到MySQL
-                    try:
-                        result = await self.session.execute(
-                            text("SHOW VARIABLES LIKE 'performance_schema'")
-                        )
-                        perf_schema_row = result.fetchone()
-                        perf_schema_enabled = (
-                            perf_schema_row and perf_schema_row.Value == "ON"
-                        )
-                    except Exception as mysql_error:
-                        logger.warning(
-                            f"MySQL performance_schema check failed: {mysql_error}"
-                        )
-                        perf_schema_enabled = False
-
-                if perf_schema_enabled:
-                    # 尝试MariaDB特定查询
-                    try:
-                        result = await self.session.execute(
-                            text("""
-                            SELECT
-                                DIGEST_TEXT,
-                                COUNT_STAR,
-                                SUM_TIMER_WAIT / 1000000000 as total_time_seconds,
-                                AVG_TIMER_WAIT / 1000000000 as avg_time_seconds,
-                                MIN_TIMER_WAIT / 1000000000 as min_time_seconds,
-                                MAX_TIMER_WAIT / 1000000000 as max_time_seconds,
-                                SUM_ROWS_SENT,
-                                SUM_ROWS_EXAMINED
-                            FROM performance_schema.events_statements_summary_by_digest
-                            WHERE DIGEST_TEXT IS NOT NULL
-                            ORDER BY SUM_TIMER_WAIT DESC
-                            LIMIT 10
-                        """)
-                        )
-                    except Exception as maria_error:
-                        logger.debug(
-                            f"MariaDB events_statements_summary_by_digest failed: {maria_error}"
-                        )
-                        # 回退到MySQL
-                        try:
-                            result = await self.session.execute(
-                                text("""
-                                SELECT
-                                    DIGEST_TEXT,
-                                    COUNT_STAR,
-                                    SUM_TIMER_WAIT / 1000000000 as total_time_seconds,
-                                    AVG_TIMER_WAIT / 1000000000 as avg_time_seconds,
-                                    MIN_TIMER_WAIT / 1000000000 as min_time_seconds,
-                                    MAX_TIMER_WAIT / 1000000000 as max_time_seconds,
-                                    SUM_ROWS_SENT,
-                                    SUM_ROWS_EXAMINED
-                                FROM performance_schema.events_statements_summary_by_digest
-                                WHERE DIGEST_TEXT IS NOT NULL
-                                ORDER BY SUM_TIMER_WAIT DESC
-                                LIMIT 10
-                            """)
-                            )
-                        except Exception as mysql_error:
-                            logger.warning(
-                                f"MySQL events_statements_summary_by_digest failed: {mysql_error}"
-                            )
-                            perf_schema_enabled = False
-
-                    if perf_schema_enabled:
-                        for row in result:
+                    rows = result.fetchall()
+                    if rows:
+                        for row in rows:
                             queries.append(
                                 QueryStats(
                                     query_text=row.DIGEST_TEXT[:500]
                                     if row.DIGEST_TEXT
                                     else None,
                                     total_executions=row.COUNT_STAR,
-                                    total_time_ms=row.total_time_seconds * 1000,
-                                    avg_time_ms=row.avg_time_seconds * 1000,
-                                    min_time_ms=row.min_time_seconds * 1000,
-                                    max_time_ms=row.max_time_seconds * 1000,
+                                    total_time_ms=row.total_time_seconds * 1000
+                                    if row.total_time_seconds
+                                    else None,
+                                    avg_time_ms=row.avg_time_seconds * 1000
+                                    if row.avg_time_seconds
+                                    else None,
                                     rows_returned=row.SUM_ROWS_SENT,
                                 )
                             )
-                else:
-                    # 尝试从慢查询日志获取 - 先尝试MariaDB
-                    try:
-                        result = await self.session.execute(
-                            text("SHOW GLOBAL STATUS LIKE 'Slow_queries'")
-                        )
-                        slow_queries_row = result.fetchone()
-                        if slow_queries_row:
-                            queries.append(
-                                QueryStats(
-                                    query_text="慢查询统计",
-                                    total_executions=int(slow_queries_row.Value),
-                                )
+                        return queries
+                except Exception as e:
+                    logger.debug(f"performance_schema 查询失败，降级到慢查询统计: {e}")
+
+                # 降级：获取慢查询总数
+                try:
+                    result = await self.session.execute(
+                        text("SHOW GLOBAL STATUS LIKE 'Slow_queries'")
+                    )
+                    slow_row = result.fetchone()
+                    if slow_row and int(slow_row.Value) > 0:
+                        queries.append(
+                            QueryStats(
+                                query_text="慢查询统计（仅总数）",
+                                total_executions=int(slow_row.Value),
                             )
-                    except Exception as error:
-                        logger.warning(f"获取慢查询统计失败: {error}")
+                        )
+                except Exception as e:
+                    logger.debug(f"获取慢查询统计失败: {e}")
+
+            # SQLite 没有查询统计，直接返回空列表
 
         except Exception as e:
             logger.warning(f"获取查询统计失败: {e}")
