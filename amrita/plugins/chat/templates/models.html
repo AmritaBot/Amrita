@@ -479,28 +479,29 @@ extra_css %}
       padding: 0 5px;
     }
     
-    /* Consolidated mobile layout rules to reduce duplication */
-    .model-card,
-    .config-details,
-    .field-item {
+    /* Consolidated mobile layout rules - each selector defined only once */
+    .model-card {
       width: 100% !important;
       max-width: 100% !important;
       min-width: 0 !important;
-    }
-
-    .model-card {
-      padding: 12px;
-      margin: 8px 0;
+      padding: 15px;
+      margin: 10px 0;
       box-sizing: border-box !important;
     }
 
     .config-details {
+      width: 100% !important;
+      max-width: 100% !important;
+      min-width: 0 !important;
       overflow-x: hidden !important;
       padding: 0 !important;
       margin: 0 !important;
     }
 
     .field-item {
+      width: 100% !important;
+      min-width: 0 !important;
+      max-width: 100% !important;
       margin: 5px 0 !important;
       padding: 0 !important;
     }
@@ -532,47 +533,12 @@ extra_css %}
       width: 100%;
     }
 
-    .config-details {
-      width: 100% !important;
-      max-width: 100% !important;
-      min-width: 0 !important;
-      overflow-x: hidden !important;
-    }
-    
-    .model-card {
-      padding: 15px;
-      margin: 10px 0;
-      width: 100% !important;
-      max-width: 100% !important;
-      min-width: 0 !important;
-    }
-    
-    .field-item {
-      width: 100% !important;
-      min-width: 0 !important;
-      max-width: 100% !important;
-    }
-    
-    .field-input, .field-value {
-      width: 100% !important;
-      min-width: 0 !important;
-      max-width: 100% !important;
-      box-sizing: border-box !important;
-      word-break: break-word !important;
-      overflow-wrap: break-word !important;
-    }
-    
     .model-name {
       font-size: 16px !important;
     }
     
     .field-label {
       font-size: 12px !important;
-    }
-    
-    .field-input {
-      font-size: 13px !important;
-      padding: 4px 6px !important;
     }
   }
 </style>
