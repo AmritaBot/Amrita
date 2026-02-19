@@ -135,6 +135,8 @@ async def should_respond_to_message(event: MessageEvent, bot: Bot) -> bool:
             fk = False
             if is_group:
                 fk = (await dm.get_group_config(ins_id)).autoreply
+            else:
+                fk = memory_data.fake_people
             if rand <= rate and (config_manager.config.autoreply.global_enable or fk):
                 memory_data.memory_json.time = time.time()
                 await dm.update_memory_data(memory_data)

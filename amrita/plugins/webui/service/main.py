@@ -78,7 +78,7 @@ async def _(request: Request, exc: Exception):
         logger.opt(exception=exc, colors=True).exception(
             "An Exception occurred in Amrita WebUI"
         )
-    await handle_http_exc(request, exc)
+    return await handle_http_exc(request, exc)
 
 
 async def handle_http_exc(request: Request, exc: HTTPException):

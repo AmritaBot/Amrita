@@ -479,32 +479,32 @@ extra_css %}
       padding: 0 5px;
     }
     
+    /* Consolidated mobile layout rules to reduce duplication */
+    .model-card,
+    .config-details,
+    .field-item {
+      width: 100% !important;
+      max-width: 100% !important;
+      min-width: 0 !important;
+    }
+
     .model-card {
       padding: 12px;
       margin: 8px 0;
-      width: 100% !important;
-      max-width: 100% !important;
-      min-width: 0 !important;
       box-sizing: border-box !important;
     }
-    
+
     .config-details {
-      width: 100% !important;
-      max-width: 100% !important;
-      min-width: 0 !important;
       overflow-x: hidden !important;
       padding: 0 !important;
       margin: 0 !important;
     }
-    
+
     .field-item {
-      width: 100% !important;
-      min-width: 0 !important;
-      max-width: 100% !important;
       margin: 5px 0 !important;
       padding: 0 !important;
     }
-    
+
     .field-input, .field-value {
       width: 100% !important;
       min-width: 0 !important;
@@ -1292,82 +1292,6 @@ extra_css %}
   document.addEventListener("keydown", function (event) {
     if (event.key === "Escape") {
       closeModal();
-    }
-  });
-
-  function toggleConfigDetails(button) {
-    const configDetails = button.parentElement.nextElementSibling;
-    const icon = button.querySelector("i");
-
-    if (configDetails.style.display === "none") {
-      configDetails.style.display = "block";
-      icon.className = "fas fa-chevron-up";
-    } else {
-      configDetails.style.display = "none";
-      icon.className = "fas fa-chevron-down";
-    }
-  }
-
-  async function saveConfigField(modelName, field, value) {
-    try {
-      const response = await fetch("/api/chat/models");
-      const modelListResponse = await response.json();
-
-      if (!modelListResponse.success) {
-        throw new Error("无法获取模型列表");
-      }
-
-      const model = modelListResponse.models.find((m) => m.name === modelName);
-      if (!model) {
-        throw new Error(`模型 ${modelName} 不存在`);
-      }
-
-      const configData = { ...model.config, [field]: value };
-
-      const updateResponse = await fetch(
-        `/api/chat/models/${encodeURIComponent(modelName)}`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            name: modelName,
-            config: configData,
-          }),
-        },
-      );
-
-      const result = await updateResponse.json();
-
-      if (result.success) {
-        showAlert("success", `模型 ${modelName} 的配置已更新`);
-      } else {
-        throw new Error(result.message);
-      }
-    } catch (error) {
-      console.error("更新配置失败:", error);
-      showAlert("danger", "更新配置失败: " + error.message);
-    }
-  }
-
-  document.addEventListener("change", function (e) {
-    if (e.target.classList.contains("config-field")) {
-      const modelName = e.target.getAttribute("data-model");
-      const field = e.target.getAttribute("data-config-field");
-      let value = e.target.value;
-
-      if (e.target.type === "checkbox") {
-        value = e.target.checked;
-      } else if (e.target.type === "number") {
-        if (field === "top_p" || field === "temperature") {
-          value = parseFloat(value);
-        } else {
-          value = parseInt(value);
-        }
-      }
-
-      saveConfigField(modelName, field, value);
     }
   });
 </script>
