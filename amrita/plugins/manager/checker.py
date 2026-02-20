@@ -212,7 +212,7 @@ async def _(
 
     await APICalledRepo().push(api, exception is None)
 
-    await asyncio.create_task(_add())
+    await _add()
 
 
 @get_driver().on_shutdown
