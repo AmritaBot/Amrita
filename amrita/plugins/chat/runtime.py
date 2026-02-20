@@ -11,6 +11,7 @@ from amrita_core import (
     ChatObjectMeta as CoreChatObjectMeta,
 )
 from amrita_core import (
+    ToolResult,
     get_config,
 )
 from amrita_core.config import AmritaConfig
@@ -126,10 +127,12 @@ class AmritaChatObject(CoreChatObject):
         config = self.bot_config
         self.memory = await CachedUserDataRepository().get_memory(*get_any_id(event))
         for mem in self.memory.memory_json.messages:
-            if mem.content is not None and isinstance(mem.content, list):
-                for i in mem.content:
-                    if not hasattr(i, "type"):
-                        mem.content.remove(i)
+            if (
+                not isinstance(mem, ToolResult)
+                and mem.content is not None
+                and isinstance(mem.content, list)
+            ):
+                mem.content = [i for i in mem.content if hasattr(i, "type")]
         self.data = self.memory.memory_json  # type: ignore[Assignment]
         data = self.data
         debug_log("管理会话上下文..")
