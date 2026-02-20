@@ -226,8 +226,11 @@ class PermissionStorage:
 
     def _make_lock(self, name: str) -> Lock:
         if name not in self._lock_pool:
-            self._lock_pool[name] = Lock()
-        return self._lock_pool[name]
+            lock = Lock()
+            self._lock_pool[name] = lock
+        else:
+            lock = self._lock_pool[name]
+        return lock
 
     def _lock_maker(
         self, data: PermissionGroupPydantic | MemberPermissionPydantic

@@ -92,8 +92,11 @@ class CachedUserDataRepository:
 
     def make_lock(self, session_id: str) -> Lock:
         if session_id not in self._action_lock:
-            self._action_lock[session_id] = Lock()
-        return self._action_lock[session_id]
+            lock = Lock()  # 为了避免被提前gc，先分配到一个变量
+            self._action_lock[session_id] = lock
+        else:
+            lock = self._action_lock[session_id]
+        return lock
 
     @staticmethod
     def make_uni_id(id: int, is_group: bool) -> str:
