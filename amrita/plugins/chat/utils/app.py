@@ -1,11 +1,11 @@
 # Pydantic Models
 from asyncio import Lock
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from datetime import datetime
 
 from amrita_core import MemoryModel as Memory
 from pydantic import ConfigDict as PydConf
-from pydantic import Field
+from pydantic import Field, model_validator
 from pytz import utc
 from typing_extensions import final
 
@@ -31,6 +31,30 @@ class BaseSchema(BaseModel):
 
 class AwaredMemory(Memory, BaseModel):
     """带有脏标记的Memory"""
+
+    @model_validator(mode="before")
+    @classmethod
+    def validate_messages_content(cls, data):
+        if isinstance(data, dict) and "messages" in data:
+            messages = data["messages"]
+            if isinstance(messages, list):
+                # 过滤掉content内的异常消息
+                filtered_messages = []
+                for msg in messages:
+                    if isinstance(msg, dict):
+                        if (content := msg.get("content")) is not None:
+                            # 检查content是否为序列（如列表、元组等）
+                            if isinstance(content, Sequence) and not isinstance(
+                                content, (str, bytes, Mapping)
+                            ):
+                                msg["content"] = [
+                                    i
+                                    for i in content
+                                    if not (isinstance(i, dict) and len(i) in (1, 0))
+                                ]
+                    filtered_messages.append(msg)
+                data["messages"] = filtered_messages
+        return data
 
 
 class UserMetadataSchema(BaseSchema):
