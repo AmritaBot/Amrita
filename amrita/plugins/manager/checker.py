@@ -1,9 +1,10 @@
 import asyncio
+import contextlib
 from collections import defaultdict
 from functools import lru_cache
 from typing import Any
 
-from nonebot import logger, on_command, on_message, on_notice
+from nonebot import get_driver, logger, on_command, on_message, on_notice
 from nonebot.adapters import Bot
 from nonebot.adapters.onebot.v11 import (
     GroupBanNoticeEvent,
@@ -43,6 +44,46 @@ watch_group = defaultdict(
 watch_user = defaultdict(
     lambda: TokenBucket(rate=1 / get_amrita_config().rate_limit, capacity=1)
 )
+
+# 用于存储待处理的usage调用
+_usage_queue = []
+_usage_lock = asyncio.Lock()
+_record_task = None
+
+
+async def _process_usage_queue():
+    """后台任务：持续从队列中处理usage数据"""
+    with contextlib.suppress(asyncio.CancelledError):
+        while True:
+            async with _usage_lock:
+                if len(_usage_queue) > 0:
+                    if len(_usage_queue) > 1:
+                        self_id = _usage_queue[0][0]
+                        total_msg_count = sum(item[1] for item in _usage_queue)
+                        total_api_count = sum(item[2] for item in _usage_queue)
+                        _usage_queue.clear()
+                        try:
+                            await add_usage(self_id, total_msg_count, total_api_count)
+                        except asyncio.CancelledError:
+                            break
+                        except Exception as e:
+                            logger.warning(f"Failed to add usage: {e}")
+                    else:
+                        self_id, msg_count, api_count = _usage_queue.pop(0)
+                        try:
+                            await add_usage(self_id, msg_count, api_count)
+                        except asyncio.CancelledError:
+                            break
+                        except Exception as e:
+                            logger.warning(f"Failed to add usage: {e}")
+            await asyncio.sleep(0.2)  # 每200ms检查一次队列
+
+
+def _start_usage_processor():
+    """启动后台任务处理队列"""
+    global _record_task
+    if not _record_task:
+        _record_task = asyncio.create_task(_process_usage_queue())
 
 
 class APICalledRepo:
@@ -163,14 +204,22 @@ async def _(
 ):
     async def _add():
         if "send" in api and "msg" in api:
-            try:
-                await add_usage(bot.self_id, 0, 1)
-            except Exception as e:
-                logger.warning(e)
+            # 确保后台任务已经启动
+            _start_usage_processor()
+
+            async with _usage_lock:
+                _usage_queue.append((bot.self_id, 0, 1))
 
     await APICalledRepo().push(api, exception is None)
 
-    asyncio.create_task(_add())  # noqa: RUF006
+    await _add()
+
+
+@get_driver().on_shutdown
+async def _():
+    global _record_task
+    if _record_task:
+        _record_task.cancel()
 
 
 class Status(BaseModel):

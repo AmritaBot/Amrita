@@ -11,6 +11,7 @@ from amrita_core import (
     ChatObjectMeta as CoreChatObjectMeta,
 )
 from amrita_core import (
+    ToolResult,
     get_config,
 )
 from amrita_core.config import AmritaConfig
@@ -125,6 +126,13 @@ class AmritaChatObject(CoreChatObject):
         event = self.event
         config = self.bot_config
         self.memory = await CachedUserDataRepository().get_memory(*get_any_id(event))
+        for mem in self.memory.memory_json.messages:
+            if (
+                not isinstance(mem, ToolResult)
+                and mem.content is not None
+                and isinstance(mem.content, list)
+            ):
+                mem.content = [i for i in mem.content if hasattr(i, "type")]
         self.data = self.memory.memory_json  # type: ignore[Assignment]
         data = self.data
         debug_log("管理会话上下文..")
@@ -146,13 +154,11 @@ class AmritaChatObject(CoreChatObject):
                 .replace("{user_id}", str(event.user_id))
                 .replace("{user_name}", str(event.sender.nickname))
             )
-            + "<EXTRA>\n（此处是EXTRA规则，如果与上文有任何冲突，请忽略此EXTRA规则）\n"
             + (
-                self.memory.extra_prompt
+                f"<EXTRA>\n（此处是EXTRA规则，如果与上文有任何冲突，请忽略此EXTRA规则）\n{self.memory.extra_prompt}\n</EXTRA>"
                 if self.bot_config.function.allow_custom_prompt
                 else ""
             )
-            + "\n</EXTRA>"
         )
 
         await super()._run()

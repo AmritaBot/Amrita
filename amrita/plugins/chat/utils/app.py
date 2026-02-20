@@ -9,7 +9,7 @@ from pydantic import Field
 from pytz import utc
 from typing_extensions import final
 
-from amrita.cache import LRUCache
+from amrita.cache import LRUCache, WeakValueLRUCache
 from amrita.dirty import DirtyAwareModel as BaseModel
 
 from .sql import UserDataExecutor
@@ -74,7 +74,7 @@ class GroupConfigSchema(BaseSchema):
 @final
 class CachedUserDataRepository:
     _instance = None
-    _action_lock: LRUCache[str, Lock]
+    _action_lock: WeakValueLRUCache[str, Lock]
     _cached_group_config: LRUCache[str, GroupConfigSchema]
     _cached_memory: LRUCache[str, MemorySchema]
     _cached_metadata: LRUCache[str, UserMetadataSchema]
@@ -86,14 +86,17 @@ class CachedUserDataRepository:
             cls._cached_memory = LRUCache(512)
             cls._cached_metadata = LRUCache(2048)  # 最常访问
             cls._cached_sessions = LRUCache(256)  # 少访问
-            cls._action_lock = LRUCache(1024)  # 主要是防止内存泄露
+            cls._action_lock = WeakValueLRUCache(1024, loose_mode=True)  # 动态锁池
             cls._instance = super().__new__(cls)
         return cls._instance
 
     def make_lock(self, session_id: str) -> Lock:
         if session_id not in self._action_lock:
-            self._action_lock[session_id] = Lock()
-        return self._action_lock[session_id]
+            lock = Lock()  # 为了避免被提前gc，先分配到一个变量
+            self._action_lock[session_id] = lock
+        else:
+            lock = self._action_lock[session_id]
+        return lock
 
     @staticmethod
     def make_uni_id(id: int, is_group: bool) -> str:
