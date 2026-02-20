@@ -1,6 +1,6 @@
 # Pydantic Models
 from asyncio import Lock
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from datetime import datetime
 
 from amrita_core import MemoryModel as Memory
@@ -44,8 +44,8 @@ class AwaredMemory(Memory, BaseModel):
                     if isinstance(msg, dict):
                         if (content := msg.get("content")) is not None:
                             # 检查content是否为序列（如列表、元组等）
-                            if hasattr(content, "__iter__") and not isinstance(
-                                content, (str, bytes)
+                            if isinstance(content, Sequence) and not isinstance(
+                                content, (str, bytes, Mapping)
                             ):
                                 msg["content"] = [
                                     i
