@@ -2,6 +2,7 @@ import asyncio
 import contextlib
 from collections import defaultdict
 from typing import Any
+from weakref import WeakSet
 
 from nonebot import get_driver, logger, on_command, on_message, on_notice
 from nonebot.adapters import Bot
@@ -47,7 +48,7 @@ watch_user = defaultdict(
 
 # 用于存储待处理的usage调用
 _usage_queue: list[tuple[str, int, int]] = []  # list of (self_id, msg_count, api_count)
-_running_task: list[asyncio.Task] = []
+_running_task: WeakSet[asyncio.Task] = WeakSet()
 _usage_lock = asyncio.Lock()
 _record_task = None
 
@@ -162,8 +163,8 @@ async def _(bot: Bot):
             _usage_queue.append((bot.self_id, 1, 0))
 
     task = asyncio.create_task(_add())
-    _running_task.append(task)
-    task.add_done_callback(lambda t: _running_task.remove(t))
+    _running_task.add(task)
+    task.add_done_callback(lambda t: _running_task.discard(t))
 
 
 @run_preprocessor
@@ -214,8 +215,8 @@ async def _(
     await APICalledRepo().push(api, exception is None)
 
     task = asyncio.create_task(_add())
-    _running_task.append(task)
-    task.add_done_callback(lambda t: _running_task.remove(t))
+    _running_task.add(task)
+    task.add_done_callback(lambda t: _running_task.discard(t))
 
 
 @get_driver().on_shutdown

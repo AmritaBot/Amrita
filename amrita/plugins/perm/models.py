@@ -20,6 +20,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from amrita.cache import LRUCache, WeakValueLRUCache
 from amrita.plugins.perm import nodelib
+from amrita.plugins.perm.config import DataManager
 
 PERM_TYPE = Literal["group", "user"]
 
@@ -217,11 +218,12 @@ class PermissionStorage:
             PermissionStorage: 类的单例实例
         """
         if cls._instance is None:
+            config = DataManager().config
             cls._instance = super().__new__(cls)
             cls._cached_permission_group_data = {}
-            cls._cached_member_permission_data = LRUCache(2048)
-            cls._cached_member_to_permission_group_data = LRUCache(2048)
-            cls._lock_pool = WeakValueLRUCache(1024, loose_mode=True)
+            cls._cached_member_permission_data = LRUCache(config.cache_size)
+            cls._cached_member_to_permission_group_data = LRUCache(config.cache_size)
+            cls._lock_pool = WeakValueLRUCache(2048, loose_mode=True)
         return cls._instance
 
     def _make_lock(self, name: str) -> Lock:
@@ -704,6 +706,7 @@ class PermissionStorage:
         从数据库初始化所有权限缓存
         """
         async with get_session() as session:
+            config = await DataManager().safe_get_config()
             permission_groups = await session.execute(select(PermissionGroup))
             for permission_group in permission_groups.scalars():
                 name = permission_group.group_name
@@ -714,7 +717,9 @@ class PermissionStorage:
                         )
                     )
             del permission_groups
-            members = await session.execute(select(MemberPermission).limit(1024))
+            members = await session.execute(
+                select(MemberPermission).limit(config.cache_size)
+            )
             for member in members.scalars():
                 mbid, mbtype = member.member_id, member.type
                 async with self._make_lock(str((mbid, mbtype))):
@@ -724,22 +729,23 @@ class PermissionStorage:
                         )
                     )
             del members
-            perm_group_mapping = await session.execute(
-                select(Member2PermissionGroup).limit(2048)
-            )
+            perm_group_mapping = await session.execute(select(Member2PermissionGroup))
             for mapp in perm_group_mapping.scalars():
                 member_type, member_id, perm_group_name = (
                     mapp.member_type,
                     mapp.member_id,
                     mapp.group_name,
                 )
-                if (
+                key: tuple[str, Literal["group", "user"]] = (
                     member_id,
                     member_type,
-                ) not in self._cached_member_to_permission_group_data:
-                    self._cached_member_to_permission_group_data[
-                        (member_id, member_type)
-                    ] = set()
-                self._cached_member_to_permission_group_data[
-                    (member_id, member_type)
-                ].add(perm_group_name)
+                )
+                if (
+                    key not in self._cached_member_to_permission_group_data
+                    and not self._cached_member_to_permission_group_data.is_full()
+                ):
+                    self._cached_member_to_permission_group_data[key] = set()
+                if key in self._cached_member_to_permission_group_data:
+                    self._cached_member_to_permission_group_data[key].add(
+                        perm_group_name
+                    )
