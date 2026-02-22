@@ -18,7 +18,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
-from amrita.cache import WeakValueLRUCache
+from amrita.cache import LRUCache, WeakValueLRUCache
 from amrita.plugins.perm import nodelib
 
 PERM_TYPE = Literal["group", "user"]
@@ -201,13 +201,13 @@ class PermissionStorage:
     _cached_permission_group_data: dict[
         str, PermissionGroupPydantic
     ]  # 缓存的权限组数据
-    _cached_member_permission_data: dict[
+    _cached_member_permission_data: LRUCache[
         tuple[str, PERM_TYPE], MemberPermissionPydantic
     ]  # 缓存的成员权限数据
-    _cached_member_to_permission_group_data: dict[
+    _cached_member_to_permission_group_data: LRUCache[
         tuple[str, PERM_TYPE], set[str]
     ]  # 权限拥有者实体ID -> 权限组名称
-    _default_permission: dict[tuple[str, PERM_TYPE], set[str]]
+    _default_permission: LRUCache[tuple[str, PERM_TYPE], set[str]]
 
     def __new__(cls, *args, **kwargs):
         """
@@ -219,17 +219,15 @@ class PermissionStorage:
         if cls._instance is None:
             cls._instance = super().__new__(cls)
             cls._cached_permission_group_data = {}
-            cls._cached_member_permission_data = {}
-            cls._cached_member_to_permission_group_data = {}
+            cls._cached_member_permission_data = LRUCache(2048)
+            cls._cached_member_to_permission_group_data = LRUCache(2048)
             cls._lock_pool = WeakValueLRUCache(1024, loose_mode=True)
         return cls._instance
 
     def _make_lock(self, name: str) -> Lock:
-        if name not in self._lock_pool:
+        if (lock := self._lock_pool.get(name)) is None:
             lock = Lock()
-            self._lock_pool[name] = lock
-        else:
-            lock = self._lock_pool[name]
+            self._lock_pool.put(name, lock)
         return lock
 
     def _lock_maker(
@@ -716,7 +714,7 @@ class PermissionStorage:
                         )
                     )
             del permission_groups
-            members = await session.execute(select(MemberPermission))
+            members = await session.execute(select(MemberPermission).limit(1024))
             for member in members.scalars():
                 mbid, mbtype = member.member_id, member.type
                 async with self._make_lock(str((mbid, mbtype))):
@@ -726,14 +724,19 @@ class PermissionStorage:
                         )
                     )
             del members
-            perm_group_mapping = await session.execute(select(Member2PermissionGroup))
+            perm_group_mapping = await session.execute(
+                select(Member2PermissionGroup).limit(2048)
+            )
             for mapp in perm_group_mapping.scalars():
                 member_type, member_id, perm_group_name = (
                     mapp.member_type,
                     mapp.member_id,
                     mapp.group_name,
                 )
-                if member_id not in self._cached_member_to_permission_group_data:
+                if (
+                    member_id,
+                    member_type,
+                ) not in self._cached_member_to_permission_group_data:
                     self._cached_member_to_permission_group_data[
                         (member_id, member_type)
                     ] = set()

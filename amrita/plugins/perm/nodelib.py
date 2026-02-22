@@ -175,4 +175,6 @@ class Permissions:
             str: 权限字符串
         """
         self.__write_to_string(True)
+        if self.__permissions_str.endswith("\n"):
+            self.__permissions_str = self.__permissions_str[:-1]
         return self.__permissions_str

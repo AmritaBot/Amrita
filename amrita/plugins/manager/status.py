@@ -78,7 +78,7 @@ def create_system_info_image(system_info: list[str]):
         header_font = ImageFont.load_default(24)
         content_font = ImageFont.load_default(20)
 
-    title = f"{get_amrita_config().bot_name}@AmritaAgent"
+    title = f"{get_amrita_config().bot_name}@Amrita[BOT]"
     title_bbox = draw.textbbox((0, 0), title, font=title_font)
     title_width = title_bbox[2] - title_bbox[0]
     title_x = (width - title_width) // 2

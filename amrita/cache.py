@@ -12,10 +12,10 @@ from __future__ import annotations
 import time
 import weakref
 from collections import OrderedDict
-from collections.abc import Generator, Iterator
+from collections.abc import Generator, Hashable, Iterator
 from typing import Any, Generic, TypeVar
 
-K = TypeVar("K")
+K = TypeVar("K", bound=Hashable)
 V = TypeVar("V")
 T = TypeVar("T")
 

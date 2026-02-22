@@ -1,17 +1,35 @@
 import asyncio
-from functools import lru_cache
+from collections.abc import Hashable
+
+from amrita.cache import WeakValueLRUCache
+
+_group_lock: WeakValueLRUCache[Hashable, asyncio.Lock] = WeakValueLRUCache(
+    capacity=1024, loose_mode=True
+)
+_private_lock: WeakValueLRUCache[Hashable, asyncio.Lock] = WeakValueLRUCache(
+    capacity=1024, loose_mode=True
+)
+_database_lock: WeakValueLRUCache[Hashable, asyncio.Lock] = WeakValueLRUCache(
+    capacity=2048, loose_mode=True
+)
 
 
-@lru_cache(maxsize=1024)
-def get_group_lock(_: int) -> asyncio.Lock:
-    return asyncio.Lock()
+def get_group_lock(id: int) -> asyncio.Lock:
+    if (lock := _group_lock.get(id)) is None:
+        lock = asyncio.Lock()
+        _group_lock.put(id, lock)
+    return lock
 
 
-@lru_cache(maxsize=1024)
-def get_private_lock(_: int) -> asyncio.Lock:
-    return asyncio.Lock()
+def get_private_lock(id: int) -> asyncio.Lock:
+    if (lock := _private_lock.get(id)) is None:
+        lock = asyncio.Lock()
+        _private_lock.put(id, lock)
+    return lock
 
 
-@lru_cache(maxsize=2048)
-def database_lock(*args, **kwargs) -> asyncio.Lock:
-    return asyncio.Lock()
+def database_lock(*args: Hashable) -> asyncio.Lock:
+    if (lock := _database_lock.get(args)) is None:
+        lock = asyncio.Lock()
+        _database_lock.put(args, lock)
+    return lock

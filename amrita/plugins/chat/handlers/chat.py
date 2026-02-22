@@ -366,16 +366,16 @@ async def entry(event: MessageEvent, matcher: Matcher, bot: Bot):
             chat.last_call = datetime.now(utc)
             chat._pending = False
             debug_log("获取锁成功，开始获取记忆数据")
-            await chat.begin()
-            chat.memory.memory_json = chat.data
-            await cudr.update_memory_data(chat.memory)
-            if can_send_message:
-                await send_response(chat, chat.response.content)
+            async with chat.begin():
+                await chat  # Wait for workflow to complete
+                chat.memory.memory_json = chat.data
+                await cudr.update_memory_data(chat.memory)
+                if can_send_message:
+                    await send_response(chat, chat.response.content)
 
     except BaseException as e:
         if isinstance(e, (NoneBotException, ChatException)):
             raise
-        debug_log(f"处理聊天事件时发生异常: {e}")
         await chat._throw(e)
     finally:
         response: UniResponse[str, None] | None

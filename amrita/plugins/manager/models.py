@@ -1,6 +1,5 @@
 import asyncio
 from datetime import datetime, timedelta
-from functools import lru_cache
 
 from nonebot_plugin_orm import AsyncSession, Model, get_session
 from pydantic import BaseModel
@@ -16,10 +15,16 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
+from amrita.cache import WeakValueLRUCache
 
-@lru_cache(1024)
-def lock(*args, **kwargs):
-    return asyncio.Lock()
+_lock_pool = WeakValueLRUCache(2048, True)
+
+
+def lock(bid: str) -> asyncio.Lock:
+    if (lock := _lock_pool.get(bid)) is None:
+        lock = asyncio.Lock()
+        _lock_pool.put(bid, lock)
+    return lock
 
 
 class DailyUsage(Model):
