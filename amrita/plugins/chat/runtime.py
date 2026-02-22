@@ -262,8 +262,6 @@ class AmritaChatObject(CoreChatObject):
             e: 异常对象
         """
         if isinstance(e, CancelledError):
-            if hasattr(self, "matcher"):
-                await self.matcher.send("成功终止了对话。")
             return
         self._err = e
         if hasattr(self, "matcher"):

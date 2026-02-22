@@ -16,9 +16,10 @@ banner_template = """\033[34m▗▖   ▗▄▄▖
 
 @get_driver().on_startup
 async def load():
+    config = await DT().safe_get_config()
     print(banner_template)
     store = PermissionStorage()
-    if (await DT().safe_get_config()).update_from_json:
+    if (config).update_from_json:
         logger.info("Migrating from JSON...")
         from .legacy import Data_Manager, GroupData, PermissionGroupData, UserData
         from .models import (

@@ -115,11 +115,9 @@ class CachedUserDataRepository:
         return cls._instance
 
     def make_lock(self, session_id: str) -> Lock:
-        if session_id not in self._action_lock:
-            lock = Lock()  # 为了避免被提前gc，先分配到一个变量
-            self._action_lock[session_id] = lock
-        else:
-            lock = self._action_lock[session_id]
+        if (lock := self._action_lock.get(session_id)) is None:
+            lock = Lock()
+            self._action_lock.put(session_id, lock)
         return lock
 
     @staticmethod

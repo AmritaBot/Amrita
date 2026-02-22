@@ -12,10 +12,10 @@ from __future__ import annotations
 import time
 import weakref
 from collections import OrderedDict
-from collections.abc import Generator, Iterator
+from collections.abc import Generator, Hashable, Iterator
 from typing import Any, Generic, TypeVar
 
-K = TypeVar("K")
+K = TypeVar("K", bound=Hashable)
 V = TypeVar("V")
 T = TypeVar("T")
 
@@ -206,6 +206,10 @@ class LRUCache(Generic[K, V]):
         else:
             return self._cache.pop(key, default)
 
+    def resize(self, new_size: int):
+        """调整缓存大小"""
+        self._capacity = new_size
+
     def __repr__(self) -> str:
         """返回缓存的字符串表示
 
@@ -260,6 +264,9 @@ class WeakValueLRUCache(Generic[K, V]):
             return False
         return True
 
+    def resize(self, new_size: int):
+        """调整缓存大小"""
+        self._capacity = new_size
     def get(self, key: K) -> V | None:
         """获取缓存中的值，如果存在且未被GC则将其标记为最近使用
 
@@ -547,6 +554,9 @@ class TTLCache(Generic[K, V]):
         for key in expired_keys:
             del self._cache[key]
 
+    def resize(self, new_size: int):
+        """调整缓存大小"""
+        self._capacity = new_size
     def get(self, key: K) -> V | None:
         """获取缓存中的值，如果存在且未过期则返回，否则返回None
 
@@ -769,6 +779,10 @@ class LFUCache(Generic[K, V]):
         # 增加访问频率
         self._cache[key] = (value, freq + 1)
         return value
+
+    def resize(self, new_size: int):
+        """调整缓存大小"""
+        self._capacity = new_size
 
     def put(self, key: K, value: V) -> None:
         """向缓存中添加或更新键值对

@@ -1,8 +1,8 @@
 import asyncio
 import contextlib
 from collections import defaultdict
-from functools import lru_cache
 from typing import Any
+from weakref import WeakSet
 
 from nonebot import get_driver, logger, on_command, on_message, on_notice
 from nonebot.adapters import Bot
@@ -30,6 +30,7 @@ from pydantic import BaseModel
 from typing_extensions import Self
 
 from amrita import get_amrita_config
+from amrita.cache import WeakValueLRUCache
 from amrita.plugins.menu.models import MatcherData
 from amrita.plugins.perm.API.admin import is_lp_admin
 from amrita.utils.admin import send_to_admin
@@ -46,7 +47,8 @@ watch_user = defaultdict(
 )
 
 # 用于存储待处理的usage调用
-_usage_queue = []
+_usage_queue: list[tuple[str, int, int]] = []  # list of (self_id, msg_count, api_count)
+_running_task: WeakSet[asyncio.Task] = WeakSet()
 _usage_lock = asyncio.Lock()
 _record_task = None
 
@@ -55,27 +57,23 @@ async def _process_usage_queue():
     """后台任务：持续从队列中处理usage数据"""
     with contextlib.suppress(asyncio.CancelledError):
         while True:
-            async with _usage_lock:
-                if len(_usage_queue) > 0:
+            if len(_usage_queue) > 0:
+                async with _usage_lock:
                     if len(_usage_queue) > 1:
                         self_id = _usage_queue[0][0]
-                        total_msg_count = sum(item[1] for item in _usage_queue)
-                        total_api_count = sum(item[2] for item in _usage_queue)
+                        msg_count = sum(item[1] for item in _usage_queue)
+                        api_count = sum(item[2] for item in _usage_queue)
                         _usage_queue.clear()
-                        try:
-                            await add_usage(self_id, total_msg_count, total_api_count)
-                        except asyncio.CancelledError:
-                            break
-                        except Exception as e:
-                            logger.warning(f"Failed to add usage: {e}")
+
                     else:
                         self_id, msg_count, api_count = _usage_queue.pop(0)
-                        try:
-                            await add_usage(self_id, msg_count, api_count)
-                        except asyncio.CancelledError:
-                            break
-                        except Exception as e:
-                            logger.warning(f"Failed to add usage: {e}")
+
+                try:
+                    await add_usage(self_id, msg_count, api_count)
+                except asyncio.CancelledError:
+                    break
+                except Exception as e:
+                    logger.warning(f"Failed to add usage: {e}")
             await asyncio.sleep(0.2)  # 每200ms检查一次队列
 
 
@@ -88,12 +86,14 @@ def _start_usage_processor():
 
 class APICalledRepo:
     _repo: defaultdict[str, tuple[int, int]]  # (count, successful_count, cost)
+    _lock_pool: WeakValueLRUCache[str, asyncio.Lock]
     _instance = None
 
     def __new__(cls) -> Self:
         if cls._instance is None:
             cls._instance = super().__new__(cls)
             cls._repo = defaultdict(lambda: (0, 0))
+            cls._lock_pool = WeakValueLRUCache(1024, True)
         return cls._instance
 
     async def push(self, api: str, is_success: bool):
@@ -115,10 +115,11 @@ class APICalledRepo:
     async def clear(self):
         self._repo.clear()
 
-    @staticmethod
-    @lru_cache(maxsize=1024)
-    def _lock(api: str):
-        return asyncio.Lock()
+    def _lock(self, api: str):
+        if (lock := self._lock_pool.get(api)) is None:
+            lock = asyncio.Lock()
+            self._lock_pool[api] = lock
+        return lock
 
 
 @on_notice(block=False, priority=10).handle()
@@ -156,13 +157,14 @@ async def _(event: MessageEvent, matcher: Matcher, args: Message = CommandArg())
 @on_message(priority=1, block=False).handle()
 async def _(bot: Bot):
     async def _add():
-        try:
-            logger.debug("Received message.")
-            await add_usage(bot.self_id, 1, 0)
-        except Exception as e:
-            logger.warning(e)
+        _start_usage_processor()
 
-    asyncio.create_task(_add())  # noqa: RUF006
+        async with _usage_lock:
+            _usage_queue.append((bot.self_id, 1, 0))
+
+    task = asyncio.create_task(_add())
+    _running_task.add(task)
+    task.add_done_callback(lambda t: _running_task.discard(t))
 
 
 @run_preprocessor
@@ -212,14 +214,23 @@ async def _(
 
     await APICalledRepo().push(api, exception is None)
 
-    await _add()
+    task = asyncio.create_task(_add())
+    _running_task.add(task)
+    task.add_done_callback(lambda t: _running_task.discard(t))
 
 
 @get_driver().on_shutdown
 async def _():
-    global _record_task
+    global _record_task, _running_task
     if _record_task:
-        _record_task.cancel()
+        with contextlib.suppress(Exception):
+            _record_task.cancel()
+    if _running_task:
+        tasks = list(_running_task)
+        for task in tasks:
+            with contextlib.suppress(Exception):
+                task.cancel()
+        _running_task.clear()
 
 
 class Status(BaseModel):

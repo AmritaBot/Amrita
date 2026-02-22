@@ -36,6 +36,7 @@ class Config(BaseModel):
     update_from_json: bool = Field(
         default=True, description="本次启动时，将从JSON中读取并更新权限到数据库中。"
     )
+    cache_size: int = Field(default=4096, description="权限缓存大小(修改后重启生效)")
 
 
 class DataManager(BaseDataManager[Config]):

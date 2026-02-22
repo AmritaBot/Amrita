@@ -18,8 +18,9 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
-from amrita.cache import WeakValueLRUCache
+from amrita.cache import LRUCache, WeakValueLRUCache
 from amrita.plugins.perm import nodelib
+from amrita.plugins.perm.config import DataManager
 
 PERM_TYPE = Literal["group", "user"]
 
@@ -201,13 +202,13 @@ class PermissionStorage:
     _cached_permission_group_data: dict[
         str, PermissionGroupPydantic
     ]  # 缓存的权限组数据
-    _cached_member_permission_data: dict[
+    _cached_member_permission_data: LRUCache[
         tuple[str, PERM_TYPE], MemberPermissionPydantic
     ]  # 缓存的成员权限数据
-    _cached_member_to_permission_group_data: dict[
+    _cached_member_to_permission_group_data: LRUCache[
         tuple[str, PERM_TYPE], set[str]
     ]  # 权限拥有者实体ID -> 权限组名称
-    _default_permission: dict[tuple[str, PERM_TYPE], set[str]]
+    _default_permission: LRUCache[tuple[str, PERM_TYPE], set[str]]
 
     def __new__(cls, *args, **kwargs):
         """
@@ -217,19 +218,18 @@ class PermissionStorage:
             PermissionStorage: 类的单例实例
         """
         if cls._instance is None:
+            config = DataManager().config
             cls._instance = super().__new__(cls)
             cls._cached_permission_group_data = {}
-            cls._cached_member_permission_data = {}
-            cls._cached_member_to_permission_group_data = {}
-            cls._lock_pool = WeakValueLRUCache(1024, loose_mode=True)
+            cls._cached_member_permission_data = LRUCache(config.cache_size)
+            cls._cached_member_to_permission_group_data = LRUCache(config.cache_size)
+            cls._lock_pool = WeakValueLRUCache(2048, loose_mode=True)
         return cls._instance
 
     def _make_lock(self, name: str) -> Lock:
-        if name not in self._lock_pool:
+        if (lock := self._lock_pool.get(name)) is None:
             lock = Lock()
-            self._lock_pool[name] = lock
-        else:
-            lock = self._lock_pool[name]
+            self._lock_pool.put(name, lock)
         return lock
 
     def _lock_maker(
@@ -706,6 +706,7 @@ class PermissionStorage:
         从数据库初始化所有权限缓存
         """
         async with get_session() as session:
+            config = await DataManager().safe_get_config()
             permission_groups = await session.execute(select(PermissionGroup))
             for permission_group in permission_groups.scalars():
                 name = permission_group.group_name
@@ -716,7 +717,9 @@ class PermissionStorage:
                         )
                     )
             del permission_groups
-            members = await session.execute(select(MemberPermission))
+            members = await session.execute(
+                select(MemberPermission).limit(config.cache_size)
+            )
             for member in members.scalars():
                 mbid, mbtype = member.member_id, member.type
                 async with self._make_lock(str((mbid, mbtype))):
@@ -733,10 +736,16 @@ class PermissionStorage:
                     mapp.member_id,
                     mapp.group_name,
                 )
-                if member_id not in self._cached_member_to_permission_group_data:
-                    self._cached_member_to_permission_group_data[
-                        (member_id, member_type)
-                    ] = set()
-                self._cached_member_to_permission_group_data[
-                    (member_id, member_type)
-                ].add(perm_group_name)
+                key: tuple[str, Literal["group", "user"]] = (
+                    member_id,
+                    member_type,
+                )
+                if (
+                    key not in self._cached_member_to_permission_group_data
+                    and not self._cached_member_to_permission_group_data.is_full()
+                ):
+                    self._cached_member_to_permission_group_data[key] = set()
+                if key in self._cached_member_to_permission_group_data:
+                    self._cached_member_to_permission_group_data[key].add(
+                        perm_group_name
+                    )
