@@ -46,10 +46,6 @@ _cached_pattern: re.Pattern[str] | None = None
 
 
 class ToolsConfig(BaseModel):
-    enable_tools: bool = Field(
-        default=True,
-        description="是否启用外部工具调用功能（关闭此选项不影响内容审查系统）",
-    )
     use_minimal_context: bool = Field(
         default=True,
         description="是否使用最小上下文，即使用系统prompt+用户最后一条消息（关闭此选项将使用消息列表的所有上下文，在Agent工作流执行中可能会消耗大量Tokens，启用此选项可能会有效降低Tokens使用量）",
@@ -116,10 +112,6 @@ class SessionConfig(BaseModel):
     session_control_history: int = Field(
         default=10, description="会话历史记录最大保存条数"
     )
-    session_max_tokens: int = Field(
-        default=5000, description="单次会话上下文最大token容量"
-    )
-
 
 class AutoReplyConfig(BaseModel):
     enable: bool = Field(default=False, description="是否启用自动回复系统")
@@ -328,7 +320,7 @@ class Config(BaseModel):
             raise ValueError("max_tokens必须大于零!")
         if self.llm.llm_timeout <= 0:  # 更新配置路径
             raise ValueError("LLM请求超时时间必须大于零！")
-        if self.session.session_max_tokens <= 0:
+        if self.llm.session_tokens_windows <= 0:
             raise ValueError("上下文最大Tokens限制必须大于零！")
         if self.session.session_control:
             if self.session.session_control_history <= 0:
