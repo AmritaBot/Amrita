@@ -39,23 +39,21 @@ class FakeEvent(Event):
 
 
 async def is_bot_enabled(event: Event) -> bool:
+    gid = getattr(event, "group_id", None)
+    is_in_group = gid is not None
     if not config_manager.config.enable:
         return False
-    elif (
-        hasattr(event, "group_id")
-        and not config_manager.config.function.enable_group_chat
-    ):
+    elif is_in_group and not config_manager.config.function.enable_group_chat:
         return False
-    else:
-        if not config_manager.config.function.enable_private_chat:
-            return False
+    elif not is_in_group and not config_manager.config.function.enable_private_chat:
+        return False
     with contextlib.suppress(Exception):
-        bots = set(nonebot.get_bots().keys())
-        if event.get_user_id() in bots:  # 多实例下防止冲突
+        bots = nonebot.get_bots()
+        if event.get_user_id() in bots:
             return False
-    if (group_id := getattr(event, "group_id", None)) is not None:
+    if gid is not None:
         data = await CachedUserDataRepository().get_group_config(
-            group_id,
+            gid,
         )
         return data.enable
     return True
