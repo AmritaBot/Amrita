@@ -56,12 +56,12 @@ def format_chat_object_info(obj: ChatObject) -> str:
     status = "❓ Unknown"
     if obj.is_waitting():
         status = "⏳ Pending"
+    elif obj.get_exception():
+        status = f"❌ Error ({type(obj.get_exception()).__name__})"
     elif obj.is_done():
         status = "✅ Done"
     elif obj.is_running():
         status = "🟢 Running"
-    elif obj.get_exception():
-        status = f"❌ Error ({type(obj.get_exception()).__name__})"
 
     time_diff = (datetime.now(tz=utc) - obj.last_call).total_seconds()
     time_cost: float = (obj.end_at - obj.time).total_seconds() if obj.end_at else 0
