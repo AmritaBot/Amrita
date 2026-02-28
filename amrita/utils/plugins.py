@@ -48,7 +48,7 @@ def load_plugins():
     for plugin in meta.tool.amrita.plugins:
         nonebot.logger.debug(f"Loading Amrita plugin {plugin}...")
         try:
-            nonebot.require(plugin)  # TODO: Amrita plugin system
+            nonebot.require(plugin)
         except Exception as e:
             nonebot.logger.error(f"Failed to load plugin {plugin}: {e}")
     nonebot.logger.info("Require local plugins......")

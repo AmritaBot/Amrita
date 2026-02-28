@@ -26,11 +26,11 @@ from amrita.plugins.chat.utils.sql import (
 )
 from amrita.utils.admin import send_to_admin
 
-from .config import Config, config_manager
-from .utils.libchat import (
+from ..config import Config, config_manager
+from ..utils.libchat import (
     tools_caller,
 )
-from .utils.llm_tools.builtin_tools import (
+from ..utils.llm_tools.builtin_tools import (
     PROCESS_MESSAGE_TOOL,
     REPORT_TOOL_HIGH,
     REPORT_TOOL_LOW,

@@ -244,7 +244,6 @@ class AmritaChatObject(CoreChatObject):
                     session = sessions[-1]
                     async with UserDataExecutor(uni_id) as executor:
                         await executor.remove_session(session.id)
-                    CachedUserDataRepository._cached_sessions.pop(uni_id, None)
                     self.memory.memory_json = data
                     await CachedUserDataRepository().update_memory_data(self.memory)
                     return await matcher.finish("让我们继续聊天吧～")

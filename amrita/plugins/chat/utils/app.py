@@ -4,13 +4,14 @@ from collections.abc import Mapping, Sequence
 from datetime import datetime
 
 from amrita_core import MemoryModel as Memory
+from pydantic import BaseModel as PydanticBaseModel
 from pydantic import ConfigDict as PydConf
 from pydantic import Field, model_validator
-from pytz import utc
 from typing_extensions import final
 
 from amrita.cache import LRUCache, WeakValueLRUCache
 from amrita.dirty import DirtyAwareModel as BaseModel
+from amrita.plugins.chat.utils.sql import UserMetadata
 
 from .sql import UserDataExecutor
 
@@ -59,7 +60,7 @@ class AwaredMemory(Memory, BaseModel):
 
 class UserMetadataSchema(BaseSchema):
     last_active: datetime = Field(
-        default_factory=lambda: datetime.now(utc), description="最后活跃时间"
+        default_factory=lambda: datetime.now(), description="最后活跃时间"
     )
     total_called_count: int = Field(default=0, description="长期历史调用次数")
     total_input_token: int = Field(default=0, description="总输入token数")
@@ -76,11 +77,10 @@ class MemorySchema(BaseSchema):
     extra_prompt: str = Field(default="", description="额外提示")
 
 
-class MemorySessionsSchema(BaseSchema):
-    dirty_excluede__: tuple = Field(
-        ("id", "user_id", "model_config", "created_at"), exclude=True, init=False
-    )
-
+class MemorySessionsSchema(PydanticBaseModel):  # 无脏追踪
+    id: int = Field(default=..., description="ID")
+    user_id: str = Field(default=..., description="统一用户ID")
+    model_config = PydConf(from_attributes=True, strict=False)
     created_at: float = Field(default=0.0, description="创建时间戳")
     data: AwaredMemory = Field(
         default_factory=AwaredMemory, description="会话数据的JSON格式"
@@ -91,7 +91,7 @@ class GroupConfigSchema(BaseSchema):
     enable: bool = Field(default=True, description="是否启用")
     autoreply: bool = Field(default=False, description="是否自动回复")
     last_updated: datetime = Field(
-        default_factory=lambda: datetime.now(utc), description="最后更新时间"
+        default_factory=lambda: datetime.now(), description="最后更新时间"
     )
 
 
@@ -102,14 +102,11 @@ class CachedUserDataRepository:
     _cached_group_config: LRUCache[str, GroupConfigSchema]
     _cached_memory: LRUCache[str, MemorySchema]
     _cached_metadata: LRUCache[str, UserMetadataSchema]
-    _cached_sessions: LRUCache[str, list[MemorySessionsSchema]]
-
     def __new__(cls, *args, **kwargs):
         if cls._instance is None:
             cls._cached_group_config = LRUCache(1024)  # 其次最常访问
             cls._cached_memory = LRUCache(512)
             cls._cached_metadata = LRUCache(2048)  # 最常访问
-            cls._cached_sessions = LRUCache(256)  # 少访问
             cls._action_lock = WeakValueLRUCache(1024, loose_mode=True)  # 动态锁池
             cls._instance = super().__new__(cls)
         return cls._instance
@@ -148,11 +145,13 @@ class CachedUserDataRepository:
 
     async def get_metadata(self, any_id: int, is_group: bool) -> UserMetadataSchema:
         uni_id = self.make_uni_id(any_id, is_group)
-        if data := self._cached_metadata.get(uni_id):
+        if (
+            data := self._cached_metadata.get(uni_id)
+        ) and data.last_active.date() == datetime.now().date():
             return data
         async with self.make_lock(uni_id):
             async with UserDataExecutor(uni_id) as exc:
-                conf = await exc.get_or_create_metadata()
+                conf: UserMetadata = await exc.get_or_create_metadata()
                 data = UserMetadataSchema.model_validate(conf)
             self._cached_metadata[uni_id] = data
             return data
@@ -160,21 +159,20 @@ class CachedUserDataRepository:
     async def get_sesssions(
         self, any_id: int, is_group: bool
     ) -> Sequence[MemorySessionsSchema]:
+        """!此方法没有缓存!"""
         uni_id = self.make_uni_id(any_id, is_group)
-        if data := self._cached_sessions.get(uni_id):
-            return data
+        # 因为缓存数据可能更新不及时，并且更新也麻烦，因为它不常访问，sessions归档这里就没有再做缓存了，只是简单校验了离线模型。
         async with self.make_lock(uni_id):
             async with UserDataExecutor(uni_id) as exc:
                 sessions = await exc.get_or_load_sessions()
                 data = [MemorySessionsSchema.model_validate(s) for s in sessions]
-            self._cached_sessions[uni_id] = data
             return data
 
     async def update_group_config(self, data: GroupConfigSchema) -> None:
         uni_id = data.user_id
         dirty_attrs = data.get_dirty_vars()
         async with self.make_lock(uni_id):
-            async with UserDataExecutor(uni_id) as exc:
+            async with UserDataExecutor(uni_id, with_for_update=True) as exc:
                 gf = await exc.get_or_create_group_config()
                 for attr in dirty_attrs:
                     setattr(gf, attr, getattr(data, attr))
@@ -185,7 +183,8 @@ class CachedUserDataRepository:
         uni_id = data.user_id
         dirty = data.get_dirty_vars()
         async with self.make_lock(uni_id):
-            async with UserDataExecutor(uni_id) as exc:
+            data.last_active = datetime.now()
+            async with UserDataExecutor(uni_id, with_for_update=True) as exc:
                 meta = await exc.get_or_create_metadata()
                 for attr in dirty:
                     setattr(meta, attr, getattr(data, attr))
@@ -200,7 +199,7 @@ class CachedUserDataRepository:
             return
         async with self.make_lock(uni_id):
             memory = data.memory_json.model_dump()
-            async with UserDataExecutor(uni_id) as executor:
+            async with UserDataExecutor(uni_id, with_for_update=True) as executor:
                 dt = await executor.get_or_create_memory()
                 dt.memory_json = memory
         data.clean()

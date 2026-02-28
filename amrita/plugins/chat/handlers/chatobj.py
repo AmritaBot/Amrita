@@ -150,6 +150,29 @@ async def chatobj_manage(
         status_dict = get_chat_objects_status(event)
         await send_status_report(bot, event, status_dict)
 
+    elif plain_args == "kill" or plain_args == "terminate":
+        # 仅输入 "kill" 或 "terminate"，没有指定ID，尝试杀死最后一个活动的会话
+        all_objects: list[ChatObject] = cast(
+            list[ChatObject], chat_manager.get_objs(get_uni_user_id(event))
+        )
+        active_objects = [
+            obj
+            for obj in all_objects
+            if obj.is_running()
+            and not (hasattr(obj, "is_waitting") and not obj.is_waitting())
+        ]
+        active_objects.sort(key=lambda obj: obj.last_call)
+
+        if active_objects:
+            last_active_obj = active_objects[0]
+            with contextlib.suppress(Exception):
+                last_active_obj.terminate()
+            await matcher.finish(
+                f"✅ 已尝试终止最后一个活动的会话 (ID: {last_active_obj.stream_id[:8]}...)"
+            )
+        else:
+            await matcher.finish("❌ 没有找到任何活动的会话")
+
     elif plain_args.startswith("terminate ") or plain_args.startswith("kill "):
         # 终止指定的ChatObject
         stream_id_prefix = plain_args.split(" ", 1)[1] if " " in plain_args else ""
@@ -181,6 +204,7 @@ async def chatobj_manage(
             "🔸 /chatobj status - 显示所有会话状态\n"
             "🔸 /chatobj terminate <ID前缀|all> - 终止指定会话(或者所有)\n"
             "🔸 /chatobj kill <ID前缀|all> - 终止指定会话(或者所有)\n"
+            "🔸 /chatobj kill - 终止最后一个活动的会话\n"
             "🔸 /chatobj clear - 清除已完成的会话\n"
             "🔸 /chatobj help - 显示此帮助"
         )

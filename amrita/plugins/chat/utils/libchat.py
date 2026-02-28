@@ -12,17 +12,25 @@ from nonebot.adapters.onebot.v11 import Event
 from amrita.plugins.chat.config import config_manager
 from amrita.plugins.chat.utils.app import CachedUserDataRepository, UserMetadataSchema
 from amrita.plugins.chat.utils.sql import InsightsModel
+from amrita.plugins.perm.API.rules import any_has_permission
+
+is_bot_admin = None
 
 
 async def usage_enough(event: Event) -> bool:
-    from ..check_rule import is_bot_admin
+    global is_bot_admin
+    if is_bot_admin is None:
+        from ..check_rule import is_bot_admin
 
+        is_bot_admin = is_bot_admin
     dm = CachedUserDataRepository()
 
     config = config_manager.config
     if not config.usage_limit.enable_usage_limit:
         return True
-    if await is_bot_admin(event):
+    elif await is_bot_admin(event):
+        return True
+    elif await (any_has_permission("amrita.usage.bypass"))(event):
         return True
 
     # ### Starts of Global Insights ###

@@ -15,6 +15,7 @@ from .check_rule import (
     is_group_admin_if_is_in_group,
     should_respond_with_usage_check,
 )
+from .handlers.abstract import abstract_show
 from .handlers.add_notices import add_notices
 from .handlers.chat import entry as chat
 from .handlers.chatobj import chatobj_manage
@@ -35,7 +36,6 @@ from .handlers.prompt import prompt
 from .handlers.recall import recall
 from .handlers.sessions import sessions
 from .handlers.set_preset import set_preset
-from .handlers.show_abstract import abstract_show
 
 # 创建基础匹配器组，所有匹配器都需满足is_bot_enabled规则
 base_matcher = MatcherGroup(rule=is_bot_enabled)
@@ -64,10 +64,9 @@ base_matcher.on_message(
 ).append_handler(chat)
 
 base_matcher.on_command(
-    "show-abstract",
-    {"abstract"},
+    "abstract",
     state=MatcherData(
-        name="查看摘要", description="查看当前会话的摘要", usage="/show-abstract"
+        name="查看摘要", description="查看当前会话的摘要", usage="/abstract [clear]"
     ).model_dump(),
 ).append_handler(abstract_show)
 # 添加各种命令处理器
@@ -203,7 +202,7 @@ base_matcher.on_command(
     state=MatcherData(
         name="用量统计",
         description="查看今日AI用量统计",
-        usage="/insights [global]",
+        usage="/insights [global|top10 <--group|private|all>]]",
     ).model_dump(),
 ).append_handler(insights)
 
