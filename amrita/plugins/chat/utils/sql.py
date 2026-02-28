@@ -504,7 +504,6 @@ class UserDataExecutor:
 
             result = await session.execute(stmt)
             users = result.scalars().all()
-            session.add_all(users)
             return users
 
 
