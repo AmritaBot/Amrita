@@ -161,7 +161,7 @@ async def chatobj_manage(
             if obj.is_running()
             and not (hasattr(obj, "is_waitting") and not obj.is_waitting())
         ]
-        active_objects.sort(key=lambda obj: obj.last_call)
+        active_objects.sort(key=lambda obj: obj.last_call, reverse=True)
 
         if active_objects:
             last_active_obj = active_objects[0]
