@@ -33,7 +33,7 @@ async def sessions(
         message_content = "历史会话\n"
         for index, msg in enumerate(sessions):
             if msg.data.messages:
-                message_content += f"编号：{index}) ：{msg.data.abstract[:15] or '（无描述）'}... 时间：{datetime.fromtimestamp(msg.time).strftime('%Y-%m-%d %I:%M:%S %p')}\n"
+                message_content += f"编号：{index}) ：{msg.data.abstract[:15] or '（无描述）'}... 时间：{datetime.fromtimestamp(msg.created_at).strftime('%Y-%m-%d %I:%M:%S %p')}\n"
         await matcher.finish(message_content)
 
     async def set_session(
@@ -91,10 +91,6 @@ async def sessions(
                     await matcher.finish("请输入正确的编号")
                 user_sessions_list = list(user_sessions)
                 removed_session = user_sessions_list.pop(session_index)
-
-                # 更新缓存
-                repo._cached_sessions[uni_user_id] = user_sessions_list
-
                 # 从数据库中删除
                 async with get_session() as session:
                     async with UserDataExecutor(uni_user_id, session) as executor:
@@ -163,9 +159,6 @@ async def sessions(
                     async with UserDataExecutor(uni_user_id, session) as executor:
                         await executor.remove_session(*session_ids)
                         await session.commit()
-
-                # 清空缓存
-                repo._cached_sessions.pop(uni_user_id, None)
 
             await matcher.finish("会话已清空。")
         except NoneBotException as e:

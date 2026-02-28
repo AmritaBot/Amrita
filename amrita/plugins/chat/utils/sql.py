@@ -5,7 +5,7 @@ import time
 from asyncio import Lock, Protocol
 from collections.abc import Sequence
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import TYPE_CHECKING, Any, Literal, TypeVar
 
 from amrita_core.types import (
     _T,
@@ -36,7 +36,6 @@ from amrita_core.types import (
 from nonebot.adapters.onebot.v11 import Event
 from nonebot_plugin_orm import AsyncSession, Model, get_session
 from pydantic import Field
-from pytz import utc
 from sqlalchemy import (
     JSON,
     BigInteger,
@@ -305,7 +304,6 @@ class MemorySessions(Model):
 
             if ids_to_delete:
                 # 删除超过保留数量的会话记录
-                # TODO: Expire Cache in CachedUserDataRepository
                 delete_stmt = delete(cls).where(cls.user_id.in_(ids_to_delete))
                 await session.execute(delete_stmt)
 
@@ -363,14 +361,22 @@ class UserDataExecutor:
         None  # (lazy) This will be set when user sessions are accessed, and can be used to batch updates
     )
     _entered: bool = False  # Mark whether the context manager has been entered, to prevent multiple __aenter__ calls
+    __for_update: bool = False
 
-    def __init__(self, user_id: str, session: AsyncSession | None = None):
+    def __init__(
+        self,
+        user_id: str,
+        session: AsyncSession | None = None,
+        /,
+        with_for_update: bool = False,
+    ):
         if not validate_uni_user_id(user_id):
             raise ValueError(f"Invalid uni_user_id format: {user_id}")
         self.user_id = user_id
         self._arg_session = session
         self.session = session or get_session()
         self._lock = database_lock(user_id)
+        self.__for_update = with_for_update
 
     async def __aenter__(self) -> Self:
         self._entered = True
@@ -399,6 +405,7 @@ class UserDataExecutor:
 
     async def _get_or_create_any(self, model: type[SqlModel_T], **kwargs) -> SqlModel_T:
         stmt = select(model).where(model.user_id == self.user_id)
+        stmt = stmt if not self.__for_update else stmt.with_for_update()
         result = await self.session.execute(stmt)
         obj = result.scalar_one_or_none()
         if obj is None:
@@ -415,8 +422,8 @@ class UserDataExecutor:
         if self._user_metadata_temp is not None:
             return self._user_metadata_temp
         data: UserMetadata = await self._get_or_create_any(UserMetadata)
-        if data.last_active.date() != datetime.now(utc).date():
-            data.last_active = datetime.now(utc)
+        if data.last_active.date() != datetime.now().date():
+            data.last_active = datetime.now()
             data.tokens_input = 0
             data.tokens_output = 0
             data.called_count = 0
@@ -463,6 +470,41 @@ class UserDataExecutor:
             user_id=self.user_id, data=data.model_dump()
         )
         await self.session.execute(stmt)
+
+    @staticmethod
+    async def get_top10_users(
+        top_type: Literal["group", "private", "all"] = "all", limit: int = 10
+    ) -> Sequence[UserMetadata]:
+        """
+        获取使用量排名前10的用户数据
+
+        Args:
+            top_type: 排名类型 ("group", "private", "all")
+            limit: 返回数量限制，默认10
+        """
+        async with get_session() as session:
+            # 确保只查询今天的记录
+            today = datetime.now().date()
+
+            # 构建基础查询
+            stmt = select(UserMetadata).where(
+                UserMetadata.last_active >= today,
+                UserMetadata.last_active < today + timedelta(days=1),
+            )
+
+            # 根据类型过滤
+            if top_type == "group":
+                stmt = stmt.where(UserMetadata.user_id.like("group_%"))
+            elif top_type == "private":
+                stmt = stmt.where(UserMetadata.user_id.like("user_%"))
+            stmt = stmt.order_by(
+                UserMetadata.called_count.desc(),
+                (UserMetadata.tokens_input + UserMetadata.tokens_output).desc(),
+            ).limit(limit)
+
+            result = await session.execute(stmt)
+            users = result.scalars().all()
+            return users
 
 
 __all__ = [

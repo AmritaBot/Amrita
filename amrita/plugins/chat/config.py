@@ -113,6 +113,7 @@ class SessionConfig(BaseModel):
         default=10, description="会话历史记录最大保存条数"
     )
 
+
 class AutoReplyConfig(BaseModel):
     enable: bool = Field(default=False, description="是否启用自动回复系统")
     global_enable: bool = Field(
@@ -172,9 +173,10 @@ class PresetSwitch(BaseModel):
     backup_preset_list: list[str] = Field(
         default=[], description="主模型不可用时自动切换的备选模型预设列表"
     )
-    multi_modal_preset_list: list[str] = Field(
-        default=[], description="多模态场景预设调用顺序"
-    )
+    # multi_modal_preset_list: list[str] = Field(
+    #    default=[], description="多模态场景预设调用顺序"
+    # )
+    # TODO: 完成hook适配
 
 
 class CookieModel(BaseModel):

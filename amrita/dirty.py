@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, SupportsIndex, TypeVar
+from typing import TYPE_CHECKING, Any, SupportsIndex, TypeVar
 
 from pydantic import BaseModel, Field
 
@@ -210,33 +210,35 @@ class DirtyAwareModel(BaseModel):
             if wrapped is not value:
                 object.__setattr__(self, name, wrapped)
 
-    def __setattr__(self, name, value):
-        if name in ("dirtyvars__",):
-            object.__setattr__(self, name, value)
-            return
+    if not TYPE_CHECKING:  # 我们在 if not TYPE_CHECKING 定义的方法，以解决静态类型检查器无法正确判断实际的属性是否存在。
 
-        wrapped = self._wrap_if_needed(name, value)
-        super().__setattr__(name, wrapped)
-        self._mark_dirty(name)
+        def __setattr__(self, name, value):
+            if name in ("dirtyvars__",):
+                object.__setattr__(self, name, value)
+                return
 
-    def __getattribute__(self, name: str) -> Any:
-        value = super().__getattribute__(name)
-        if name.startswith("__") or name == "dirtyvars__" or name.endswith("__"):
-            return value
-
-        if hasattr(value, "_parent"):
-            return value
-
-        if isinstance(value, (list, dict, set)):
-            wrapped = _wrap_container(value, self, name)
-            object.__setattr__(self, name, wrapped)
-            return wrapped
-        elif isinstance(
-            value, BaseModel
-        ):  # 也不会有人在ORM模型里嵌套好几层吧，就简单地处理一下吧
+            wrapped = self._wrap_if_needed(name, value)
+            super().__setattr__(name, wrapped)
             self._mark_dirty(name)
 
-        return value
+        def __getattribute__(self, name: str) -> Any:
+            value = super().__getattribute__(name)
+            if name.startswith("__") or name == "dirtyvars__" or name.endswith("__"):
+                return value
+
+            if hasattr(value, "_parent"):
+                return value
+
+            if isinstance(value, (list, dict, set)):
+                wrapped = _wrap_container(value, self, name)
+                object.__setattr__(self, name, wrapped)
+                return wrapped
+            elif isinstance(
+                value, BaseModel
+            ):  # 也不会有人在ORM模型里嵌套好几层吧，就简单地处理一下吧
+                self._mark_dirty(name)
+
+            return value
 
     def _wrap_if_needed(self, name: str, value: Any) -> Any:
         if isinstance(value, (list, dict, set)) and not hasattr(value, "_parent"):

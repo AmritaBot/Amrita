@@ -267,6 +267,7 @@ class WeakValueLRUCache(Generic[K, V]):
     def resize(self, new_size: int):
         """调整缓存大小"""
         self._capacity = new_size
+
     def get(self, key: K) -> V | None:
         """获取缓存中的值，如果存在且未被GC则将其标记为最近使用
 
@@ -557,6 +558,7 @@ class TTLCache(Generic[K, V]):
     def resize(self, new_size: int):
         """调整缓存大小"""
         self._capacity = new_size
+
     def get(self, key: K) -> V | None:
         """获取缓存中的值，如果存在且未过期则返回，否则返回None
 

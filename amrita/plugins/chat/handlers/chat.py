@@ -185,15 +185,13 @@ async def synthesize_message_to_msg(
     """
     is_multimodal: bool = (
         any(
-            [
-                (await config_manager.get_preset(preset=preset)).config.multimodal
-                for preset in [
-                    config_manager.config.preset,
-                    *config_manager.config.preset_extension.backup_preset_list,
-                ]
+            (PresetManager().get_preset(preset)).config.multimodal
+            for preset in [
+                config_manager.config.preset,
+                *config_manager.config.preset_extension.backup_preset_list,
             ]
         )
-        or len(config_manager.config.preset_extension.multi_modal_preset_list) > 0
+        # or len(config_manager.config.preset_extension.multi_modal_preset_list) > 0
     )
 
     if config_manager.config.parse_segments:

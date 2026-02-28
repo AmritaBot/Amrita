@@ -35,7 +35,7 @@ async def prompt(
 
     # 根据用户输入的命令执行相应操作
     if arg.startswith("--(show)"):
-        await matcher.send(f"Prompt:\n{data.prompt}")
+        await matcher.send(f"Prompt:\n{data.extra_prompt}")
         return
     elif arg.startswith("--(clear)"):
         data.extra_prompt = ""

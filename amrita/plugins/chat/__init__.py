@@ -6,18 +6,17 @@ require("amrita.plugins.webui")
 require("nonebot_plugin_orm")
 require("nonebot_plugin_localstore")
 
-
 from . import (
-    builtin_hook,
     config,
+    hooks,
     matcher_manager,
     page,
     preprocess,
 )
 
 __all__ = [
-    "builtin_hook",
     "config",
+    "hooks",
     "matcher_manager",
     "page",
     "preprocess",
