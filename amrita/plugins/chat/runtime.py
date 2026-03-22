@@ -214,9 +214,10 @@ class AmritaChatObject(CoreChatObject):
                     CachedUserDataRepository._cached_memory.pop(uni_id, None)
                     self.memory.memory_json = data
                     await CachedUserDataRepository().update_memory_data(self.memory)
-                    if not (
+                    if (
                         (time_now - timestamp)
-                        > float(config.session.session_control_time * 60 * 2)
+                        <= float(config.session.session_control_time * 60 * 2)
+                        and config.session.session_allow_continue
                     ):
                         debug_log("发送继续聊天提示")
                         chated = await matcher.send(
