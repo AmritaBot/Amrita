@@ -57,6 +57,7 @@ async def _check_and_handle_rate_limit():
                 return True  # 仍然处于异常状态
         elif consume:
             _message_tracker["admin"] -= 1 if _message_tracker["admin"] > 0 else 0
+    StatusManager().set_unready(False)
     return False  # 表示不需要阻断消息发送
 
 

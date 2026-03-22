@@ -102,6 +102,7 @@ class CachedUserDataRepository:
     _cached_group_config: LRUCache[str, GroupConfigSchema]
     _cached_memory: LRUCache[str, MemorySchema]
     _cached_metadata: LRUCache[str, UserMetadataSchema]
+
     def __new__(cls, *args, **kwargs):
         if cls._instance is None:
             cls._cached_group_config = LRUCache(1024)  # 其次最常访问

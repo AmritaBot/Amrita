@@ -293,18 +293,18 @@ class MemorySessions(Model):
         # 查询指定user_id的所有会话，按创建时间倒序排列
         async with get_session() as session:
             stmt = (
-                select(cls.user_id)
+                select(cls.id)
                 .where(cls.user_id == user_id)
                 .order_by(cls.created_at.desc())
                 .offset(keep_count)  # 跳过要保留的数量，获取需要删除的记录
             )
 
             result = await session.execute(stmt)
-            ids_to_delete: list[str] = [row[0] for row in result.fetchall()]
+            ids_to_delete: list[int] = [row[0] for row in result.fetchall()]
 
             if ids_to_delete:
                 # 删除超过保留数量的会话记录
-                delete_stmt = delete(cls).where(cls.user_id.in_(ids_to_delete))
+                delete_stmt = delete(cls).where(cls.id.in_(ids_to_delete))
                 await session.execute(delete_stmt)
 
                 # 提交更改

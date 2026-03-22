@@ -146,6 +146,7 @@ async def _(event: MessageEvent, matcher: Matcher, args: Message = CommandArg())
     arg = args.extract_plain_text().strip()
     if arg in ("true", "yes", "1", "on"):
         StatusManager().set_disable(False)
+        StatusManager().set_unready(False)
         await matcher.finish("已启用")
     elif arg in ("false", "no", "0", "off"):
         StatusManager().set_disable(True)

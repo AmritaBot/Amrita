@@ -14,6 +14,7 @@ from amrita_core import ModelPreset as ModelPreset
 from amrita_core import PresetManager, set_config
 from amrita_core.config import (
     AmritaConfig as AmritaCoreConfig,
+    BuiltinAgentConfig,
 )
 from amrita_core.config import (
     CookieConfig as CoreCookieConfig,
@@ -106,6 +107,7 @@ class ToolsConfig(BaseModel):
 
 class SessionConfig(BaseModel):
     session_control: bool = Field(default=False, description="是否启用会话超时自动清理")
+    session_allow_continue: bool = Field(default=True, description="是否允许会话继续")
     session_control_time: int = Field(
         default=60, description="会话超时时间（单位：分钟）"
     )
@@ -344,13 +346,15 @@ class Config(BaseModel):
 
     def to_core_config(self) -> AmritaCoreConfig:
         return AmritaCoreConfig(
-            function_config=CoreFunctionConfig(
-                use_minimal_context=self.llm.tools.use_minimal_context,
+            builtin=BuiltinAgentConfig(
                 tool_calling_mode=self.llm.tools.tool_calling_mode,
-                agent_tool_call_limit=self.llm.tools.agent_tool_call_limit,
                 agent_tool_call_notice=self.llm.tools.agent_tool_call_notice,
                 agent_thought_mode=self.llm.tools.agent_thought_mode,
                 agent_reasoning_hide=self.llm.tools.agent_reasoning_hide,
+            ),
+            function_config=CoreFunctionConfig(
+                use_minimal_context=self.llm.tools.use_minimal_context,
+                agent_tool_call_limit=self.llm.tools.agent_tool_call_limit,
                 agent_middle_message=self.llm.tools.agent_middle_message,
                 agent_mcp_client_enable=self.llm.tools.agent_mcp_client_enable,
                 agent_mcp_server_scripts=self.llm.tools.agent_mcp_server_scripts,
@@ -460,14 +464,18 @@ class ConfigManager(EnvfulConfigManager[Config]):
         await UniConfigManager().add_directory(
             "group_prompts",
             lambda *_: prompt_callback(),
-            lambda change: (change[1].startswith(str(self.group_prompts)))
-            and change[1].endswith(".txt"),
+            lambda change: (
+                (change[1].startswith(str(self.group_prompts)))
+                and change[1].endswith(".txt")
+            ),
         )
         await UniConfigManager().add_directory(
             "private_prompts",
             lambda *_: prompt_callback(),
-            lambda change: change[1].startswith(str(self.private_prompts))
-            and change[1].endswith(".txt"),
+            lambda change: (
+                change[1].startswith(str(self.private_prompts))
+                and change[1].endswith(".txt")
+            ),
         )
 
     def validate_presets(self):

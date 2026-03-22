@@ -11,10 +11,10 @@ class StatusManager:
             cls._instance = super().__new__(cls)
         return cls._instance
 
-    def set_disable(self, value: bool):
+    def set_disable(self, value: bool):  # 由指令触发
         self.__disable = value
 
-    def set_unready(self, value: bool):
+    def set_unready(self, value: bool):  # 由程序设置触发
         self.__repair = value
 
     def is_unready(self) -> bool:

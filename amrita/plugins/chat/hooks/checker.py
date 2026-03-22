@@ -51,7 +51,7 @@ agent.BUILTIN_TOOLS_NAME.add(REPORT_TOOL_MEDIUM.function.name)
 async def _(ctx: ToolContext) -> str | None:
     msg: str = ctx.data["content"]
     logger.debug(f"[LLM-ProcessMessage] {msg}")
-    chatobj: ChatObject = ctx.event.chat_object
+    chatobj: ChatObject = ctx.ctx.chat_object
     await chatobj.yield_response(StringMessageContent(msg))
     return f"Sent a message to user:\n\n```text\n{msg}\n```\n"
 
