@@ -20,7 +20,8 @@ from amrita_core.protocol import (
     MessageWithMetadata,
     StringMessageContent,
 )
-from amrita_core.types import USER_INPUT, ImageContent, ImageUrl
+from amrita_core.types import USER_INPUT, Content, ImageContent, ImageUrl
+from beartype.typing import Sequence
 from nonebot import get_driver
 from nonebot.adapters.onebot.v11 import (
     Bot,
@@ -160,13 +161,13 @@ async def send_response(chat: AmritaChatObject, response: str):
             )
 
 
-async def synthesize_message_to_msg(
+def synthesize_message_to_msg(
     event: MessageEvent,
     role: str,
     user_name: str,
     user_id: str,
     content: str,
-):
+) -> Sequence[Content] | str:
     """将消息转换为Message
 
     根据配置和多模态支持情况，将事件消息转换为适当的格式，
@@ -195,7 +196,7 @@ async def synthesize_message_to_msg(
     )
 
     if config_manager.config.parse_segments:
-        text = (
+        text: Sequence[Content] | str = (
             [TextContent(text=f"[{role}][{user_name}（{user_id}）]说:{content}")]
             + [
                 ImageContent(image_url=ImageUrl(url=seg.data["url"]))
@@ -246,15 +247,6 @@ async def entry(event: MessageEvent, matcher: Matcher, bot: Bot):
         elif isinstance(message, MessageWithMetadata):
             match message.metadata.get("type", ""):
                 case "system":
-                    if (
-                        message.content
-                        == "Some error occurred, please try again later."
-                    ):
-                        can_send_message = False
-                        await send_to_admin(
-                            f"安全警告：用户请求导致了可能的Prompt泄露。已在response检测到cookie泄露，请检查！\n用户请求：\n{chat.user_input!s}\n模型模型输出：\n{chat.response.content!s}"
-                        )
-                        await matcher.send(random.choice(config.llm.block_msg))
                     await matcher.send(message.content)
                 case "reasoning":
                     if not config.llm.tools.agent_reasoning_hide:
@@ -275,6 +267,12 @@ async def entry(event: MessageEvent, matcher: Matcher, bot: Bot):
                         else:
                             await matcher.send(f"调用了工具：{function_name}")
                 case "error":
+                    if message.metadata.get("extra_type") == "cookie":
+                        can_send_message = False
+                        await send_to_admin(
+                            f"安全警告：用户请求导致了可能的Prompt泄露。已在response检测到cookie泄露，请检查！\n用户请求：\n{chat.user_input!s}\n模型模型输出：\n{chat.response.content!s}"
+                        )
+                        return await matcher.send(random.choice(config.llm.block_msg))
                     error = message.metadata["error"]
                     logger.opt(exception=error, colors=True).exception(
                         f"有错误发生:{error}"
@@ -321,7 +319,7 @@ async def entry(event: MessageEvent, matcher: Matcher, bot: Bot):
         if isinstance(event, GroupMessageEvent)
         else ""
     )
-    content = await synthesize_message_to_msg(
+    content = synthesize_message_to_msg(
         event, role, str(user_name), str(event.user_id), content
     )
     if isinstance(content, list):
