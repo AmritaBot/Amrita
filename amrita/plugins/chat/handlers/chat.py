@@ -21,6 +21,7 @@ from amrita_core.protocol import (
     StringMessageContent,
 )
 from amrita_core.types import USER_INPUT, Content, ImageContent, ImageUrl
+from beartype.typing import Sequence
 from nonebot import get_driver
 from nonebot.adapters.onebot.v11 import (
     Bot,
@@ -166,7 +167,7 @@ def synthesize_message_to_msg(
     user_name: str,
     user_id: str,
     content: str,
-) -> list[Content] | str:
+) -> Sequence[Content] | str:
     """将消息转换为Message
 
     根据配置和多模态支持情况，将事件消息转换为适当的格式，
@@ -195,7 +196,7 @@ def synthesize_message_to_msg(
     )
 
     if config_manager.config.parse_segments:
-        text = (
+        text: Sequence[Content] | str = (
             [TextContent(text=f"[{role}][{user_name}（{user_id}）]说:{content}")]
             + [
                 ImageContent(image_url=ImageUrl(url=seg.data["url"]))
