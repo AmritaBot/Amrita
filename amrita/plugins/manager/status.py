@@ -16,7 +16,7 @@ from amrita.config import get_amrita_config
 from amrita.plugins.menu.models import MatcherData
 from amrita.plugins.perm.API.admin import is_lp_admin
 from amrita.plugins.perm.API.rules import any_has_permission
-from amrita.utils.utils import get_amrita_version
+from amrita.utils.utils import get_amrita_version, get_core_version
 
 from .models import get_usage
 
@@ -119,7 +119,9 @@ def create_system_info_image(system_info: list[str]):
         current_y += line_height
 
     # 绘制底部版本信息
-    version_info = f"Powered by Amrita@{get_amrita_version()}"
+    version_info = (
+        f"Powered by Amrita {get_amrita_version()}(Core: {get_core_version()})"
+    )
     version_bbox = draw.textbbox((0, 0), version_info, font=content_font)
     version_width = version_bbox[2] - version_bbox[0]
     version_x = (width - version_width) // 2

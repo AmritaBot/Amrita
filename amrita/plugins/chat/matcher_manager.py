@@ -148,7 +148,7 @@ base_matcher.on_command(
     "sessions",
     priority=10,
     block=True,
-    permission=is_bot_admin,
+    permission=is_group_admin_if_is_in_group,
     state=MatcherData(
         name="会话管理",
         description="管理当前所有会话",
@@ -158,7 +158,7 @@ base_matcher.on_command(
 
 base_matcher.on_command(
     "del_memory",
-    aliases={"失忆", "删除记忆", "删除历史消息", "删除回忆"},
+    aliases={"失忆", "删除记忆", "删除回忆"},
     block=True,
     priority=10,
     state=MatcherData(

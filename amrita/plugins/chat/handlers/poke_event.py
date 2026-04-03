@@ -164,7 +164,8 @@ async def process_poke_event(
         return "(发生了错误)"
 
     # 记录token使用情况
-    tokens = await get_tokens(send_messages, response)
+    tokens = get_tokens(send_messages, response)
+    assert tokens is not None, "tokens is None"
     input_tokens = tokens.prompt_tokens if hasattr(tokens, "prompt_tokens") else 0
     output_tokens = (
         tokens.completion_tokens if hasattr(tokens, "completion_tokens") else 0
