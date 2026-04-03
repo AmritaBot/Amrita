@@ -216,7 +216,7 @@ wheels = [
 
 [[package]]
 name = "amrita"
-version = "1.1.7"
+version = "1.1.8"
 source = { editable = "." }
 dependencies = [
     { name = "aiofiles" },
@@ -287,7 +287,7 @@ requires-dist = [
     { name = "aiopg", marker = "extra == 'full'", specifier = ">=1.4.0" },
     { name = "aiosqlite", marker = "extra == 'full'", specifier = ">=0.21.0" },
     { name = "alembic", marker = "extra == 'full'", specifier = "==1.16.4" },
-    { name = "amrita-core", specifier = ">=0.6.2" },
+    { name = "amrita-core", specifier = ">=0.7.2" },
     { name = "async-lru", marker = "extra == 'full'", specifier = ">=2.0.5" },
     { name = "bcrypt", marker = "extra == 'full'", specifier = ">=4.3.0" },
     { name = "click", specifier = ">=8.2.1" },
@@ -340,7 +340,7 @@ dev = [
 
 [[package]]
 name = "amrita-core"
-version = "0.6.2"
+version = "0.7.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiofiles" },
@@ -355,9 +355,9 @@ dependencies = [
     { name = "pydantic" },
     { name = "pytz" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/71/39/71d8891884746939c60bc54d83c0be83a0c0a674384494ae95ecb83ba7ee/amrita_core-0.6.2.tar.gz", hash = "sha256:e859f5f8d3fba5245a98330d4420368d5917e0079cf734dd428d61ab5cdf339e", size = 85412, upload-time = "2026-03-20T13:52:38.277Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/70/fc/0df327928090eb7f0f89331580f6815fc55c0e943b206d98dbb61eef4153/amrita_core-0.7.2.tar.gz", hash = "sha256:ace7b37b995d3d08590809144ec293d27803ee92f0bc0981191a74ba6b183246", size = 87763, upload-time = "2026-04-03T13:36:26.12Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/67/24/643912dbdec0aa7a029f73650ddee23d855ee6f64bf6fbb5e326ac623473/amrita_core-0.6.2-py3-none-any.whl", hash = "sha256:413fe4061aaa1f40442fc037cde19de2b2b0d4b3a883c9e140901047e9871f8d", size = 63510, upload-time = "2026-03-20T13:52:37.131Z" },
+    { url = "https://files.pythonhosted.org/packages/40/da/87326abb870e01612ed2194c50bfe374a8537f0b51d75603865287f2c85c/amrita_core-0.7.2-py3-none-any.whl", hash = "sha256:bf6d23730b1d36d33e2cb4ae4491116574cdc0c15424c4894a045eedb5e35371", size = 65961, upload-time = "2026-04-03T13:36:24.971Z" },
 ]
 
 [[package]]
@@ -1018,7 +1018,7 @@ wheels = [
 
 [[package]]
 name = "fastmcp"
-version = "3.0.2"
+version = "3.2.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "authlib" },
@@ -1038,13 +1038,14 @@ dependencies = [
     { name = "python-dotenv" },
     { name = "pyyaml" },
     { name = "rich" },
+    { name = "uncalled-for" },
     { name = "uvicorn" },
     { name = "watchfiles" },
     { name = "websockets" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/11/6b/1a7ec89727797fb07ec0928e9070fa2f45e7b35718e1fe01633a34c35e45/fastmcp-3.0.2.tar.gz", hash = "sha256:6bd73b4a3bab773ee6932df5249dcbcd78ed18365ed0aeeb97bb42702a7198d7", size = 17239351, upload-time = "2026-02-22T16:32:28.843Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/d0/32/4f1b2cfd7b50db89114949f90158b1dcc2c92a1917b9f57c0ff24e47a2f4/fastmcp-3.2.0.tar.gz", hash = "sha256:d4830b8ffc3592d3d9c76dc0f398904cf41f04910e41a0de38cc1004e0903bef", size = 26318581, upload-time = "2026-03-30T20:25:37.692Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/0a/5a/f410a9015cfde71adf646dab4ef2feae49f92f34f6050fcfb265eb126b30/fastmcp-3.0.2-py3-none-any.whl", hash = "sha256:f513d80d4b30b54749fe8950116b1aab843f3c293f5cb971fc8665cb48dbb028", size = 606268, upload-time = "2026-02-22T16:32:30.992Z" },
+    { url = "https://files.pythonhosted.org/packages/4f/67/684fa2d2de1e7504549d4ca457b4f854ccec3cd3be03bd86b33b599fbf58/fastmcp-3.2.0-py3-none-any.whl", hash = "sha256:e71aba3df16f86f546a4a9e513261d3233bcc92bef0dfa647bac3fa33623f681", size = 705550, upload-time = "2026-03-30T20:25:35.499Z" },
 ]
 
 [[package]]
@@ -3501,6 +3502,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/91/7a/146a99696aee0609e3712f2b44c6274566bc368dfe8375191278045186b8/uc-micro-py-1.0.3.tar.gz", hash = "sha256:d321b92cff673ec58027c04015fcaa8bb1e005478643ff4a500882eaab88c48a", size = 6043, upload-time = "2024-02-09T16:52:01.654Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/37/87/1f677586e8ac487e29672e4b17455758fce261de06a0d086167bb760361a/uc_micro_py-1.0.3-py3-none-any.whl", hash = "sha256:db1dffff340817673d7b466ec86114a9dc0e9d4d9b5ba229d9d60e5c12600cd5", size = 6229, upload-time = "2024-02-09T16:52:00.371Z" },
+]
+
+[[package]]
+name = "uncalled-for"
+version = "0.2.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/02/7c/b5b7d8136f872e3f13b0584e576886de0489d7213a12de6bebf29ff6ebfc/uncalled_for-0.2.0.tar.gz", hash = "sha256:b4f8fdbcec328c5a113807d653e041c5094473dd4afa7c34599ace69ccb7e69f", size = 49488, upload-time = "2026-02-27T17:40:58.137Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ff/7f/4320d9ce3be404e6310b915c3629fe27bf1e2f438a1a7a3cb0396e32e9a9/uncalled_for-0.2.0-py3-none-any.whl", hash = "sha256:2c0bd338faff5f930918f79e7eb9ff48290df2cb05fcc0b40a7f334e55d4d85f", size = 11351, upload-time = "2026-02-27T17:40:56.804Z" },
 ]
 
 [[package]]

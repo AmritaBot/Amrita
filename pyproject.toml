@@ -1,6 +1,6 @@
 [project]
 name = "amrita"
-version = "1.1.8"
+version = "1.1.9"
 description = "A powerful AI bot framework powered by NoneBot2"
 readme = "README.md"
 license = "GPL-3.0-or-later"
@@ -25,7 +25,7 @@ dependencies = [
     "nonebot-plugin-orm>=0.8.3",        # See https://github.com/nonebot/plugin-orm/issues/33
     "nb-cli==1.6.0",
     "watchfiles>=1.1.1",
-    "amrita-core>=0.6.2",
+    "amrita-core>=0.7.2",
 ]
 
 [project.optional-dependencies]
