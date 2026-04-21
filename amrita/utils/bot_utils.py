@@ -120,7 +120,7 @@ def init():
                 logger.warning(f"发送群消息失败: {e}")
 
     Path("plugins").mkdir(exist_ok=True)
-    logger.remove(amrita_core.logging.logger_id)
+    logger.remove(amrita_core.logging.logger_id.value)
     new_id = logger.add(
         sys.stdout,
         level=0,
@@ -130,7 +130,7 @@ def init():
     )
     nonebot.log.logger_id = new_id
     amrita_core.logging.logger = logger
-    amrita_core.logging.logger_id = new_id
+    amrita_core.logging.logger_id.value = new_id
     logger.add(AsyncErrorHandler(), level="ERROR")
     logger.add(EventRecorder(), level="WARNING")
     nonebot.init()
