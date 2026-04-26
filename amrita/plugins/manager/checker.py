@@ -1,11 +1,12 @@
 import asyncio
+import atexit
 import contextlib
 from collections import defaultdict
 from typing import Any, ClassVar
 from weakref import WeakSet
 
 import aiologic
-from nonebot import get_driver, on_command, on_message, on_notice
+from nonebot import on_command, on_message, on_notice
 from nonebot.adapters import Bot
 from nonebot.adapters.onebot.v11 import (
     GroupBanNoticeEvent,
@@ -204,12 +205,9 @@ async def _(
     task.add_done_callback(lambda t: _running_task.discard(t))
 
 
-@get_driver().on_shutdown
-async def _():
-    global _record_task, _running_task
-    if _record_task:
-        with contextlib.suppress(Exception):
-            _record_task.cancel()
+@atexit.register
+def _():
+    global _running_task
     if _running_task:
         tasks = list(_running_task)
         for task in tasks:
