@@ -274,6 +274,10 @@ class LLM_Config(BaseModel):
         default=["你好，这个问题我暂时无法处理，请稍后再试。"],
         description="触发安全熔断时随机返回的提示消息",
     )
+    agent_strategy: Literal["react", "hybrid-react", "no-action"] = Field(
+        default="react",
+        description="代理策略：react(仅使用ReAct) / hybrid-react(使用混合ReAct) / no-action(跳过Agent运行)",
+    )
 
 
 class Config(BaseModel):

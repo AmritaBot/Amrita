@@ -230,10 +230,11 @@ wheels = [
 
 [[package]]
 name = "amrita"
-version = "1.1.9"
+version = "1.1.9.1"
 source = { editable = "." }
 dependencies = [
     { name = "aiofiles" },
+    { name = "aiologic" },
     { name = "amrita-core" },
     { name = "click" },
     { name = "colorama" },
@@ -297,11 +298,12 @@ dev = [
 requires-dist = [
     { name = "aiofiles", specifier = ">=24.1.0" },
     { name = "aiohttp", marker = "extra == 'full'", specifier = ">=3.13.2" },
+    { name = "aiologic", specifier = ">=0.16.0" },
     { name = "aiomysql", marker = "extra == 'full'", specifier = ">=0.3.2" },
     { name = "aiopg", marker = "extra == 'full'", specifier = ">=1.4.0" },
     { name = "aiosqlite", marker = "extra == 'full'", specifier = ">=0.21.0" },
     { name = "alembic", marker = "extra == 'full'", specifier = "==1.16.4" },
-    { name = "amrita-core", specifier = ">=0.8.0,<0.9.0" },
+    { name = "amrita-core", specifier = ">=0.8.4,<0.9.0" },
     { name = "async-lru", marker = "extra == 'full'", specifier = ">=2.0.5" },
     { name = "bcrypt", marker = "extra == 'full'", specifier = ">=4.3.0" },
     { name = "click", specifier = ">=8.2.1" },
@@ -354,7 +356,7 @@ dev = [
 
 [[package]]
 name = "amrita-core"
-version = "0.8.2"
+version = "0.8.4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiofiles" },
@@ -371,9 +373,9 @@ dependencies = [
     { name = "pydantic" },
     { name = "pytz" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/8f/e8/e9f1ffb0ec5d31046b02a0e79dc1bce20e838350bc53c64cb63180b017d3/amrita_core-0.8.2.tar.gz", hash = "sha256:8f89b96f376fbe2ec2a1591d175a048877454b0516954863646ba9dd15c677f0", size = 102356, upload-time = "2026-04-19T14:38:43.298Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/98/66/12d645c49c31b6d357ff1d29f75ffd51c3dad1eec7424642f7b2b9d51eb0/amrita_core-0.8.4.tar.gz", hash = "sha256:79750f9168d9ddbc5e19093297881ef1d0b2826e2f78ec12e703ec58956c34f4", size = 107760, upload-time = "2026-04-25T12:19:34.302Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/90/7d/cdf4e579589dcc2fcc8e703e9b98635b182be7a1a6e99b11658d4483f400/amrita_core-0.8.2-py3-none-any.whl", hash = "sha256:75080aebc165fedb053963b38036b09aef9f8f3ba252d75c396bbf6369f83bf1", size = 76879, upload-time = "2026-04-19T14:38:45.234Z" },
+    { url = "https://files.pythonhosted.org/packages/48/4d/7ab46ac269e344b6bf74cc4c659b65b7860c44510f873f7df93040853218/amrita_core-0.8.4-py3-none-any.whl", hash = "sha256:873a07fc3b68e5aade98f1d8ac7115f32fdc1f836a20b4925547b387bef0f9c7", size = 80248, upload-time = "2026-04-25T12:19:33.228Z" },
 ]
 
 [[package]]

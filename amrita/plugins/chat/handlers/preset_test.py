@@ -1,7 +1,7 @@
 import asyncio
 import json
-from asyncio import Lock
 
+from aiologic import Lock
 from amrita_core import PresetManager, PresetReport
 from nonebot.adapters.onebot.v11 import Bot, Message, MessageEvent, MessageSegment
 from nonebot.matcher import Matcher

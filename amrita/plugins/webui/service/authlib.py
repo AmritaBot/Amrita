@@ -5,11 +5,11 @@ import random
 import re
 import secrets
 from abc import ABC
-from asyncio import Lock
 from datetime import datetime, timedelta
 from typing import TypeVar, overload
 
 import bcrypt
+from aiologic import Lock
 from fastapi import HTTPException, Request
 from nonebot import logger
 from pydantic import BaseModel, Field

@@ -1,6 +1,6 @@
-import asyncio
 from datetime import datetime, timedelta
 
+import aiologic
 from nonebot_plugin_orm import AsyncSession, Model, get_session
 from pydantic import BaseModel
 from sqlalchemy import (
@@ -20,9 +20,9 @@ from amrita.cache import WeakValueLRUCache
 _lock_pool = WeakValueLRUCache(2048, True)
 
 
-def lock(bid: str) -> asyncio.Lock:
+def lock(bid: str) -> aiologic.Lock:
     if (lock := _lock_pool.get(bid)) is None:
-        lock = asyncio.Lock()
+        lock = aiologic.Lock()
         _lock_pool.put(bid, lock)
     return lock
 

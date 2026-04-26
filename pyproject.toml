@@ -1,6 +1,6 @@
 [project]
 name = "amrita"
-version = "1.1.9.1"
+version = "1.1.10"
 description = "A powerful AI bot framework powered by NoneBot2"
 readme = "README.md"
 license = "GPL-3.0-or-later"
@@ -15,17 +15,18 @@ dependencies = [
     "nonebot-plugin-localstore>=0.7.4",
     "typing-extensions>=4.6.0",
     "uv>=0.8.12",
-    "requests>=2.0",                    # See https://github.com/twindb/backup/pull/465
+    "requests>=2.0", # See https://github.com/twindb/backup/pull/465
     "python-multipart>=0.0.20",
     "aiofiles>=24.1.0",
     "packaging>=25.0",
     "zipp>=3.23.0",
     "pytz>=2025.2",
     "tomlkit>=0.13.3",
-    "nonebot-plugin-orm>=0.8.3",        # See https://github.com/nonebot/plugin-orm/issues/33
+    "nonebot-plugin-orm>=0.8.3", # See https://github.com/nonebot/plugin-orm/issues/33
     "nb-cli==1.6.0",
     "watchfiles>=1.1.1",
-    "amrita-core>=0.8.0, <0.9.0",
+    "amrita-core>=0.8.4, <0.9.0",
+    "aiologic>=0.16.0",
 ]
 
 [project.optional-dependencies]

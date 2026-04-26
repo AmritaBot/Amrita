@@ -48,7 +48,7 @@ from amrita.plugins.chat.utils.lock import get_group_lock, get_private_lock
 from amrita.plugins.chat.utils.sql import InsightsModel, get_any_id, get_uni_user_id
 from amrita.utils.admin import send_to_admin
 
-from ..runtime import AmritaChatObject
+from ..runtime import CT_BREAKPOINT, AmritaChatObject
 
 command_prefix = get_driver().config.command_start or "/"
 
@@ -338,6 +338,7 @@ async def entry(event: MessageEvent, matcher: Matcher, bot: Bot):
         exception_ignored=(ProcessException, MatcherException),
     )
     chat.set_callback_func(filter)
+    task_bk = asyncio.create_task(chat.wait_to_suspend(CT_BREAKPOINT))
     try:
         lock = (
             get_group_lock(event.group_id)
@@ -357,12 +358,17 @@ async def entry(event: MessageEvent, matcher: Matcher, bot: Bot):
                 if lock.locked():
                     debug_log("聊天已被锁定，发送报告")
                     await matcher.finish("聊天任务正在处理中，请稍后再试")
-
-        async with lock:
-            chat.last_call = datetime.now(utc)
+        await asyncio.sleep(0)
+        async with chat.begin():
             chat._pending = False
-            debug_log("获取锁成功，开始获取记忆数据")
-            async with chat.begin():
+            debug_log("正在等待运行到断点...")
+
+            async with lock:
+                debug_log("获取锁成功，开始获取记忆数据")
+                chat.resume()
+                debug_log("继续运行...")
+                await asyncio.wait_for(task_bk, 5)  # 等断点继续
+                await asyncio.sleep(0)
                 await chat  # Wait for workflow to complete
                 chat.memory.memory_json = chat.data
                 await cudr.update_memory_data(chat.memory)
