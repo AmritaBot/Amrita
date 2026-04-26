@@ -1,12 +1,11 @@
 import asyncio
-import atexit
 import contextlib
 from collections import defaultdict
 from typing import Any, ClassVar
 from weakref import WeakSet
 
 import aiologic
-from nonebot import on_command, on_message, on_notice
+from nonebot import get_driver, on_command, on_message, on_notice
 from nonebot.adapters import Bot
 from nonebot.adapters.onebot.v11 import (
     GroupBanNoticeEvent,
@@ -49,7 +48,6 @@ watch_user = defaultdict(
 )
 
 _running_task: WeakSet[asyncio.Task] = WeakSet()
-_record_task = None
 
 conf = config.get_amrita_config()
 
@@ -205,7 +203,7 @@ async def _(
     task.add_done_callback(lambda t: _running_task.discard(t))
 
 
-@atexit.register
+@get_driver().on_shutdown
 def _():
     global _running_task
     if _running_task:
