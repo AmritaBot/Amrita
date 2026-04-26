@@ -3,21 +3,35 @@ import time
 from asyncio import CancelledError
 from dataclasses import dataclass, field
 from datetime import datetime
+from typing import Any, overload
 from uuid import uuid4
 
 from aiologic import Lock
+from amrita_core import (
+    AgentStrategy,
+    ModelPreset,
+    SuspendObjectStream,
+    ToolResult,
+    get_config,
+)
 from amrita_core import (
     ChatObject as CoreChatObject,
 )
 from amrita_core import (
     ChatObjectMeta as CoreChatObjectMeta,
 )
-from amrita_core import (
-    SuspendObjectStream,
-    ToolResult,
-    get_config,
+from amrita_core.chatmanager import (
+    DEFAULT_TEMPLATE,
+    RESPONSE_CALLBACK_TYPE,
+    USER_INPUT,
+    Memory,
+    Message,
+    ReActAgentStrategy,
+    Template,
 )
-from amrita_core.chatmanager import chat_manager as core_chat_manager
+from amrita_core.chatmanager import (
+    chat_manager as core_chat_manager,
+)
 from amrita_core.config import AmritaConfig
 from amrita_core.logging import debug_log
 from nonebot import logger
@@ -48,6 +62,7 @@ from .utils.sql import (
 
 LOCK = Lock()
 CT_BREAKPOINT = "ChatObject::_run"
+
 
 @final
 class ChatObjectMeta(CoreChatObjectMeta):
@@ -83,6 +98,38 @@ class AmritaChatObject(CoreChatObject):
             bool: 如果任务正在等待则返回True，否则返回False
         """
         return self._pending
+
+    @overload
+    def __init__(
+        self,
+        event: MessageEvent,
+        matcher: Matcher,
+        bot: Bot,
+    ): ...
+    @overload
+    def __init__(
+        self,
+        event: MessageEvent,
+        matcher: Matcher,
+        bot: Bot,
+        train: dict[str, str] | Message[str],
+        user_input: USER_INPUT,
+        context: Memory | None,
+        session_id: str,
+        callback: RESPONSE_CALLBACK_TYPE = None,
+        config: AmritaConfig | None = None,
+        preset: ModelPreset | None = None,
+        auto_create_session: bool = False,
+        *,
+        train_template: Template = DEFAULT_TEMPLATE,
+        jinja2_vars: dict[str, Any] | None = None,
+        agent_strategy: type[AgentStrategy] = ReActAgentStrategy,
+        hook_args: tuple[Any, ...] = (),
+        hook_kwargs: dict[str, Any] | None = None,
+        exception_ignored: tuple[type[BaseException], ...] = (),
+        queue_size: int = 45,
+        queue_timeout: float | None = 10.0,
+    ): ...
 
     def __init__(
         self,

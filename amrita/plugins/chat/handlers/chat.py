@@ -14,6 +14,11 @@ from amrita_core import (
     debug_log,
     logger,
 )
+from amrita_core.builtins.agent import (
+    HybridReActAgentStrategy,
+    NoActionAgentStrategy,
+    ReActAgentStrategy,
+)
 from amrita_core.protocol import (
     COMPLETION_RETURNING,
     ImageMessage,
@@ -324,6 +329,15 @@ async def entry(event: MessageEvent, matcher: Matcher, bot: Bot):
     )
     if isinstance(content, list):
         content.extend(reply_pics)
+    match config.llm.agent_strategy:
+        case "react":
+            strategy = ReActAgentStrategy
+        case "hybrid-react":
+            strategy = HybridReActAgentStrategy
+        case "no-action":
+            strategy = NoActionAgentStrategy
+        case _:
+            raise ValueError(f"Invalid agent strategy: {config.llm.agent_strategy}")
     chat: AmritaChatObject = AmritaChatObject(
         event=event,
         matcher=matcher,
@@ -336,6 +350,7 @@ async def entry(event: MessageEvent, matcher: Matcher, bot: Bot):
         preset=PresetManager().get_preset(config.preset),
         hook_args=(event, matcher, bot),
         exception_ignored=(ProcessException, MatcherException),
+        agent_strategy=strategy,
     )
     chat.set_callback_func(filter)
     task_bk = asyncio.create_task(chat.wait_to_suspend(CT_BREAKPOINT))
