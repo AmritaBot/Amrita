@@ -350,7 +350,7 @@ async def entry(event: MessageEvent, matcher: Matcher, bot: Bot):
         preset=PresetManager().get_preset(config.preset),
         hook_args=(event, matcher, bot),
         exception_ignored=(ProcessException, MatcherException),
-        strategy=strategy,
+        agent_strategy=strategy,
     )
     chat.set_callback_func(filter)
     task_bk = asyncio.create_task(chat.wait_to_suspend(CT_BREAKPOINT))

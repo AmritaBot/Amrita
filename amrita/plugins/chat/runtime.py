@@ -63,6 +63,7 @@ from .utils.sql import (
 LOCK = Lock()
 CT_BREAKPOINT = "ChatObject::_run"
 
+
 @final
 class ChatObjectMeta(CoreChatObjectMeta):
     """聊天对象元数据模型
@@ -104,6 +105,13 @@ class AmritaChatObject(CoreChatObject):
         event: MessageEvent,
         matcher: Matcher,
         bot: Bot,
+    ): ...
+    @overload
+    def __init__(
+        self,
+        event: MessageEvent,
+        matcher: Matcher,
+        bot: Bot,
         train: dict[str, str] | Message[str],
         user_input: USER_INPUT,
         context: Memory | None,
@@ -121,16 +129,6 @@ class AmritaChatObject(CoreChatObject):
         exception_ignored: tuple[type[BaseException], ...] = (),
         queue_size: int = 45,
         queue_timeout: float | None = 10.0,
-    ): ...
-
-    @overload
-    def __init__(
-        self,
-        event: MessageEvent,
-        matcher: Matcher,
-        bot: Bot,
-        *args,
-        **kwargs,
     ): ...
 
     def __init__(
