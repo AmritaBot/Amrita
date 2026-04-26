@@ -46,6 +46,8 @@ class AmritaConfig(BaseModel):
     # 是否自动通过拉群申请
     auto_approve_group_request: bool = True
 
+    usage_check_time: float = 400  # 添加usage的时间间隔(ms)
+
     @model_validator(mode="after")
     def _vali(self):
         if 10000 > self.admin_group > 0:

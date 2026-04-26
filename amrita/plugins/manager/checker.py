@@ -1,11 +1,11 @@
 import asyncio
 import contextlib
 from collections import defaultdict
-from typing import Any
+from typing import Any, ClassVar
 from weakref import WeakSet
 
 import aiologic
-from nonebot import get_driver, logger, on_command, on_message, on_notice
+from nonebot import get_driver, on_command, on_message, on_notice
 from nonebot.adapters import Bot
 from nonebot.adapters.onebot.v11 import (
     GroupBanNoticeEvent,
@@ -30,7 +30,7 @@ from nonebot.rule import (
 from pydantic import BaseModel
 from typing_extensions import Self
 
-from amrita import get_amrita_config
+from amrita import config, get_amrita_config
 from amrita.cache import WeakValueLRUCache
 from amrita.plugins.menu.models import MatcherData
 from amrita.plugins.perm.API.admin import is_lp_admin
@@ -47,42 +47,32 @@ watch_user = defaultdict(
     lambda: TokenBucket(rate=1 / get_amrita_config().rate_limit, capacity=1)
 )
 
-# 用于存储待处理的usage调用
-_usage_queue: list[tuple[str, int, int]] = []  # list of (self_id, msg_count, api_count)
 _running_task: WeakSet[asyncio.Task] = WeakSet()
-_usage_lock = aiologic.Lock()
 _record_task = None
 
-
-async def _process_usage_queue():
-    """后台任务：持续从队列中处理usage数据"""
-    with contextlib.suppress(asyncio.CancelledError):
-        while True:
-            if len(_usage_queue) > 0:
-                async with _usage_lock:
-                    if len(_usage_queue) > 1:
-                        self_id = _usage_queue[0][0]
-                        msg_count = sum(item[1] for item in _usage_queue)
-                        api_count = sum(item[2] for item in _usage_queue)
-                        _usage_queue.clear()
-
-                    else:
-                        self_id, msg_count, api_count = _usage_queue.pop(0)
-
-                try:
-                    await add_usage(self_id, msg_count, api_count)
-                except asyncio.CancelledError:
-                    break
-                except Exception as e:
-                    logger.warning(f"Failed to add usage: {e}")
-            await asyncio.sleep(0.2)  # 每200ms检查一次队列
+conf = config.get_amrita_config()
 
 
-def _start_usage_processor():
-    """启动后台任务处理队列"""
-    global _record_task
-    if not _record_task:
-        _record_task = asyncio.create_task(_process_usage_queue())
+class UsageInsights:
+    _record_lock: aiologic.Lock = aiologic.Lock()
+    _record_tmp: ClassVar[list[tuple[str, int, int]]] = []
+    _list_lock: aiologic.Lock = aiologic.Lock()
+
+    @classmethod
+    async def record_usage(cls, dt: tuple[str, int, int]):
+        async with cls._list_lock:
+            cls._record_tmp.append(dt)
+        async with cls._record_lock:
+            if not cls._record_tmp:
+                return
+            async with cls._list_lock:
+                temp_list = list(cls._record_tmp)
+                cls._record_tmp.clear()
+            self_id = temp_list[0][0]
+            msg_count = sum(item[1] for item in temp_list)
+            api_count = sum(item[2] for item in temp_list)
+            await add_usage(self_id, msg_count, api_count)
+            await asyncio.sleep(max(conf.usage_check_time / 1000, 0))
 
 
 class APICalledRepo:
@@ -159,10 +149,7 @@ async def _(event: MessageEvent, matcher: Matcher, args: Message = CommandArg())
 @on_message(priority=1, block=False).handle()
 async def _(bot: Bot):
     async def _add():
-        _start_usage_processor()
-
-        async with _usage_lock:
-            _usage_queue.append((bot.self_id, 1, 0))
+        await UsageInsights.record_usage((str(bot.self_id), 1, 0))
 
     task = asyncio.create_task(_add())
     _running_task.add(task)
@@ -208,11 +195,7 @@ async def _(
 ):
     async def _add():
         if "send" in api and "msg" in api:
-            # 确保后台任务已经启动
-            _start_usage_processor()
-
-            async with _usage_lock:
-                _usage_queue.append((bot.self_id, 0, 1))
+            await UsageInsights.record_usage((str(bot.self_id), 0, 1))
 
     await APICalledRepo().push(api, exception is None)
 

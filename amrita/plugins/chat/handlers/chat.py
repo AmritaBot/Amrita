@@ -373,28 +373,29 @@ async def entry(event: MessageEvent, matcher: Matcher, bot: Bot):
                 if lock.locked():
                     debug_log("聊天已被锁定，发送报告")
                     await matcher.finish("聊天任务正在处理中，请稍后再试")
+        chat.begin()
         await asyncio.sleep(0)
-        async with chat.begin():
-            chat._pending = False
-            debug_log("正在等待运行到断点...")
+        chat._pending = False
+        debug_log("正在等待运行到断点...")
 
-            async with lock:
-                debug_log("获取锁成功，开始获取记忆数据")
-                chat.resume()
-                debug_log("继续运行...")
-                await asyncio.wait_for(task_bk, 5)  # 等断点继续
-                await asyncio.sleep(0)
-                await chat  # Wait for workflow to complete
-                chat.memory.memory_json = chat.data
-                await cudr.update_memory_data(chat.memory)
-                if can_send_message:
-                    await send_response(chat, chat.response.content)
+        async with lock:
+            await asyncio.wait_for(task_bk, 5)
+            debug_log("获取锁成功")
+            chat.resume()
+            debug_log("继续运行...")
+
+            await chat  # Wait for workflow to complete
+            chat.memory.memory_json = chat.data
+            await cudr.update_memory_data(chat.memory)
+            if can_send_message:
+                await send_response(chat, chat.response.content)
 
     except BaseException as e:
         if isinstance(e, (NoneBotException, ChatException)):
             raise
         await chat._throw(e)
     finally:
+        task_bk.cancel()
         response: UniResponse[str, None] | None
         if (response := getattr(chat, "response", None)) is not None:
             insights = await InsightsModel.get()

@@ -77,6 +77,8 @@ async def get_usage(bot_id: str) -> list[DailyUsagePydantic]:
 
 
 async def add_usage(bot_id: str, msg_received: int, msg_sent: int):
+    if not msg_received and not msg_sent:
+        return
     async with lock(bot_id):
         async with get_session() as session:
             await expire_usage(session)
