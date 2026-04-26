@@ -1,9 +1,11 @@
 import contextlib
 import time
-from asyncio import CancelledError, Lock
+from asyncio import CancelledError
 from dataclasses import dataclass, field
 from datetime import datetime
+from uuid import uuid4
 
+from aiologic import Lock
 from amrita_core import (
     ChatObject as CoreChatObject,
 )
@@ -11,9 +13,11 @@ from amrita_core import (
     ChatObjectMeta as CoreChatObjectMeta,
 )
 from amrita_core import (
+    SuspendObjectStream,
     ToolResult,
     get_config,
 )
+from amrita_core.chatmanager import chat_manager as core_chat_manager
 from amrita_core.config import AmritaConfig
 from amrita_core.logging import debug_log
 from nonebot import logger
@@ -43,7 +47,7 @@ from .utils.sql import (
 )
 
 LOCK = Lock()
-
+CT_BREAKPOINT = "ChatObject::_run"
 
 @final
 class ChatObjectMeta(CoreChatObjectMeta):
@@ -116,6 +120,36 @@ class AmritaChatObject(CoreChatObject):
         self.config = get_config()
 
     @override
+    @CoreChatObject.monitoring
+    @SuspendObjectStream.suspend
+    async def _entry(self) -> None:
+        """Call chat object to process messages"""
+        if not self._is_running and not self._is_done:
+            self.stream_id = uuid4().hex
+            logger.debug(f"Starting chat processing, stream ID:{self.stream_id}")
+
+            try:
+                self._is_running = True
+                await core_chat_manager.add_chat_object(self)
+                await self._wait_for_continue(CT_BREAKPOINT)
+                await self._run()
+            finally:
+                self._is_running = False
+                self._is_done = True
+                self.end_at = datetime.now(utc)
+                core_chat_manager.running_chat_object_id2map.pop(self.stream_id, None)
+                core_chat_manager.clean_obj(
+                    self.session_id, 1000
+                )  # To avoid memory leaks
+                logger.debug("Chat event processing completed")
+
+        else:
+            raise RuntimeError(
+                f"ChatObject of {self.stream_id} is already running or done"
+            )
+
+    @override
+    @SuspendObjectStream.suspend
     async def _run(self) -> None:
         """运行聊天处理流程
 
@@ -124,7 +158,6 @@ class AmritaChatObject(CoreChatObject):
         """
         debug_log("开始运行聊天处理流程..")
         event = self.event
-        config = self.bot_config
         self.memory = await CachedUserDataRepository().get_memory(*get_any_id(event))
         for mem in self.memory.memory_json.messages:
             if (
@@ -141,16 +174,14 @@ class AmritaChatObject(CoreChatObject):
 
         debug_log(f"添加用户消息到记忆，当前消息总数: {len(data.messages)}")
 
-        self.train["content"] = (
+        self.train.content = (
             "<SCHEMA_EXTENSIONS>\n"
             + "你在纯文本环境工作，不允许使用MarkDown回复，你的工作环境是一个社交软件，我会提供聊天记录，你可以从这里面获取一些关键信息，比如时间与用户身份"
             + "（e.g.: [管理员/群主/自己/群员][YYYY-MM-DD weekday hh:mm:ss AM/PM][昵称（QQ号）]说:<内容>），但是请不要以聊天记录的格式做回复，而是纯文本方式。"
             + "请以你自己的角色身份参与讨论，交流时不同话题尽量不使用相似句式回复，用户与你交谈的信息在用户的消息输入内。<EXTRA>规则仅作为补充，如果与EXTRA规则上文有冲突，请遵循上文规则。"
             + "\n</SCHEMA_EXTENSION>\n"
             + (
-                self.train["content"]
-                .replace("{cookie}", config.cookies.cookie)
-                .replace("{self_id}", str(event.self_id))
+                self.train.content.replace("{self_id}", str(event.self_id))
                 .replace("{user_id}", str(event.user_id))
                 .replace("{user_name}", str(event.sender.nickname))
             )
@@ -163,6 +194,7 @@ class AmritaChatObject(CoreChatObject):
 
         await super()._run()
 
+    @SuspendObjectStream.suspend
     async def _manage_sessions(
         self,
     ):
@@ -214,11 +246,9 @@ class AmritaChatObject(CoreChatObject):
                     CachedUserDataRepository._cached_memory.pop(uni_id, None)
                     self.memory.memory_json = data
                     await CachedUserDataRepository().update_memory_data(self.memory)
-                    if (
-                        (time_now - timestamp)
-                        <= float(config.session.session_control_time * 60 * 2)
-                        and config.session.session_allow_continue
-                    ):
+                    if (time_now - timestamp) <= float(
+                        config.session.session_control_time * 60 * 2
+                    ) and config.session.session_allow_continue:
                         debug_log("发送继续聊天提示")
                         chated = await matcher.send(
                             f'如果想和我继续用之前的上下文聊天，快at我回复✨"继续"✨吧！\n（超过{config.session.session_control_time}分钟没理我我就会被系统抱走存档哦！）'
@@ -253,6 +283,7 @@ class AmritaChatObject(CoreChatObject):
                 data.time = time.time()
                 debug_log("会话上下文管理完成")
 
+    @SuspendObjectStream.suspend
     async def _throw(self, e: BaseException):
         """处理异常：
         - 通知用户出错。

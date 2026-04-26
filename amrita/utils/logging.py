@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from asyncio import Lock
 from datetime import datetime
 from pathlib import Path
 from typing import Literal
 
 import aiofiles
+from aiologic import Lock
 from pydantic import BaseModel, Field
 
 from amrita.config import get_amrita_config

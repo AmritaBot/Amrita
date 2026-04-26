@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import time
 import typing
-from asyncio import Lock
 from collections import defaultdict
 
 import nonebot
+from aiologic import Lock
 from nonebot import logger
 from nonebot.adapters.onebot.v11 import Bot, MessageSegment
 

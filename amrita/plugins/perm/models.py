@@ -1,9 +1,9 @@
 from abc import ABC
-from asyncio import Lock
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Literal
 
+from aiologic import Lock
 from nonebot_plugin_orm import Model, get_session
 from pydantic import BaseModel as B_Model
 from sqlalchemy import (

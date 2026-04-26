@@ -4,6 +4,7 @@ from collections import defaultdict
 from typing import Any
 from weakref import WeakSet
 
+import aiologic
 from nonebot import get_driver, logger, on_command, on_message, on_notice
 from nonebot.adapters import Bot
 from nonebot.adapters.onebot.v11 import (
@@ -49,7 +50,7 @@ watch_user = defaultdict(
 # 用于存储待处理的usage调用
 _usage_queue: list[tuple[str, int, int]] = []  # list of (self_id, msg_count, api_count)
 _running_task: WeakSet[asyncio.Task] = WeakSet()
-_usage_lock = asyncio.Lock()
+_usage_lock = aiologic.Lock()
 _record_task = None
 
 
@@ -86,7 +87,7 @@ def _start_usage_processor():
 
 class APICalledRepo:
     _repo: defaultdict[str, tuple[int, int]]  # (count, successful_count, cost)
-    _lock_pool: WeakValueLRUCache[str, asyncio.Lock]
+    _lock_pool: WeakValueLRUCache[str, aiologic.Lock]
     _instance = None
 
     def __new__(cls) -> Self:
@@ -117,7 +118,7 @@ class APICalledRepo:
 
     def _lock(self, api: str):
         if (lock := self._lock_pool.get(api)) is None:
-            lock = asyncio.Lock()
+            lock = aiologic.Lock()
             self._lock_pool[api] = lock
         return lock
 

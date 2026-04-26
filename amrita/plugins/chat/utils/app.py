@@ -1,8 +1,8 @@
 # Pydantic Models
-from asyncio import Lock
 from collections.abc import Mapping, Sequence
 from datetime import datetime
 
+from aiologic import Lock
 from amrita_core import MemoryModel as Memory
 from pydantic import BaseModel as PydanticBaseModel
 from pydantic import ConfigDict as PydConf
@@ -163,11 +163,10 @@ class CachedUserDataRepository:
         """!此方法没有缓存!"""
         uni_id = self.make_uni_id(any_id, is_group)
         # 因为缓存数据可能更新不及时，并且更新也麻烦，因为它不常访问，sessions归档这里就没有再做缓存了，只是简单校验了离线模型。
-        async with self.make_lock(uni_id):
-            async with UserDataExecutor(uni_id) as exc:
-                sessions = await exc.get_or_load_sessions()
-                data = [MemorySessionsSchema.model_validate(s) for s in sessions]
-            return data
+        async with UserDataExecutor(uni_id) as exc:  # 这里没有缓存的逻辑，所以不带锁。
+            sessions = await exc.get_or_load_sessions()
+            data = [MemorySessionsSchema.model_validate(s) for s in sessions]
+        return data
 
     async def update_group_config(self, data: GroupConfigSchema) -> None:
         uni_id = data.user_id

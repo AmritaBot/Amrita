@@ -2,11 +2,12 @@ from __future__ import annotations
 
 import re
 import time
-from asyncio import Lock, Protocol
+from asyncio import Protocol
 from collections.abc import Sequence
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, Literal, TypeVar
 
+from aiologic import Lock
 from amrita_core.types import (
     _T,
     CT_MAP,
@@ -380,7 +381,7 @@ class UserDataExecutor:
 
     async def __aenter__(self) -> Self:
         self._entered = True
-        await self._lock.acquire()
+        await self._lock.__aenter__()
         self._transaction = self.session.begin()
         if self._arg_session is None:
             await self.session.__aenter__()
@@ -401,7 +402,7 @@ class UserDataExecutor:
                 await self.session.__aexit__(exc_type, exc_value, traceback)
         finally:
             self._entered = False
-            self._lock.release()
+            await self._lock.__aexit__(exc_type, exc_value, traceback)
 
     async def _get_or_create_any(self, model: type[SqlModel_T], **kwargs) -> SqlModel_T:
         stmt = select(model).where(model.user_id == self.user_id)
